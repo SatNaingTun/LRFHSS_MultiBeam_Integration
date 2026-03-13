@@ -1,0 +1,41 @@
+{
+  "workflow": [
+    "START",
+    "Initialize simulation parameters",
+    "Compute satellite orbit",
+    "Generate visibility windows",
+    "Generate IoT nodes",
+    "Assign LR-FHSS packets",
+    "Check satellite visibility",
+    "Select satellite power mode",
+    "Transmit fragments",
+    "Detect collisions",
+    "Allocate demodulators",
+    "Baseline packet decoding",
+    "Store metrics",
+    "Generate performance plots",
+    "END"
+  ],
+  "power_mode_logic": {
+    "0": "sleep",
+    "1_to_199": "idle",
+    "200_plus": "busy"
+  },
+  "node_range": {
+    "min": 10,
+    "max": 1500,
+    "points": 14
+  },
+  "metrics_json": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\heavy_load_metrics.json",
+  "metrics_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\heavy_load_metrics.csv",
+  "plots": {
+    "all_series": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\heavy_load_demodulator_constraints.png",
+    "by_power_mode": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\decoded_payloads_by_power_mode.png"
+  },
+  "visibility_windows": [
+    [
+      13052,
+      77074
+    ]
+  ]
+}
