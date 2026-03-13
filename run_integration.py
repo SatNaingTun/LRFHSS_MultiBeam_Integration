@@ -1,4 +1,6 @@
 import argparse
+import subprocess
+import sys
 from pathlib import Path
 
 from workflow import run_workflow
@@ -34,6 +36,21 @@ def parse_args():
 
 def main():
     args = parse_args()
+
+    if (not args.multi_beam_root.exists()) or (not args.lrfhss_root.exists()):
+        ensure_script = Path(__file__).resolve().parent / "ensure_reference_paths.py"
+        subprocess.run(
+            [
+                sys.executable,
+                str(ensure_script),
+                "--multi-beam-root",
+                str(args.multi_beam_root),
+                "--lrfhss-root",
+                str(args.lrfhss_root),
+            ],
+            check=True,
+        )
+
     run_workflow(
         multi_beam_root=args.multi_beam_root,
         lrfhss_root=args.lrfhss_root,

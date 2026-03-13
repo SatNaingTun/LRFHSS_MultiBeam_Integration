@@ -35,6 +35,18 @@ def power_mode(nodes):
 python run_integration.py
 ```
 
+If `Multi-Beam-LEO-Framework` or `LR-FHSS_LEO` does not exist in the SNT parent folder, `run_integration.py`
+automatically runs `ensure_reference_paths.py` to download/extract or clone them.
+
+## Sample Commands
+```powershell
+python run_integration.py --nodes 0 2 7 15 40 90 180 260 400 700 1000 1500 --demods 10 30 50 70 100 300 500 700 1000
+```
+
+```powershell
+python run_integration.py --help
+```
+
 ## Outputs
 - `results/heavy_load/heavy_load_metrics.json`
 - `results/heavy_load/heavy_load_metrics.csv`
