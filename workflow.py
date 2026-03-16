@@ -126,7 +126,7 @@ def baseline_packet_decoding(LoRaNetwork, node_count: int, demods: int, use_earl
     network = LoRaNetwork(
         numNodes=node_count,
         familyname="driver",
-        numOCW=1,
+        numOCW=7,
         numOBW=280,
         numGrids=8,
         CR=1,

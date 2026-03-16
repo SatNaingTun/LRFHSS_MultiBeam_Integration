@@ -25,10 +25,10 @@ def parse_args():
         "--nodes",
         type=int,
         nargs="+",
-        default=[0, 1, 5, 10, 20, 50, 100, 150, 200, 300, 500, 800, 1000, 1200, 1500],
+        default=[0, 2, 7, 15, 40, 90, 180, 260, 400, 700, 1000, 1500],
         help="Explicit node list; overrides --node-min/--node-max/--node-points.",
     )
-    parser.add_argument("--demods", type=int, nargs="+", default=[10, 100, 1000])
+    parser.add_argument("--demods", type=int, nargs="+", default=[10, 30, 50, 70, 100, 300, 500, 700, 1000])
     return parser.parse_args()
 
 
