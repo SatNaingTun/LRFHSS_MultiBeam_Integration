@@ -27,16 +27,30 @@ def plot_frame_summary(data: dict, out_dir: Path):
     decoded_bytes = [f.get("total_decoded_bytes", 0) for f in frames]
 
     fig, ax1 = plt.subplots(figsize=(8, 5))
-    ax1.plot(x, decoded_ratio, marker="o", color="tab:blue", label="Decoded HDR+PLD Ratio")
+    ax1.plot(
+        x,
+        decoded_ratio,
+        marker="o",
+        linestyle="-",
+        color="#0072B2",
+        label="Decoded HDR+PLD Ratio",
+    )
     ax1.set_xlabel("Elevation Angle (deg)")
-    ax1.set_ylabel("Decoded HDR+PLD Ratio", color="tab:blue")
-    ax1.tick_params(axis="y", labelcolor="tab:blue")
+    ax1.set_ylabel("Decoded HDR+PLD Ratio", color="#0072B2")
+    ax1.tick_params(axis="y", labelcolor="#0072B2")
     ax1.grid(True, linestyle=":", alpha=0.5)
 
     ax2 = ax1.twinx()
-    ax2.plot(x, decoded_bytes, marker="s", color="tab:orange", label="Decoded Bytes")
-    ax2.set_ylabel("Decoded Bytes", color="tab:orange")
-    ax2.tick_params(axis="y", labelcolor="tab:orange")
+    ax2.plot(
+        x,
+        decoded_bytes,
+        marker="s",
+        linestyle="--",
+        color="#D55E00",
+        label="Decoded Bytes",
+    )
+    ax2.set_ylabel("Decoded Bytes", color="#D55E00")
+    ax2.tick_params(axis="y", labelcolor="#D55E00")
 
     fig.suptitle("Workflow Performance vs Elevation Angle")
     fig.tight_layout()
@@ -103,7 +117,8 @@ def plot_per_beam_heatmap(data: dict, out_dir: Path):
     arr = np.array(heat)
 
     fig, ax = plt.subplots(figsize=(10, 4 + 0.3 * len(frames)))
-    im = ax.imshow(arr, aspect="auto", cmap="YlGn", vmin=0.0, vmax=1.0)
+    # 'cividis' is perceptually uniform and generally color-vision-deficiency friendly.
+    im = ax.imshow(arr, aspect="auto", cmap="cividis", vmin=0.0, vmax=1.0)
 
     ax.set_xticks(np.arange(len(beam_ids)))
     ax.set_xticklabels([str(i) for i in beam_ids], rotation=0)

@@ -169,7 +169,18 @@ def store_metrics(records: list[dict], output_dir: Path):
 def generate_performance_plots(records: list[dict], output_dir: Path):
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    colors = ["#1f77b4", "#2ca02c", "#9467bd", "#d62728", "#17becf", "#8c564b"]
+    # Okabe-Ito palette (color-blind-safe) + style cycles for print/grayscale readability.
+    colors = [
+        "#0072B2",  # blue
+        "#E69F00",  # orange
+        "#009E73",  # bluish green
+        "#D55E00",  # vermillion
+        "#CC79A7",  # reddish purple
+        "#56B4E9",  # sky blue
+        "#000000",  # black
+    ]
+    markers = ["o", "s", "^", "D", "P", "X", "v", "<", ">"]
+    line_styles = ["-", "--", "-.", ":"]
 
     # Plot 1: all series
     series = {}
@@ -184,14 +195,14 @@ def generate_performance_plots(records: list[dict], output_dir: Path):
         x = np.array(vals["x"])
         y = np.array(vals["y"])
         order = np.argsort(x)
-        line_style = "-"
+        line_style = line_styles[idx % len(line_styles)]
         ax.plot(
             x[order],
             y[order],
             linestyle=line_style,
-            marker="o",
+            marker=markers[idx % len(markers)],
             linewidth=1.6,
-            markersize=4,
+            markersize=5,
             color=colors[idx % len(colors)],
             label=f"{mode_label} {demods} demods",
         )
@@ -227,14 +238,14 @@ def generate_performance_plots(records: list[dict], output_dir: Path):
             x = np.array(vals["x"])
             y = np.array(vals["y"])
             order = np.argsort(x)
-            line_style = "-"
+            line_style = line_styles[idx % len(line_styles)]
             ax.plot(
                 x[order],
                 y[order],
                 linestyle=line_style,
-                marker="o",
+                marker=markers[idx % len(markers)],
                 linewidth=1.4,
-                markersize=3.5,
+                markersize=4.5,
                 color=colors[idx % len(colors)],
                 label=f"{mode_label} {demods} demods",
             )

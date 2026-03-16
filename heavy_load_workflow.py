@@ -201,6 +201,18 @@ def store_metrics(records: list[dict], output_dir: Path):
 
 def generate_performance_plots(records: list[dict], output_dir: Path):
     output_dir.mkdir(parents=True, exist_ok=True)
+    # Okabe-Ito palette (color-blind-safe) + non-color encodings for readability.
+    palette = [
+        "#0072B2",  # blue
+        "#E69F00",  # orange
+        "#009E73",  # bluish green
+        "#D55E00",  # vermillion
+        "#CC79A7",  # reddish purple
+        "#56B4E9",  # sky blue
+        "#000000",  # black
+    ]
+    markers = ["o", "s", "^", "D", "P", "X", "v", "<", ">"]
+    line_styles = ["-", "--", "-.", ":"]
 
     # group by series
     series = {}
@@ -211,24 +223,22 @@ def generate_performance_plots(records: list[dict], output_dir: Path):
         series[key]["y"].append(r["decoded_payloads"])
 
     fig, ax = plt.subplots(figsize=(9, 6))
-    colors = {10: "#1f77b4", 100: "#2ca02c", 1000: "#9467bd"}
-
-    for (mode_label, demods), vals in sorted(series.items(), key=lambda t: (t[0][1], t[0][0])):
+    for idx, ((mode_label, demods), vals) in enumerate(sorted(series.items(), key=lambda t: (t[0][1], t[0][0]))):
         x = np.array(vals["x"])
         y = np.array(vals["y"])
         order = np.argsort(x)
         x = x[order]
         y = y[order]
 
-        ls = "--" if mode_label == "Early" else "-"
+        ls = line_styles[idx % len(line_styles)] if mode_label == "Baseline" else "--"
         ax.plot(
             x,
             y,
             linestyle=ls,
-            marker="o",
+            marker=markers[idx % len(markers)],
             linewidth=1.6,
-            markersize=4,
-            color=colors.get(demods, None),
+            markersize=5,
+            color=palette[idx % len(palette)],
             label=f"{mode_label} {demods} demods",
         )
 

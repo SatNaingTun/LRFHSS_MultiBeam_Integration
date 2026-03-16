@@ -9,8 +9,7 @@ from pathlib import Path
 
 LRFHSS_GIT_URL = "git@github.com:SatNaingTun/LR-FHSS_LEO.git"
 MULTI_BEAM_ZIP_URL = (
-    "https://researchdata.tuwien.at/records/j31fx-wf765/files/"
-    "Multi-Beam-LEO-Framework.zip?download=1"
+    "https://researchdata.tuwien.at/records/j31fx-wf765/files/Multi-Beam-LEO-Framework.zip?download=1"
 )
 
 
@@ -74,9 +73,22 @@ def ensure_paths(multi_beam_root: Path, lrfhss_root: Path) -> None:
 
 
 def parse_args():
+    integration_root = Path(__file__).resolve().parent
+    snt_root = integration_root.parent
+
     parser = argparse.ArgumentParser(description="Ensure required external reference repositories exist.")
-    parser.add_argument("--multi-beam-root", type=Path, required=True)
-    parser.add_argument("--lrfhss-root", type=Path, required=True)
+    parser.add_argument(
+        "--multi-beam-root",
+        type=Path,
+        default=snt_root / "Multi-Beam-LEO-Framework",
+        help="Path where Multi-Beam-LEO-Framework should exist (default: sibling folder under SNT root).",
+    )
+    parser.add_argument(
+        "--lrfhss-root",
+        type=Path,
+        default=snt_root / "LR-FHSS_LEO",
+        help="Path where LR-FHSS_LEO should exist (default: sibling folder under SNT root).",
+    )
     return parser.parse_args()
 
 
