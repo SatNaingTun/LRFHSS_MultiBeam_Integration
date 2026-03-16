@@ -7,6 +7,11 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+try:
+    from tqdm import tqdm
+except ImportError:  # pragma: no cover - optional dependency
+    tqdm = None
+
 
 LRFHSS_GIT_URL = "git@github.com:SatNaingTun/LR-FHSS_LEO.git"
 MULTI_BEAM_ZIP_URL = (
@@ -33,13 +38,35 @@ def _clone_repo_if_missing(target_dir: Path, git_url: str) -> bool:
 
 def _make_download_progress_reporter(label: str):
     last_percent = -1
+    bar = None
+    last_n = 0
 
     def _report(block_num: int, block_size: int, total_size: int):
-        nonlocal last_percent
+        nonlocal last_percent, bar, last_n
         if total_size <= 0:
             return
 
         downloaded = min(block_num * block_size, total_size)
+
+        if tqdm is not None:
+            if bar is None:
+                bar = tqdm(
+                    total=total_size,
+                    unit="B",
+                    unit_scale=True,
+                    unit_divisor=1024,
+                    desc=label,
+                    leave=True,
+                )
+            delta = downloaded - last_n
+            if delta > 0:
+                bar.update(delta)
+                last_n = downloaded
+            if downloaded >= total_size and bar is not None:
+                bar.close()
+                bar = None
+            return
+
         percent = int((downloaded / total_size) * 100)
         if percent != last_percent and percent % 5 == 0:
             last_percent = percent
