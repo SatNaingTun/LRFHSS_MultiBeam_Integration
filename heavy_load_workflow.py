@@ -152,20 +152,20 @@ def baseline_packet_decoding(
         }
 
     net = LoRaNetwork(
-        node_count,
-        "driver",
-        1,
-        280,
-        8,
-        1,
-        6,
-        25,
-        228,
-        demods,
-        use_earlydecode,
-        use_earlydrop,
-        False,
-        "strict",
+        numNodes=node_count,
+        familyname="driver",
+        numOCW=1,
+        numOBW=280,
+        numGrids=8,
+        CR=1,
+        timeGranularity=6,
+        freqGranularity=25,
+        simTime=228,
+        numDecoders=demods,
+        use_earlydecode=use_earlydecode,
+        use_earlydrop=use_earlydrop,
+        use_headerdrop=False,
+        collision_method="strict",
     )
     net.run(False, False)
 

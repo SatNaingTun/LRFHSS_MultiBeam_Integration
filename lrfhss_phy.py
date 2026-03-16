@@ -1,2 +1,2 @@
-def lrfhss_phy(beam_node_counts):
-    return [int(v) for v in beam_node_counts]
+def lrfhss_phy(beam_user_counts):
+    return [int(count) for count in beam_user_counts]

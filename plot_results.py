@@ -8,27 +8,27 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def _safe_ratio(num, den):
-    return (num / den) if den else 0.0
+def _safe_ratio(numerator, denominator):
+    return (numerator / denominator) if denominator else 0.0
 
 
-def load_result(path: Path):
-    with path.open("r", encoding="utf-8") as f:
+def load_result(result_path: Path):
+    with result_path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def plot_frame_summary(data: dict, out_dir: Path):
-    frames = data.get("frames", [])
+def plot_frame_summary(result_data: dict, output_dir: Path):
+    frames = result_data.get("frames", [])
     if not frames:
         return None
 
-    x = [f["elevation_angle_deg"] for f in frames]
-    decoded_ratio = [f.get("decoded_hrd_pld_ratio", 0.0) for f in frames]
-    decoded_bytes = [f.get("total_decoded_bytes", 0) for f in frames]
+    elevation_angles = [frame["elevation_angle_deg"] for frame in frames]
+    decoded_ratio = [frame.get("decoded_hrd_pld_ratio", 0.0) for frame in frames]
+    decoded_bytes = [frame.get("total_decoded_bytes", 0) for frame in frames]
 
     fig, ax1 = plt.subplots(figsize=(8, 5))
     ax1.plot(
-        x,
+        elevation_angles,
         decoded_ratio,
         marker="o",
         linestyle="-",
@@ -42,7 +42,7 @@ def plot_frame_summary(data: dict, out_dir: Path):
 
     ax2 = ax1.twinx()
     ax2.plot(
-        x,
+        elevation_angles,
         decoded_bytes,
         marker="s",
         linestyle="--",
@@ -55,14 +55,14 @@ def plot_frame_summary(data: dict, out_dir: Path):
     fig.suptitle("Workflow Performance vs Elevation Angle")
     fig.tight_layout()
 
-    out = out_dir / "frame_summary.png"
+    out = output_dir / "frame_summary.png"
     fig.savefig(out, dpi=180)
     plt.close(fig)
     return out
 
 
-def plot_frame_totals(data: dict, out_dir: Path):
-    frames = data.get("frames", [])
+def plot_frame_totals(result_data: dict, output_dir: Path):
+    frames = result_data.get("frames", [])
     if not frames:
         return None
 
@@ -71,15 +71,15 @@ def plot_frame_totals(data: dict, out_dir: Path):
     decoded = np.array([f.get("total_decoded_hrd_pld", 0) for f in frames])
     collided = np.array([f.get("total_collided_hdr_pld", 0) for f in frames])
 
-    x = np.arange(len(labels))
+    x_positions = np.arange(len(labels))
     width = 0.26
 
     fig, ax = plt.subplots(figsize=(9, 5))
-    ax.bar(x - width, tracked, width, label="Tracked TXs", color="#4e79a7")
-    ax.bar(x, decoded, width, label="Decoded HDR+PLD", color="#59a14f")
-    ax.bar(x + width, collided, width, label="Collided HDR+PLD", color="#e15759")
+    ax.bar(x_positions - width, tracked, width, label="Tracked TXs", color="#4e79a7")
+    ax.bar(x_positions, decoded, width, label="Decoded HDR+PLD", color="#59a14f")
+    ax.bar(x_positions + width, collided, width, label="Collided HDR+PLD", color="#e15759")
 
-    ax.set_xticks(x)
+    ax.set_xticks(x_positions)
     ax.set_xticklabels(labels)
     ax.set_ylabel("Count")
     ax.set_title("Frame-Level Totals")
@@ -87,14 +87,14 @@ def plot_frame_totals(data: dict, out_dir: Path):
     ax.legend()
 
     fig.tight_layout()
-    out = out_dir / "frame_totals.png"
+    out = output_dir / "frame_totals.png"
     fig.savefig(out, dpi=180)
     plt.close(fig)
     return out
 
 
-def plot_per_beam_heatmap(data: dict, out_dir: Path):
-    frames = data.get("frames", [])
+def plot_per_beam_heatmap(result_data: dict, output_dir: Path):
+    frames = result_data.get("frames", [])
     if not frames:
         return None
 
@@ -132,7 +132,7 @@ def plot_per_beam_heatmap(data: dict, out_dir: Path):
     cbar.set_label("Decoded Ratio")
 
     fig.tight_layout()
-    out = out_dir / "per_beam_decoded_ratio_heatmap.png"
+    out = output_dir / "per_beam_decoded_ratio_heatmap.png"
     fig.savefig(out, dpi=180)
     plt.close(fig)
     return out

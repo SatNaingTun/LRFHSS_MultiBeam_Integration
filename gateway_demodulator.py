@@ -16,9 +16,9 @@ BASELINE_CONFIG = {
 }
 
 
-def _empty_result(num_nodes: int):
+def _empty_result(node_count: int):
     return {
-        "num_nodes": int(num_nodes),
+        "num_nodes": int(node_count),
         "tracked_txs": 0,
         "header_drop_packets": 0,
         "decoded_bytes": 0,
@@ -29,30 +29,30 @@ def _empty_result(num_nodes: int):
     }
 
 
-def gateway_demodulator(LoRaNetwork, num_nodes: int, num_decoders: int):
-    if num_nodes <= 0:
-        return _empty_result(num_nodes)
+def gateway_demodulator(LoRaNetwork, node_count: int, decoder_count: int):
+    if node_count <= 0:
+        return _empty_result(node_count)
 
     net = LoRaNetwork(
-        num_nodes,
-        BASELINE_CONFIG["familyname"],
-        BASELINE_CONFIG["numOCW"],
-        BASELINE_CONFIG["numOBW"],
-        BASELINE_CONFIG["numGrids"],
-        BASELINE_CONFIG["CR"],
-        BASELINE_CONFIG["timeGranularity"],
-        BASELINE_CONFIG["freqGranularity"],
-        BASELINE_CONFIG["simTime"],
-        num_decoders,
-        BASELINE_CONFIG["use_earlydecode"],
-        BASELINE_CONFIG["use_earlydrop"],
-        BASELINE_CONFIG["use_headerdrop"],
-        BASELINE_CONFIG["collision_method"],
+        numNodes=node_count,
+        familyname=BASELINE_CONFIG["familyname"],
+        numOCW=BASELINE_CONFIG["numOCW"],
+        numOBW=BASELINE_CONFIG["numOBW"],
+        numGrids=BASELINE_CONFIG["numGrids"],
+        CR=BASELINE_CONFIG["CR"],
+        timeGranularity=BASELINE_CONFIG["timeGranularity"],
+        freqGranularity=BASELINE_CONFIG["freqGranularity"],
+        simTime=BASELINE_CONFIG["simTime"],
+        numDecoders=decoder_count,
+        use_earlydecode=BASELINE_CONFIG["use_earlydecode"],
+        use_earlydrop=BASELINE_CONFIG["use_earlydrop"],
+        use_headerdrop=BASELINE_CONFIG["use_headerdrop"],
+        collision_method=BASELINE_CONFIG["collision_method"],
     )
     net.run(BASELINE_CONFIG["power"], BASELINE_CONFIG["dynamic"])
 
     return {
-        "num_nodes": int(num_nodes),
+        "num_nodes": int(node_count),
         "tracked_txs": int(net.get_tracked_txs()),
         "header_drop_packets": int(net.get_header_drop_packets()),
         "decoded_bytes": int(net.get_decoded_bytes()),
