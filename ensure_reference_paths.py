@@ -13,27 +13,36 @@ except ImportError:  # pragma: no cover - optional dependency
     tqdm = None
 
 
-LRFHSS_GIT_URL = "git@github.com:SatNaingTun/LR-FHSS_LEO.git"
+LRFHSS_GIT_URLS = [
+    "https://github.com/SatNaingTun/LR-FHSS_LEO.git",
+    "git@github.com:SatNaingTun/LR-FHSS_LEO.git",
+]
 MULTI_BEAM_ZIP_URL = (
     "https://researchdata.tuwien.at/records/j31fx-wf765/files/Multi-Beam-LEO-Framework.zip?download=1"
 )
 
 
-def _clone_repo_if_missing(target_dir: Path, git_url: str) -> bool:
+def _clone_repo_if_missing(target_dir: Path, git_urls: list[str]) -> bool:
     if target_dir.exists():
         print(f"[ensure] Found existing repo: {target_dir}")
         return False
 
     target_dir.parent.mkdir(parents=True, exist_ok=True)
-    print(f"[ensure] Cloning {git_url} -> {target_dir}")
-    result = subprocess.run(["git", "clone", git_url, str(target_dir)], check=False)
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"Failed to clone {git_url} into {target_dir}. "
-            "See command-line output above for details."
-        )
-    print(f"[ensure] Clone complete: {target_dir}")
-    return True
+    errors = []
+    for git_url in git_urls:
+        print(f"[ensure] Cloning {git_url} -> {target_dir}")
+        result = subprocess.run(["git", "clone", git_url, str(target_dir)], check=False)
+        if result.returncode == 0:
+            print(f"[ensure] Clone complete: {target_dir}")
+            return True
+        errors.append((git_url, result.returncode))
+        print(f"[ensure] Clone failed for {git_url} (exit {result.returncode}). Trying next option...")
+
+    attempted = ", ".join(f"{url} (exit {code})" for url, code in errors)
+    raise RuntimeError(
+        f"Failed to clone LR-FHSS repo into {target_dir}. "
+        f"Attempts: {attempted}. See command-line output above for details."
+    )
 
 
 def _make_download_progress_reporter(label: str):
@@ -123,7 +132,7 @@ def _download_zip_if_missing(target_dir: Path, zip_url: str) -> bool:
 
 def ensure_paths(multi_beam_root: Path, lrfhss_root: Path) -> None:
     _download_zip_if_missing(multi_beam_root, MULTI_BEAM_ZIP_URL)
-    _clone_repo_if_missing(lrfhss_root, LRFHSS_GIT_URL)
+    _clone_repo_if_missing(lrfhss_root, LRFHSS_GIT_URLS)
 
 
 def parse_args():
