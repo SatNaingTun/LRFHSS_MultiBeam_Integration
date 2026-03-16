@@ -1,6 +1,7 @@
 import argparse
 import shutil
 import subprocess
+import sys
 import tempfile
 import urllib.request
 import zipfile
@@ -15,26 +16,42 @@ MULTI_BEAM_ZIP_URL = (
 
 def _clone_repo_if_missing(target_dir: Path, git_url: str) -> bool:
     if target_dir.exists():
+        print(f"[ensure] Found existing repo: {target_dir}")
         return False
 
     target_dir.parent.mkdir(parents=True, exist_ok=True)
-    result = subprocess.run(
-        ["git", "clone", git_url, str(target_dir)],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    print(f"[ensure] Cloning {git_url} -> {target_dir}")
+    result = subprocess.run(["git", "clone", git_url, str(target_dir)], check=False)
     if result.returncode != 0:
         raise RuntimeError(
-            f"Failed to clone {git_url} into {target_dir}\n"
-            f"stdout:\n{result.stdout}\n"
-            f"stderr:\n{result.stderr}"
+            f"Failed to clone {git_url} into {target_dir}. "
+            "See command-line output above for details."
         )
+    print(f"[ensure] Clone complete: {target_dir}")
     return True
+
+
+def _make_download_progress_reporter(label: str):
+    last_percent = -1
+
+    def _report(block_num: int, block_size: int, total_size: int):
+        nonlocal last_percent
+        if total_size <= 0:
+            return
+
+        downloaded = min(block_num * block_size, total_size)
+        percent = int((downloaded / total_size) * 100)
+        if percent != last_percent and percent % 5 == 0:
+            last_percent = percent
+            print(f"[ensure] {label}: {percent}% ({downloaded}/{total_size} bytes)")
+            sys.stdout.flush()
+
+    return _report
 
 
 def _download_zip_if_missing(target_dir: Path, zip_url: str) -> bool:
     if target_dir.exists():
+        print(f"[ensure] Found existing directory: {target_dir}")
         return False
 
     target_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -42,28 +59,38 @@ def _download_zip_if_missing(target_dir: Path, zip_url: str) -> bool:
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         zip_path = tmp_path / "download.zip"
-        urllib.request.urlretrieve(zip_url, zip_path)
+        print(f"[ensure] Downloading archive from: {zip_url}")
+        urllib.request.urlretrieve(
+            zip_url,
+            zip_path,
+            reporthook=_make_download_progress_reporter("Download progress"),
+        )
+        print(f"[ensure] Download complete: {zip_path}")
 
+        print("[ensure] Extracting archive...")
         with zipfile.ZipFile(zip_path, "r") as zf:
-            top_entries = {
-                name.split("/", 1)[0]
-                for name in zf.namelist()
-                if name and not name.startswith("__MACOSX/")
-            }
-            zf.extractall(target_dir.parent)
+            members = [m for m in zf.namelist() if m and not m.startswith("__MACOSX/")]
+            extract_root = tmp_path / "extracted"
+            extract_root.mkdir(parents=True, exist_ok=True)
+            zf.extractall(extract_root)
 
-        if target_dir.exists():
+        # Some archives contain one top-level folder; others contain loose files/folders.
+        top_level_entries = [p for p in extract_root.iterdir()]
+        if len(top_level_entries) == 1 and top_level_entries[0].is_dir():
+            shutil.move(str(top_level_entries[0]), str(target_dir))
+            print(f"[ensure] Extracted and moved to: {target_dir}")
             return True
 
-        candidate_dirs = [target_dir.parent / entry for entry in top_entries]
-        existing_dirs = [p for p in candidate_dirs if p.exists() and p.is_dir()]
-
-        if len(existing_dirs) == 1:
-            shutil.move(str(existing_dirs[0]), str(target_dir))
+        target_dir.mkdir(parents=True, exist_ok=True)
+        for entry in top_level_entries:
+            shutil.move(str(entry), str(target_dir / entry.name))
+        if members:
+            print(f"[ensure] Extracted contents into: {target_dir}")
             return True
 
     if not target_dir.exists():
         raise RuntimeError(f"Downloaded zip, but expected folder was not created: {target_dir}")
+    print(f"[ensure] Extracted to: {target_dir}")
     return True
 
 

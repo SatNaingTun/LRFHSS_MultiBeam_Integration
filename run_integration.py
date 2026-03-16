@@ -1,9 +1,8 @@
 import argparse
+import importlib.metadata
 import subprocess
 import sys
 from pathlib import Path
-
-from workflow import run_workflow
 
 
 def parse_args():
@@ -34,8 +33,56 @@ def parse_args():
     return parser.parse_args()
 
 
+def _parse_requirement_names(requirements_path: Path):
+    names = []
+    for raw_line in requirements_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        # Keep only the package name before common version/env markers.
+        for marker in ("==", ">=", "<=", "~=", "!=", ">", "<", ";", "["):
+            if marker in line:
+                line = line.split(marker, 1)[0].strip()
+        if line:
+            names.append(line)
+    return names
+
+
+def ensure_python_dependencies():
+    integration_root = Path(__file__).resolve().parent
+    requirements_path = integration_root / "requirements.txt"
+
+    if not requirements_path.exists():
+        print("[deps] requirements.txt not found. Skipping dependency check.")
+        return
+
+    packages = _parse_requirement_names(requirements_path)
+    missing = []
+    for package in packages:
+        try:
+            importlib.metadata.version(package)
+        except importlib.metadata.PackageNotFoundError:
+            missing.append(package)
+
+    if not missing:
+        print("[deps] All Python dependencies are already installed.")
+        return
+
+    print(f"[deps] Missing dependencies detected: {', '.join(missing)}")
+    print("[deps] Installing from requirements.txt (download progress will be shown below)...")
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "-r", str(requirements_path)],
+        check=True,
+    )
+    print("[deps] Dependency installation complete.")
+
+
 def main():
     args = parse_args()
+    ensure_python_dependencies()
+
+    from workflow import run_workflow
 
     if (not args.multi_beam_root.exists()) or (not args.lrfhss_root.exists()):
         ensure_script = Path(__file__).resolve().parent / "ensure_reference_paths.py"
