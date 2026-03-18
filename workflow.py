@@ -9,14 +9,53 @@ from export import export_metrics, generate_performance_plots
 from lrfhss_connector import load_lrfhss_components
 from multi_beam_connector import load_multi_beam_modules
 
+SLEEP_POWER_W = 5.0
+IDLE_DEMOD_POWER_W = 0.2
+BUSY_DEMOD_POWER_W = 0.8
 
-def power_mode(nodes):
-    if nodes == 0:
+
+def choose_charging_status(visible: bool, power_mode: str):
+    # Satellite can charge when visible and not in busy high-power mode.
+    return bool(visible and power_mode != "busy")
+
+
+def select_satellite_power_mode(
+    nodes: int,
+    allocated_demods: int,
+    visible: bool,
+    battery_percent: float,
+    low_battery_threshold: float,
+    idle_battery_threshold: float,
+    high_charge_threshold: float,
+):
+    if battery_percent <= low_battery_threshold or nodes <= 0 or not visible or allocated_demods == 0:
         return "sleep"
-    elif nodes < 200:
+    if battery_percent < idle_battery_threshold:
         return "idle"
-    else:
-        return "busy"
+    if nodes < 200 and allocated_demods <= high_charge_threshold:
+        return "idle"
+    return "busy"
+
+
+def update_battery_percentage(
+    battery_percent: float,
+    power_consumption_watts: float,
+    charging: bool,
+    battery_decay_per_w: float,
+    charging_rate_per_step: float,
+):
+    new_pct = battery_percent - power_consumption_watts * battery_decay_per_w
+    if charging:
+        new_pct += charging_rate_per_step
+    return float(max(0.0, min(100.0, new_pct)))
+
+
+def compute_power_consumption(power_mode: str, allocated_demods: int):
+    if power_mode == "sleep":
+        return float(SLEEP_POWER_W)
+    if power_mode == "idle":
+        return float(SLEEP_POWER_W + allocated_demods * IDLE_DEMOD_POWER_W)
+    return float(SLEEP_POWER_W + allocated_demods * BUSY_DEMOD_POWER_W)
 
 
 @dataclass
@@ -29,6 +68,12 @@ class PipelineConfig:
     seed: int
     export_csv: bool
     generate_plots: bool
+    battery_initial_percent: float
+    battery_decay_per_w: float
+    charging_rate_per_step: float
+    low_battery_threshold: float
+    idle_battery_threshold: float
+    high_charge_threshold: float
 
 
 def initialize_simulation_parameters(
@@ -41,6 +86,12 @@ def initialize_simulation_parameters(
     nodes_list: list[int] | None,
     export_csv: bool,
     generate_plots: bool,
+    battery_initial_percent: float,
+    battery_decay_per_w: float,
+    charging_rate_per_step: float,
+    low_battery_threshold: float,
+    idle_battery_threshold: float,
+    high_charge_threshold: float,
 ) -> PipelineConfig:
     if nodes_list:
         loads = sorted(set(int(v) for v in nodes_list if int(v) >= 0))
@@ -56,6 +107,12 @@ def initialize_simulation_parameters(
         seed=seed,
         export_csv=export_csv,
         generate_plots=generate_plots,
+        battery_initial_percent=battery_initial_percent,
+        battery_decay_per_w=battery_decay_per_w,
+        charging_rate_per_step=charging_rate_per_step,
+        low_battery_threshold=low_battery_threshold,
+        idle_battery_threshold=idle_battery_threshold,
+        high_charge_threshold=high_charge_threshold,
     )
 
 
@@ -98,10 +155,6 @@ def check_satellite_visibility(visibility_info: dict):
     first_window = windows[0]
     selected_frame = (first_window[0] + first_window[1]) // 2
     return True, int(selected_frame)
-
-
-def select_satellite_power_mode(nodes: int):
-    return power_mode(nodes)
 
 
 def transmit_fragments(packet_count: int, visible: bool):
@@ -165,6 +218,12 @@ def run_workflow(
     nodes_list: list[int] | None,
     export_csv: bool,
     generate_plots: bool,
+    battery_initial_percent: float,
+    battery_decay_per_w: float,
+    charging_rate_per_step: float,
+    low_battery_threshold: float,
+    idle_battery_threshold: float,
+    high_charge_threshold: float,
 ):
     # START
     cfg = initialize_simulation_parameters(
@@ -177,6 +236,12 @@ def run_workflow(
         nodes_list=nodes_list,
         export_csv=export_csv,
         generate_plots=generate_plots,
+        battery_initial_percent=battery_initial_percent,
+        battery_decay_per_w=battery_decay_per_w,
+        charging_rate_per_step=charging_rate_per_step,
+        low_battery_threshold=low_battery_threshold,
+        idle_battery_threshold=idle_battery_threshold,
+        high_charge_threshold=high_charge_threshold,
     )
 
     _, network_geometry, _, utils_mod = load_multi_beam_modules(multi_beam_root)
@@ -189,17 +254,43 @@ def run_workflow(
     visibility_info = generate_visibility_windows(sat_pos, utils_mod, cfg.visibility_min_elev_deg)
 
     all_records = []
+    battery_percent = cfg.battery_initial_percent
 
     for nodes in cfg.node_loads:
         iot_nodes = generate_iot_nodes(nodes)
         packet_count = assign_lrfhss_packets(iot_nodes)
         visible, selected_frame = check_satellite_visibility(visibility_info)
-        p_mode = select_satellite_power_mode(nodes)
         tx_count = transmit_fragments(packet_count, visible)
 
         for requested_demods in cfg.demodulator_options:
-            allocated_demods = allocate_demodulators(requested_demods, p_mode)
-
+            p_mode_estimate = select_satellite_power_mode(
+                nodes,
+                requested_demods,
+                visible,
+                battery_percent,
+                cfg.low_battery_threshold,
+                cfg.idle_battery_threshold,
+                cfg.high_charge_threshold,
+            )
+            allocated_demods = allocate_demodulators(requested_demods, p_mode_estimate)
+            p_mode = select_satellite_power_mode(
+                nodes,
+                allocated_demods,
+                visible,
+                battery_percent,
+                cfg.low_battery_threshold,
+                cfg.idle_battery_threshold,
+                cfg.high_charge_threshold,
+            )
+            power_consumption = compute_power_consumption(p_mode, allocated_demods)
+            charging = choose_charging_status(visible, p_mode)
+            battery_percent = update_battery_percentage(
+                battery_percent,
+                power_consumption,
+                charging,
+                cfg.battery_decay_per_w,
+                cfg.charging_rate_per_step,
+            )
             mode_options = [("Baseline", False, False)]
 
             for mode_label, use_earlydecode, use_earlydrop in mode_options:
@@ -230,6 +321,9 @@ def run_workflow(
                         "selected_frame": int(selected_frame) if selected_frame is not None else -1,
                         "requested_demods": int(requested_demods),
                         "allocated_demods": int(allocated_demods),
+                        "power_consumption_watts": float(power_consumption),
+                        "battery_percent": float(battery_percent),
+                        "charging": bool(charging),
                         "mode_label": mode_label,
                         "decoded_payloads": float(np.mean(decoded_payload_runs)),
                         "tracked_txs": float(np.mean(tracked_runs)),
@@ -259,7 +353,16 @@ def run_workflow(
             "Generate performance plots",
             "END",
         ],
-        "power_mode_logic": {"0": "sleep", "1_to_199": "idle", "200_plus": "busy"},
+        "power_mode_logic": {
+            "sleep": "nodes==0 or no visibility or allocated_demods==0",
+            "idle": "nodes<200 and allocated_demods<=20",
+            "busy": "otherwise",
+        },
+        "power_constants_watts": {
+            "sleep": SLEEP_POWER_W,
+            "idle_per_demod": IDLE_DEMOD_POWER_W,
+            "busy_per_demod": BUSY_DEMOD_POWER_W,
+        },
         "node_range": {"min": node_min, "max": node_max, "points": node_points},
         "metrics_json": str(metrics_json.resolve()),
         "metrics_csv": str(metrics_csv.resolve()) if metrics_csv else None,

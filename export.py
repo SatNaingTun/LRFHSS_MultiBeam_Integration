@@ -119,4 +119,80 @@ def generate_performance_plots(records: list[dict], output_dir: Path):
     fig2.savefig(mode_plot, dpi=200)
     plt.close(fig2)
 
-    return {"all_series": all_plot, "by_power_mode": mode_plot}
+    # Power consumption plots
+    power_series = {}
+    for r in records:
+        key = (r["power_mode"], r["requested_demods"])
+        power_series.setdefault(key, {"x": [], "y": []})
+        power_series[key]["x"].append(r["nodes"])
+        power_series[key]["y"].append(r["power_consumption_watts"])
+
+    fig3, ax3 = plt.subplots(figsize=(9, 6))
+    for idx, ((p_mode, demods), vals) in enumerate(sorted(power_series.items(), key=lambda t: (t[0][0], t[0][1]))):
+        x = np.array(vals["x"])
+        y = np.array(vals["y"])
+        order = np.argsort(x)
+        ax3.plot(
+            x[order],
+            y[order],
+            linestyle=line_styles[idx % len(line_styles)],
+            marker=markers[idx % len(markers)],
+            linewidth=1.4,
+            markersize=4.5,
+            color=colors[idx % len(colors)],
+            label=f"{p_mode} {demods} demods",
+        )
+    ax3.set_xscale("symlog", linthresh=1)
+    ax3.set_xlabel("Number of Nodes (Traffic Load)")
+    ax3.set_ylabel("Power Consumption (W)")
+    ax3.set_title("Power Consumption by Power Mode and Demodulators")
+    ax3.grid(True, which="both", linestyle=":", alpha=0.5)
+    ax3.legend(fontsize=8)
+    fig3.tight_layout()
+    power_plot = output_dir / "power_consumption_by_mode.png"
+    fig3.savefig(power_plot, dpi=200)
+    plt.close(fig3)
+
+    battery_x = []
+    battery_y = []
+    charging_x = []
+    charging_y = []
+    for r in records:
+        battery_x.append(r["nodes"])
+        battery_y.append(r["battery_percent"])
+        charging_x.append(r["nodes"])
+        charging_y.append(1 if r.get("charging", False) else 0)
+
+    fig4, ax4 = plt.subplots(figsize=(9, 6))
+    ax4.scatter(battery_x, battery_y, c="tab:blue", s=18, label="Battery %")
+    ax4.set_xscale("symlog", linthresh=1)
+    ax4.set_ylabel("Battery Percentage")
+    ax4.set_xlabel("Number of Nodes (Traffic Load)")
+    ax4.set_title("Battery Percentage over Traffic Load")
+    ax4.grid(True, which="both", linestyle=":", alpha=0.5)
+    ax4.legend(loc="best")
+    fig4.tight_layout()
+    battery_plot = output_dir / "battery_percentage_over_load.png"
+    fig4.savefig(battery_plot, dpi=200)
+    plt.close(fig4)
+
+    fig5, ax5 = plt.subplots(figsize=(9, 6))
+    ax5.scatter(charging_x, charging_y, c="tab:green", s=22, label="Charging (1=yes)")
+    ax5.set_xscale("symlog", linthresh=1)
+    ax5.set_ylabel("Charging Flag")
+    ax5.set_xlabel("Number of Nodes (Traffic Load)")
+    ax5.set_title("Charging Status over Traffic Load")
+    ax5.grid(True, which="both", linestyle=":", alpha=0.5)
+    ax5.legend(loc="best")
+    fig5.tight_layout()
+    charging_plot = output_dir / "charging_status_over_load.png"
+    fig5.savefig(charging_plot, dpi=200)
+    plt.close(fig5)
+
+    return {
+        "all_series": all_plot,
+        "by_power_mode": mode_plot,
+        "power_consumption": power_plot,
+        "battery_percentage": battery_plot,
+        "charging_status": charging_plot,
+    }

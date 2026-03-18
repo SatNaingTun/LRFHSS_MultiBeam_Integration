@@ -31,6 +31,12 @@ def parse_args():
     parser.add_argument("--demods", type=int, nargs="+", default=[10, 30, 50, 70, 100, 300, 500, 700, 1000])
     parser.add_argument("--no-csv", action="store_true", help="Skip CSV export.")
     parser.add_argument("--no-plots", action="store_true", help="Skip plot generation.")
+    parser.add_argument("--battery-initial-percent", type=float, default=100.0)
+    parser.add_argument("--battery-decay-per-w", type=float, default=0.04)
+    parser.add_argument("--charging-rate-per-step", type=float, default=8.0)
+    parser.add_argument("--low-battery-threshold", type=float, default=5.0)
+    parser.add_argument("--idle-battery-threshold", type=float, default=30.0)
+    parser.add_argument("--high-charge-threshold", type=float, default=100.0)
     return parser.parse_args()
 
 
@@ -65,6 +71,12 @@ def main():
         nodes_list=args.nodes,
         export_csv=not args.no_csv,
         generate_plots=not args.no_plots,
+        battery_initial_percent=args.battery_initial_percent,
+        battery_decay_per_w=args.battery_decay_per_w,
+        charging_rate_per_step=args.charging_rate_per_step,
+        low_battery_threshold=args.low_battery_threshold,
+        idle_battery_threshold=args.idle_battery_threshold,
+        high_charge_threshold=args.high_charge_threshold,
     )
 
 

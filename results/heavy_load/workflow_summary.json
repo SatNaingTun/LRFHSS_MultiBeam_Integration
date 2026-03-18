@@ -17,9 +17,14 @@
     "END"
   ],
   "power_mode_logic": {
-    "0": "sleep",
-    "1_to_199": "idle",
-    "200_plus": "busy"
+    "sleep": "nodes==0 or no visibility or allocated_demods==0",
+    "idle": "nodes<200 and allocated_demods<=20",
+    "busy": "otherwise"
+  },
+  "power_constants_watts": {
+    "sleep": 5.0,
+    "idle_per_demod": 0.2,
+    "busy_per_demod": 0.8
   },
   "node_range": {
     "min": 10,
@@ -27,10 +32,13 @@
     "points": 14
   },
   "metrics_json": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\heavy_load_metrics.json",
-  "metrics_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\heavy_load_metrics.csv",
+  "metrics_csv": null,
   "plots": {
     "all_series": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\heavy_load_demodulator_constraints.png",
-    "by_power_mode": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\decoded_payloads_by_power_mode.png"
+    "by_power_mode": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\decoded_payloads_by_power_mode.png",
+    "power_consumption": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\power_consumption_by_mode.png",
+    "battery_percentage": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\battery_percentage_over_load.png",
+    "charging_status": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\charging_status_over_load.png"
   },
   "visibility_windows": [
     [
@@ -38,6 +46,6 @@
       77074
     ]
   ],
-  "export_csv": true,
+  "export_csv": false,
   "generate_plots": true
 }
