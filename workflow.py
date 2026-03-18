@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
-from common_workflow_outputs import export_metrics, generate_performance_plots
+from export import export_metrics, generate_performance_plots
 from lrfhss_connector import load_lrfhss_components
 from multi_beam_connector import load_multi_beam_modules
 
