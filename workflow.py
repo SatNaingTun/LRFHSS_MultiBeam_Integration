@@ -14,9 +14,25 @@ IDLE_DEMOD_POWER_W = 0.2
 BUSY_DEMOD_POWER_W = 0.8
 
 
-def choose_charging_status(visible: bool, power_mode: str):
-    # Satellite can charge when visible and not in busy high-power mode.
-    return bool(visible and power_mode != "busy")
+def compute_power_balance(
+    visible: bool,
+    nodes: int,
+    power_consumption_watts: float,
+):
+    if not visible:
+        charging_power_watts = 0.0
+    elif power_consumption_watts <= 25.0:
+        charging_power_watts = 20.0 + 12.0 * float(np.sin(float(nodes) / 45.0))
+    elif power_consumption_watts <= 110.0:
+        charging_power_watts = 95.0 - 0.02 * float(nodes) + 16.0 * float(np.sin(float(nodes) / 120.0))
+    else:
+        charging_power_watts = 55.0 - 0.015 * float(nodes) + 10.0 * float(np.sin(float(nodes) / 100.0))
+
+    charging_power_watts = float(max(0.0, charging_power_watts))
+    discharging_power_watts = float(power_consumption_watts)
+    net_power_watts = float(charging_power_watts - discharging_power_watts)
+    charging = bool(net_power_watts > 0.0)
+    return charging, charging_power_watts, discharging_power_watts, net_power_watts
 
 
 def select_satellite_power_mode(
@@ -283,7 +299,11 @@ def run_workflow(
                 cfg.high_charge_threshold,
             )
             power_consumption = compute_power_consumption(p_mode, allocated_demods)
-            charging = choose_charging_status(visible, p_mode)
+            charging, charging_power_watts, discharging_power_watts, net_power_watts = compute_power_balance(
+                visible=visible,
+                nodes=nodes,
+                power_consumption_watts=power_consumption,
+            )
             battery_percent = update_battery_percentage(
                 battery_percent,
                 power_consumption,
@@ -322,6 +342,9 @@ def run_workflow(
                         "requested_demods": int(requested_demods),
                         "allocated_demods": int(allocated_demods),
                         "power_consumption_watts": float(power_consumption),
+                        "charging_power_watts": float(charging_power_watts),
+                        "discharging_power_watts": float(discharging_power_watts),
+                        "net_power_watts": float(net_power_watts),
                         "battery_percent": float(battery_percent),
                         "charging": bool(charging),
                         "mode_label": mode_label,

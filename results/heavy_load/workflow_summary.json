@@ -32,13 +32,13 @@
     "points": 14
   },
   "metrics_json": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\heavy_load_metrics.json",
-  "metrics_csv": null,
+  "metrics_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\heavy_load_metrics.csv",
   "plots": {
     "all_series": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\heavy_load_demodulator_constraints.png",
     "by_power_mode": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\decoded_payloads_by_power_mode.png",
     "power_consumption": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\power_consumption_by_mode.png",
     "battery_percentage": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\battery_percentage_over_load.png",
-    "charging_status": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\charging_status_over_load.png"
+    "net_power_by_mode": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\net_power_by_mode.png"
   },
   "visibility_windows": [
     [
@@ -46,6 +46,6 @@
       77074
     ]
   ],
-  "export_csv": false,
+  "export_csv": true,
   "generate_plots": true
 }

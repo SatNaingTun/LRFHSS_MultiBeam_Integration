@@ -155,13 +155,9 @@ def generate_performance_plots(records: list[dict], output_dir: Path):
 
     battery_x = []
     battery_y = []
-    charging_x = []
-    charging_y = []
     for r in records:
         battery_x.append(r["nodes"])
         battery_y.append(r["battery_percent"])
-        charging_x.append(r["nodes"])
-        charging_y.append(1 if r.get("charging", False) else 0)
 
     fig4, ax4 = plt.subplots(figsize=(9, 6))
     ax4.scatter(battery_x, battery_y, c="tab:blue", s=18, label="Battery %")
@@ -176,17 +172,46 @@ def generate_performance_plots(records: list[dict], output_dir: Path):
     fig4.savefig(battery_plot, dpi=200)
     plt.close(fig4)
 
-    fig5, ax5 = plt.subplots(figsize=(9, 6))
-    ax5.scatter(charging_x, charging_y, c="tab:green", s=22, label="Charging (1=yes)")
-    ax5.set_xscale("symlog", linthresh=1)
-    ax5.set_ylabel("Charging Flag")
-    ax5.set_xlabel("Number of Nodes (Traffic Load)")
-    ax5.set_title("Charging Status over Traffic Load")
-    ax5.grid(True, which="both", linestyle=":", alpha=0.5)
-    ax5.legend(loc="best")
-    fig5.tight_layout()
-    charging_plot = output_dir / "charging_status_over_load.png"
-    fig5.savefig(charging_plot, dpi=200)
+    mode_names = [m for m in ["sleep", "idle", "busy"] if any(r["power_mode"] == m for r in records)]
+    demod_values = sorted(set(int(r["requested_demods"]) for r in records))
+    fig5, axes5 = plt.subplots(nrows=len(mode_names), ncols=1, figsize=(12, 4 * max(1, len(mode_names))), sharex=True)
+    if len(mode_names) == 1:
+        axes5 = [axes5]
+
+    for ax5, p_mode in zip(axes5, mode_names):
+        for idx, demods in enumerate(demod_values):
+            sub = [r for r in records if r["power_mode"] == p_mode and int(r["requested_demods"]) == demods]
+            if not sub:
+                continue
+            x_vals = sorted(set(int(r["nodes"]) for r in sub))
+            y_vals = []
+            for x in x_vals:
+                y_at_x = [float(r.get("net_power_watts", 0.0)) for r in sub if int(r["nodes"]) == x]
+                y_vals.append(float(np.mean(y_at_x)))
+
+            ax5.plot(
+                x_vals,
+                y_vals,
+                linestyle=line_styles[idx % len(line_styles)],
+                marker=markers[idx % len(markers)],
+                linewidth=1.8,
+                markersize=4.5,
+                color=colors[idx % len(colors)],
+                label=f"{demods} demods",
+            )
+
+        ax5.axhline(0.0, color="#444444", linewidth=1.0, linestyle="--", alpha=0.8)
+        ax5.set_xscale("symlog", linthresh=1)
+        ax5.set_ylabel("Net Power (W)")
+        ax5.set_title(f"Power Mode: {p_mode}")
+        ax5.grid(True, which="both", linestyle=":", alpha=0.5)
+        ax5.legend(loc="best", fontsize=8)
+
+    axes5[-1].set_xlabel("Number of Nodes (Traffic Load)")
+    fig5.suptitle("Net Power (Charging - Discharging) by Power Mode and Demodulators")
+    fig5.tight_layout(rect=(0, 0, 1, 0.97))
+    net_power_plot = output_dir / "net_power_by_mode.png"
+    fig5.savefig(net_power_plot, dpi=200)
     plt.close(fig5)
 
     return {
@@ -194,5 +219,5 @@ def generate_performance_plots(records: list[dict], output_dir: Path):
         "by_power_mode": mode_plot,
         "power_consumption": power_plot,
         "battery_percentage": battery_plot,
-        "charging_status": charging_plot,
+        "net_power_by_mode": net_power_plot,
     }
