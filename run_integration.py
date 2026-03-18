@@ -29,6 +29,8 @@ def parse_args():
         help="Explicit node list; overrides --node-min/--node-max/--node-points.",
     )
     parser.add_argument("--demods", type=int, nargs="+", default=[10, 30, 50, 70, 100, 300, 500, 700, 1000])
+    parser.add_argument("--no-csv", action="store_true", help="Skip CSV export.")
+    parser.add_argument("--no-plots", action="store_true", help="Skip plot generation.")
     return parser.parse_args()
 
 
@@ -61,6 +63,8 @@ def main():
         node_points=args.node_points,
         demodulator_options=args.demods,
         nodes_list=args.nodes,
+        export_csv=not args.no_csv,
+        generate_plots=not args.no_plots,
     )
 
 

@@ -37,5 +37,7 @@
       13052,
       77074
     ]
-  ]
+  ],
+  "export_csv": true,
+  "generate_plots": true
 }

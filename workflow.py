@@ -1,15 +1,13 @@
-import csv
 import json
 import random
 from dataclasses import dataclass
 from pathlib import Path
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
 
-from external_repos import bootstrap
+from common_workflow_outputs import export_metrics, generate_performance_plots
+from lrfhss_connector import load_lrfhss_components
+from multi_beam_connector import load_multi_beam_modules
 
 
 def power_mode(nodes):
@@ -29,6 +27,8 @@ class PipelineConfig:
     visibility_min_elev_deg: float
     output_dir: Path
     seed: int
+    export_csv: bool
+    generate_plots: bool
 
 
 def initialize_simulation_parameters(
@@ -39,6 +39,8 @@ def initialize_simulation_parameters(
     node_points: int,
     demodulator_options: list[int],
     nodes_list: list[int] | None,
+    export_csv: bool,
+    generate_plots: bool,
 ) -> PipelineConfig:
     if nodes_list:
         loads = sorted(set(int(v) for v in nodes_list if int(v) >= 0))
@@ -52,6 +54,8 @@ def initialize_simulation_parameters(
         visibility_min_elev_deg=10.0,
         output_dir=output_dir,
         seed=seed,
+        export_csv=export_csv,
+        generate_plots=generate_plots,
     )
 
 
@@ -149,122 +153,6 @@ def baseline_packet_decoding(LoRaNetwork, node_count: int, demods: int, use_earl
     }
 
 
-def store_metrics(records: list[dict], output_dir: Path):
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    json_path = output_dir / "heavy_load_metrics.json"
-    with json_path.open("w", encoding="utf-8") as f:
-        json.dump(records, f, indent=2)
-
-    csv_path = output_dir / "heavy_load_metrics.csv"
-    if records:
-        with csv_path.open("w", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=list(records[0].keys()))
-            writer.writeheader()
-            writer.writerows(records)
-
-    return json_path, csv_path
-
-
-def generate_performance_plots(records: list[dict], output_dir: Path):
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Okabe-Ito palette (color-blind-safe) + style cycles for print/grayscale readability.
-    colors = [
-        "#0072B2",  # blue
-        "#E69F00",  # orange
-        "#009E73",  # bluish green
-        "#D55E00",  # vermillion
-        "#CC79A7",  # reddish purple
-        "#56B4E9",  # sky blue
-        "#000000",  # black
-    ]
-    markers = ["o", "s", "^", "D", "P", "X", "v", "<", ">"]
-    line_styles = ["-", "--", "-.", ":"]
-
-    # Plot 1: all series
-    series = {}
-    for r in records:
-        key = (r["mode_label"], r["requested_demods"])
-        series.setdefault(key, {"x": [], "y": []})
-        series[key]["x"].append(r["nodes"])
-        series[key]["y"].append(r["decoded_payloads"])
-
-    fig, ax = plt.subplots(figsize=(9, 6))
-    for idx, ((mode_label, demods), vals) in enumerate(sorted(series.items(), key=lambda t: (t[0][1], t[0][0]))):
-        x = np.array(vals["x"])
-        y = np.array(vals["y"])
-        order = np.argsort(x)
-        line_style = line_styles[idx % len(line_styles)]
-        ax.plot(
-            x[order],
-            y[order],
-            linestyle=line_style,
-            marker=markers[idx % len(markers)],
-            linewidth=1.6,
-            markersize=5,
-            color=colors[idx % len(colors)],
-            label=f"{mode_label} {demods} demods",
-        )
-
-    ax.set_xscale("symlog", linthresh=1)
-    ax.set_xlabel("Number of Nodes (Traffic Load)")
-    ax.set_ylabel("Decoded Payloads")
-    ax.set_title("Heavy Load Test for Demodulator Constraints")
-    ax.grid(True, which="both", linestyle=":", alpha=0.5)
-    ax.legend()
-    fig.tight_layout()
-    all_plot = output_dir / "heavy_load_demodulator_constraints.png"
-    fig.savefig(all_plot, dpi=200)
-    plt.close(fig)
-
-    # Plot 2: split by power mode
-    mode_names = [m for m in ["sleep", "idle", "busy"] if any(r["power_mode"] == m for r in records)]
-    nrows = len(mode_names)
-    fig2, axes = plt.subplots(nrows=nrows, ncols=1, figsize=(10, 4 * max(1, nrows)), sharex=True)
-    if nrows == 1:
-        axes = [axes]
-
-    for ax, p_mode in zip(axes, mode_names):
-        sub = [r for r in records if r["power_mode"] == p_mode]
-        mode_series = {}
-        for r in sub:
-            key = (r["mode_label"], r["requested_demods"])
-            mode_series.setdefault(key, {"x": [], "y": []})
-            mode_series[key]["x"].append(r["nodes"])
-            mode_series[key]["y"].append(r["decoded_payloads"])
-
-        for idx, ((mode_label, demods), vals) in enumerate(sorted(mode_series.items(), key=lambda t: (t[0][1], t[0][0]))):
-            x = np.array(vals["x"])
-            y = np.array(vals["y"])
-            order = np.argsort(x)
-            line_style = line_styles[idx % len(line_styles)]
-            ax.plot(
-                x[order],
-                y[order],
-                linestyle=line_style,
-                marker=markers[idx % len(markers)],
-                linewidth=1.4,
-                markersize=4.5,
-                color=colors[idx % len(colors)],
-                label=f"{mode_label} {demods} demods",
-            )
-
-        ax.set_xscale("symlog", linthresh=1)
-        ax.set_ylabel("Decoded Payloads")
-        ax.set_title(f"Power Mode: {p_mode}")
-        ax.grid(True, which="both", linestyle=":", alpha=0.5)
-        ax.legend(loc="best", fontsize=8)
-
-    axes[-1].set_xlabel("Number of Nodes (Traffic Load)")
-    fig2.tight_layout()
-    mode_plot = output_dir / "decoded_payloads_by_power_mode.png"
-    fig2.savefig(mode_plot, dpi=200)
-    plt.close(fig2)
-
-    return {"all_series": all_plot, "by_power_mode": mode_plot}
-
-
 def run_workflow(
     multi_beam_root: Path,
     lrfhss_root: Path,
@@ -275,6 +163,8 @@ def run_workflow(
     node_points: int,
     demodulator_options: list[int],
     nodes_list: list[int] | None,
+    export_csv: bool,
+    generate_plots: bool,
 ):
     # START
     cfg = initialize_simulation_parameters(
@@ -285,9 +175,12 @@ def run_workflow(
         node_points=node_points,
         demodulator_options=demodulator_options,
         nodes_list=nodes_list,
+        export_csv=export_csv,
+        generate_plots=generate_plots,
     )
 
-    _, network_geometry, _, utils_mod, LoRaNetwork = bootstrap(multi_beam_root, lrfhss_root)
+    _, network_geometry, _, utils_mod = load_multi_beam_modules(multi_beam_root)
+    LoRaNetwork = load_lrfhss_components(lrfhss_root)
 
     random.seed(cfg.seed)
     np.random.seed(cfg.seed)
@@ -345,8 +238,8 @@ def run_workflow(
                     }
                 )
 
-    metrics_json, metrics_csv = store_metrics(all_records, cfg.output_dir)
-    plot_paths = generate_performance_plots(all_records, cfg.output_dir)
+    metrics_json, metrics_csv = export_metrics(all_records, cfg.output_dir, cfg.export_csv)
+    plot_paths = generate_performance_plots(all_records, cfg.output_dir) if cfg.generate_plots else {}
 
     summary = {
         "workflow": [
@@ -369,9 +262,11 @@ def run_workflow(
         "power_mode_logic": {"0": "sleep", "1_to_199": "idle", "200_plus": "busy"},
         "node_range": {"min": node_min, "max": node_max, "points": node_points},
         "metrics_json": str(metrics_json.resolve()),
-        "metrics_csv": str(metrics_csv.resolve()),
+        "metrics_csv": str(metrics_csv.resolve()) if metrics_csv else None,
         "plots": {k: str(v.resolve()) for k, v in plot_paths.items()},
         "visibility_windows": visibility_info["windows"],
+        "export_csv": bool(cfg.export_csv),
+        "generate_plots": bool(cfg.generate_plots),
     }
 
     summary_path = cfg.output_dir / "workflow_summary.json"
@@ -380,8 +275,14 @@ def run_workflow(
 
     print("Workflow completed.")
     print(f"Metrics JSON: {metrics_json.resolve()}")
-    print(f"Metrics CSV:  {metrics_csv.resolve()}")
-    for name, p in plot_paths.items():
-        print(f"Plot ({name}): {p.resolve()}")
+    if metrics_csv is not None:
+        print(f"Metrics CSV:  {metrics_csv.resolve()}")
+    else:
+        print("Metrics CSV:  skipped")
+    if plot_paths:
+        for name, p in plot_paths.items():
+            print(f"Plot ({name}): {p.resolve()}")
+    else:
+        print("Plots:        skipped")
     print(f"Summary:      {summary_path.resolve()}")
     # END
