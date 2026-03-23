@@ -12,24 +12,37 @@ from multi_beam_connector import load_multi_beam_modules
 SLEEP_POWER_W = 5.0
 IDLE_DEMOD_POWER_W = 0.2
 BUSY_DEMOD_POWER_W = 0.8
+SOLAR_ARRAY_POWER_W = 95.0
+POWER_CONDITIONING_EFFICIENCY = 0.9
+BATTERY_CAPACITY_WH = 800.0
+SIM_STEP_SECONDS = 228.0
+BATTERY_MAX_CHARGE_W = 120.0
+BATTERY_CHARGE_EFFICIENCY = 0.95
+BATTERY_DISCHARGE_EFFICIENCY = 0.95
+DEMOD_TX_CAPACITY_PER_STEP = 8.0
 
 
 def compute_power_balance(
     visible: bool,
-    nodes: int,
     power_consumption_watts: float,
+    battery_percent: float,
 ):
-    if not visible:
-        charging_power_watts = 0.0
-    elif power_consumption_watts <= 25.0:
-        charging_power_watts = 20.0 + 12.0 * float(np.sin(float(nodes) / 45.0))
-    elif power_consumption_watts <= 110.0:
-        charging_power_watts = 95.0 - 0.02 * float(nodes) + 16.0 * float(np.sin(float(nodes) / 120.0))
-    else:
-        charging_power_watts = 55.0 - 0.015 * float(nodes) + 10.0 * float(np.sin(float(nodes) / 100.0))
+    available_generation_watts = float(SOLAR_ARRAY_POWER_W * POWER_CONDITIONING_EFFICIENCY) if visible else 0.0
+    surplus_watts = float(available_generation_watts - power_consumption_watts)
 
-    charging_power_watts = float(max(0.0, charging_power_watts))
-    discharging_power_watts = float(power_consumption_watts)
+    # Charging current tapers near full state-of-charge.
+    if battery_percent >= 99.0:
+        charge_acceptance_scale = 0.0
+    elif battery_percent >= 95.0:
+        charge_acceptance_scale = 0.25
+    elif battery_percent >= 90.0:
+        charge_acceptance_scale = 0.5
+    else:
+        charge_acceptance_scale = 1.0
+
+    max_charge_watts = float(BATTERY_MAX_CHARGE_W * charge_acceptance_scale)
+    charging_power_watts = float(min(max(surplus_watts, 0.0), max_charge_watts))
+    discharging_power_watts = float(max(-surplus_watts, 0.0))
     net_power_watts = float(charging_power_watts - discharging_power_watts)
     charging = bool(net_power_watts > 0.0)
     return charging, charging_power_watts, discharging_power_watts, net_power_watts
@@ -55,23 +68,39 @@ def select_satellite_power_mode(
 
 def update_battery_percentage(
     battery_percent: float,
-    power_consumption_watts: float,
-    charging: bool,
+    net_power_watts: float,
+    _charging: bool,
     battery_decay_per_w: float,
     charging_rate_per_step: float,
 ):
-    new_pct = battery_percent - power_consumption_watts * battery_decay_per_w
-    if charging:
-        new_pct += charging_rate_per_step
+    del battery_decay_per_w, charging_rate_per_step
+    step_hours = float(SIM_STEP_SECONDS / 3600.0)
+    delta_wh = float(net_power_watts * step_hours)
+    if delta_wh >= 0.0:
+        delta_wh *= BATTERY_CHARGE_EFFICIENCY
+    else:
+        delta_wh /= max(BATTERY_DISCHARGE_EFFICIENCY, 1e-9)
+    delta_percent = float((delta_wh / BATTERY_CAPACITY_WH) * 100.0)
+    new_pct = float(battery_percent + delta_percent)
     return float(max(0.0, min(100.0, new_pct)))
 
 
-def compute_power_consumption(power_mode: str, allocated_demods: int):
+def compute_demod_utilization(tx_count: int, allocated_demods: int):
+    if allocated_demods <= 0:
+        return 0.0
+    capacity = float(max(1.0, allocated_demods * DEMOD_TX_CAPACITY_PER_STEP))
+    return float(min(1.0, float(tx_count) / capacity))
+
+
+def compute_power_consumption(power_mode: str, allocated_demods: int, tx_count: int):
     if power_mode == "sleep":
         return float(SLEEP_POWER_W)
+    utilization = compute_demod_utilization(tx_count=tx_count, allocated_demods=allocated_demods)
     if power_mode == "idle":
-        return float(SLEEP_POWER_W + allocated_demods * IDLE_DEMOD_POWER_W)
-    return float(SLEEP_POWER_W + allocated_demods * BUSY_DEMOD_POWER_W)
+        per_demod_watts = float(0.12 + 0.08 * utilization)
+        return float(SLEEP_POWER_W + allocated_demods * per_demod_watts)
+    per_demod_watts = float(0.25 + 0.55 * utilization)
+    return float(SLEEP_POWER_W + allocated_demods * per_demod_watts)
 
 
 @dataclass
@@ -270,7 +299,6 @@ def run_workflow(
     visibility_info = generate_visibility_windows(sat_pos, utils_mod, cfg.visibility_min_elev_deg)
 
     all_records = []
-    battery_percent = cfg.battery_initial_percent
 
     for nodes in cfg.node_loads:
         iot_nodes = generate_iot_nodes(nodes)
@@ -279,11 +307,12 @@ def run_workflow(
         tx_count = transmit_fragments(packet_count, visible)
 
         for requested_demods in cfg.demodulator_options:
+            battery_percent_scenario = cfg.battery_initial_percent
             p_mode_estimate = select_satellite_power_mode(
                 nodes,
                 requested_demods,
                 visible,
-                battery_percent,
+                battery_percent_scenario,
                 cfg.low_battery_threshold,
                 cfg.idle_battery_threshold,
                 cfg.high_charge_threshold,
@@ -293,20 +322,20 @@ def run_workflow(
                 nodes,
                 allocated_demods,
                 visible,
-                battery_percent,
+                battery_percent_scenario,
                 cfg.low_battery_threshold,
                 cfg.idle_battery_threshold,
                 cfg.high_charge_threshold,
             )
-            power_consumption = compute_power_consumption(p_mode, allocated_demods)
+            power_consumption = compute_power_consumption(p_mode, allocated_demods, tx_count=tx_count)
             charging, charging_power_watts, discharging_power_watts, net_power_watts = compute_power_balance(
                 visible=visible,
-                nodes=nodes,
                 power_consumption_watts=power_consumption,
+                battery_percent=battery_percent_scenario,
             )
-            battery_percent = update_battery_percentage(
-                battery_percent,
-                power_consumption,
+            updated_battery_percent = update_battery_percentage(
+                battery_percent_scenario,
+                net_power_watts,
                 charging,
                 cfg.battery_decay_per_w,
                 cfg.charging_rate_per_step,
@@ -345,7 +374,7 @@ def run_workflow(
                         "charging_power_watts": float(charging_power_watts),
                         "discharging_power_watts": float(discharging_power_watts),
                         "net_power_watts": float(net_power_watts),
-                        "battery_percent": float(battery_percent),
+                        "battery_percent": float(updated_battery_percent),
                         "charging": bool(charging),
                         "mode_label": mode_label,
                         "decoded_payloads": float(np.mean(decoded_payload_runs)),
@@ -383,8 +412,13 @@ def run_workflow(
         },
         "power_constants_watts": {
             "sleep": SLEEP_POWER_W,
-            "idle_per_demod": IDLE_DEMOD_POWER_W,
-            "busy_per_demod": BUSY_DEMOD_POWER_W,
+            "idle_per_demod_range": [0.12, 0.20],
+            "busy_per_demod_range": [0.25, 0.80],
+            "solar_array": SOLAR_ARRAY_POWER_W,
+            "power_conditioning_efficiency": POWER_CONDITIONING_EFFICIENCY,
+            "battery_capacity_wh": BATTERY_CAPACITY_WH,
+            "battery_max_charge_w": BATTERY_MAX_CHARGE_W,
+            "demod_tx_capacity_per_step": DEMOD_TX_CAPACITY_PER_STEP,
         },
         "node_range": {"min": node_min, "max": node_max, "points": node_points},
         "metrics_json": str(metrics_json.resolve()),

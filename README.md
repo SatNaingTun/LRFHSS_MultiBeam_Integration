@@ -21,14 +21,23 @@ END
 Power mode logic:
 
 ```python
-def power_mode(nodes):
-    if nodes == 0:
+def power_mode(nodes, allocated_demods, visible, battery_percent):
+    if battery_percent <= low_battery_threshold:
         return "sleep"
-    elif nodes < 200:
+    if nodes <= 0 or (not visible) or allocated_demods == 0:
+        return "sleep"
+    if battery_percent < idle_battery_threshold:
         return "idle"
-    else:
-        return "busy"
+    if nodes < 200 and allocated_demods <= high_charge_threshold:
+        return "idle"
+    return "busy"
 ```
+
+Power model notes:
+- Power consumption uses allocated demods and demod utilization.
+- Net power is computed from solar generation minus platform consumption.
+- Battery update is energy-based and uses `net_power_watts` per simulation step.
+- Power and net-power plots are grouped by `allocated_demods` (not requested demods).
 
 ## Run
 ```powershell
@@ -51,4 +60,8 @@ python run_integration.py --help
 - `results/heavy_load/heavy_load_metrics.json`
 - `results/heavy_load/heavy_load_metrics.csv`
 - `results/heavy_load/heavy_load_demodulator_constraints.png`
+- `results/heavy_load/decoded_payloads_by_power_mode.png`
+- `results/heavy_load/power_consumption_by_mode.png`
+- `results/heavy_load/battery_percentage_over_load.png`
+- `results/heavy_load/net_power_by_mode.png`
 - `results/heavy_load/workflow_summary.json`

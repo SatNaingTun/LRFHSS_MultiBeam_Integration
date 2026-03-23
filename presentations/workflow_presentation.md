@@ -1,149 +1,290 @@
 ---
 marp: true
+size: 16:9
+paginate: true
 ---
 
-# LRFHSS Multi-Beam Integration Workflow
+# LR-FHSS Power Model
+## Clear Theory Slides
 
-## Slide 1 - Title
-- Project: `LRFHSS_MultiBeam_Integration`
-- Topic: End-to-end workflow for heavy-load LR-FHSS evaluation
-- Scope: Orbit + visibility + traffic + demodulator constraints + decoding performance
-
-<!-- Presenter note: Introduce the scope and emphasize this is a full pipeline from satellite geometry to decoding KPIs. -->
-
----
-
-## Slide 2 - Objective
-- Evaluate LR-FHSS decoding performance under increasing node load
-- Measure effect of demodulator limits on decoded payloads
-- Record collisions, tracked transmissions, and decoded bytes
-- Produce reproducible metrics and plots for analysis
-
-<!-- Presenter note: State that the main question is where performance breaks first under heavy load. -->
+<!--
+Speech script:
+Today I will explain a compact energy-aware LR-FHSS model.
+I will focus on three things: what we model, how the equations are combined, and why each equation is justified by prior research.
+-->
 
 ---
 
-## Slide 3 - End-to-End Workflow
-1. Initialize simulation parameters
-2. Compute satellite orbit
-3. Generate visibility windows
-4. Generate IoT nodes
-5. Assign LR-FHSS packets
-6. Check satellite visibility
-7. Select satellite power mode
-8. Transmit fragments
-9. Detect collisions
-10. Allocate demodulators
-11. Baseline packet decoding
-12. Store metrics
-13. Generate performance plots
+## What We Model
+- Satellite LR-FHSS receiver
+- Limited demodulators
+- Battery + solar power
+- Load-dependent decoding
 
-<!-- Presenter note: Walk through quickly and mention modularity for future extensions. -->
+State:
+- $N$: node load
+- $D_{\text{req}}$: requested demods
+- $B_t$: battery SoC
+- $V$: visibility (0/1)
 
----
-
-## Slide 4 - Inputs and Configuration
-- Entry script: `run_integration.py`
-- Default node list: `0, 1, 5, 10, 20, 50, 100, 150, 200, 300, 500, 800, 1000, 1200, 1500`
-- Example demodulator options: `10, 100, 1000` (or custom list with `--demods`)
-- Seeded runs for reproducibility (`--seed`, default `42`)
-- External dependencies auto-bootstrapped when missing:
-  - `Multi-Beam-LEO-Framework`
-  - `LR-FHSS_LEO`
-
-<!-- Presenter note: Highlight reproducibility and zero-manual setup from dependency bootstrap. -->
+<!--
+Speech script:
+This slide defines the system boundary.
+The communication side is node load and demodulator budget.
+The power side is solar generation and battery state.
+These four state variables are enough to drive the one-step model.
+-->
 
 ---
 
-## Slide 5 - Power Mode Logic
-```python
-if nodes == 0: mode = "sleep"
-elif nodes < 200: mode = "idle"
-else: mode = "busy"
-```
-- `sleep`: allocate 0 demodulators
-- `idle` and `busy`: allocate requested demodulators
-- Power mode is selected per node-load point
+## Code Trace (Quick)
+- $N$ -> `nodes`
+- $D_{\text{req}}$ -> `requested_demods`
+- $D$ -> `allocated_demods`
+- $m_t$ -> `p_mode`
+- $V$ -> `visible`
+- $T$ -> `tx_count`
+- $P_{\text{cons}}$ -> `power_consumption`
+- $P_{\text{net}}$ -> `net_power_watts`
+- $B_{t+1}$ -> `updated_battery_percent`
 
-<!-- Presenter note: Explain that this is a simple policy baseline and can be replaced by smarter adaptive policies. -->
-
----
-
-## Slide 6 - Core Simulation Loop
-- For each node load:
-  - Create node list and packet count
-  - Apply visibility gate (if not visible, transmissions are zero)
-  - For each requested demodulator count:
-    - Allocate demods based on power mode
-    - Run baseline decoding
-    - Capture outputs: decoded payloads, tracked txs, decoded bytes, collisions
-
-<!-- Presenter note: Emphasize this loop is the experiment matrix: nodes x demods. -->
+<!--
+Speech script:
+This is a quick bridge from equations to code names.
+It makes implementation auditing straightforward.
+-->
 
 ---
 
-## Slide 7 - Outputs and Artifacts
-- Metrics:
-  - `results/heavy_load/heavy_load_metrics.json`
-  - `results/heavy_load/heavy_load_metrics.csv`
-- Summaries:
-  - `results/heavy_load/workflow_summary.json`
-  - `results/heavy_load/heavy_load_summary.json`
-- Plots:
-  - `results/heavy_load/heavy_load_demodulator_constraints.png`
-  - `results/heavy_load/decoded_payloads_by_power_mode.png`
+## Why We Need This
+- Decode performance alone is not enough.
+- Energy limits change operating mode.
+- We need decode + power in one loop.
 
-<!-- Presenter note: Mention that CSV supports post-analysis while PNG enables immediate reporting. -->
+Goal:
+$$
+\text{maximize decode utility subject to battery feasibility}
+$$
 
----
-
-## Slide 8 - Current Run Snapshot (from existing results)
-- Records in CSV: `108`
-- Node range in data: `0` to `1500`
-- Demodulator counts evaluated: `10, 30, 50, 70, 100, 300, 500, 700, 1000`
-- Power modes observed: `sleep`, `idle`, `busy`
-- Visibility window example: frame `13052` to `77074`
-
-<!-- Presenter note: Use this slide to confirm coverage and reassure audience the sweep is broad. -->
+<!--
+Speech script:
+If we optimize only decoding, we may choose infeasible operating points.
+If we optimize only energy, we ignore communication utility.
+So we frame a constrained objective: maximize decoding while keeping battery operation feasible.
+-->
 
 ---
 
-## Slide 9 - Observed Trend Summary
-- Increasing demodulator capacity generally improves decoded payloads at low to moderate load
-- At high load, decoded payloads saturate or drop due to contention/collisions
-- Best observed decoded payloads in this dataset occur around mid-high demodulator counts (not always max demods)
-- Very high node counts (for example `700+`) can drive decoded payloads close to zero in baseline mode
+## Step 1: Mode Policy
+$$
+m_t=
+\begin{cases}
+\text{sleep}, & B_t\le B_{\text{low}} \;\text{or}\; V=0 \;\text{or}\; N=0 \;\text{or}\; D=0\\
+\text{idle}, & B_t< B_{\text{idle}}\\
+\text{idle}, & N<200 \;\text{and}\; D\le D_{\text{hi}}\\
+\text{busy}, & \text{otherwise}
+\end{cases}
+$$
 
-<!-- Presenter note: Stress that collision behavior, not only demod budget, dominates in heavy-load regimes. -->
-
----
-
-## Slide 10 - How to Run
-```powershell
-python run_integration.py
-```
-
-```powershell
-python run_integration.py --nodes 0 2 7 15 40 90 180 260 400 700 1000 1500 --demods 10 30 50 70 100 300 500 700 1000
-```
-
-<!-- Presenter note: Mention first command for default execution and second for custom sweeps. -->
+<!--
+Speech script:
+First we choose operating mode.
+Sleep is enforced when battery is low, no visibility, no traffic, or no allocated demods.
+Idle and busy separate conservative and aggressive operation, including a low-load idle branch.
+This is a control policy, not a physical law.
+-->
 
 ---
 
-## Slide 11 - Recommendations
-- Add multiple runs per point (`runs_per_point > 1`) to reduce randomness
-- Compare baseline vs early decode/early drop in the same workflow run
-- Include throughput efficiency and collision rate plots per power mode
-- Add automated regression thresholds for CI checks
+## Step 2: Demod Allocation
+$$
+D=
+\begin{cases}
+0, & m_t=\text{sleep}\\
+D_{\text{req}}, & \text{idle/busy}
+\end{cases}
+$$
 
-<!-- Presenter note: Position these as actionable next steps for stronger experimental confidence. -->
+<!--
+Speech script:
+Mode directly determines active decoding hardware.
+In sleep we force zero demodulators.
+In active modes we allocate the requested demodulators.
+This creates the coupling from policy to communication capacity.
+-->
 
 ---
 
-## Slide 12 - Conclusion
-- Workflow is modular, reproducible, and suitable for scaling experiments
-- Main bottleneck under heavy load is contention, not only demodulator count
-- Existing outputs are ready for performance reporting and design tuning
+## Step 3: Utilization
+$$
+u=\min\!\left(1,\frac{T}{kD}\right), \quad u\in[0,1]
+$$
 
-<!-- Presenter note: End by tying technical findings to practical optimization direction. -->
+- $T$: traffic demand per step
+- $kD$: decode capacity per step
+
+<!--
+Speech script:
+Now we map demand to utilization.
+The ratio T over kD tells us how loaded the demodulator pool is.
+Clipping at 1 means saturation.
+This variable drives both power consumption and performance stress.
+-->
+
+---
+
+## Step 4: Power Consumption
+$$
+P_{\text{cons}}=
+\begin{cases}
+P_0, & \text{sleep}\\
+P_0 + D(a_i+b_i u), & \text{idle}\\
+P_0 + D(a_b+b_b u), & \text{busy}
+\end{cases}
+$$
+
+<!--
+Speech script:
+Consumption has a baseline plus an active demodulator term.
+The active term is affine in utilization.
+Busy mode uses larger coefficients than idle mode.
+This follows energy-proportional modeling ideas adapted to demodulators.
+-->
+
+---
+
+## Step 5: Solar Generation
+$$
+P_{\text{gen}} = V P_{\text{solar}}\eta_{\text{pc}}
+$$
+
+Surplus:
+$$
+S=P_{\text{gen}}-P_{\text{cons}}
+$$
+
+<!--
+Speech script:
+Generation is modeled from visibility and solar efficiency.
+Subtracting load gives surplus power.
+Positive surplus means charging is possible.
+Negative surplus means battery must discharge.
+-->
+
+---
+
+## Step 6: Net Battery Power
+Charge taper:
+$$
+\alpha(B_t)\in\{1,0.5,0.25,0\}
+$$
+
+$$
+P_{\text{ch}}=\min(\max(S,0),P_{\text{ch,max}}\alpha(B_t))
+$$
+$$
+P_{\text{dis}}=\max(-S,0),\quad
+P_{\text{net}}=P_{\text{ch}}-P_{\text{dis}}
+$$
+
+<!--
+Speech script:
+Here we add battery realism.
+Near full SoC, charge acceptance tapers, so we cannot absorb all surplus.
+That is why positive surplus does not always mean large positive net charging.
+Net battery power is charge minus discharge branch.
+-->
+
+---
+
+## Step 7: Battery Update
+$$
+\Delta E=
+\eta_{\text{ch}}\max(P_{\text{net}},0)\Delta t
+-\frac{1}{\eta_{\text{dis}}}\max(-P_{\text{net}},0)\Delta t
+$$
+
+$$
+B_{t+1}=\text{clip}_{[0,100]}
+\left(B_t+100\frac{\Delta E}{C_{\text{Wh}}}\right)
+$$
+
+<!--
+Speech script:
+Battery is updated from energy, not from ad-hoc percentages.
+We integrate net power over the step duration.
+Charge and discharge efficiencies are handled separately.
+Finally, SoC is clipped to physical limits.
+-->
+
+---
+
+## Full Combined Chain
+$$
+(N,D_{\text{req}},V,B_t)
+\rightarrow m_t
+\rightarrow D
+\rightarrow u
+\rightarrow P_{\text{cons}}
+\rightarrow P_{\text{net}}
+\rightarrow B_{t+1}
+$$
+
+Implementation note:
+- In current code, battery is reset per scenario: $B_t = B_{\text{init}}$ for each $(N,D_{\text{req}})$ point.
+
+<!--
+Speech script:
+This is the full recurrence in one line.
+Each block feeds the next block.
+The key point is feedback: battery state affects mode, and mode affects future battery state through power.
+In the current implementation, this recurrence is applied as a one-step scenario update, not as a multi-step time trajectory across the sweep.
+-->
+
+---
+
+## When This Model Is Valid
+- Early-stage mission trade studies
+- Control/policy comparison
+- Fast sweeps over load and demods
+
+Not enough for:
+- high-fidelity electrochemistry
+- thermal-coupled battery physics
+
+<!--
+Speech script:
+This is a first-order model.
+It is strong for design exploration and policy comparison.
+It is not a replacement for electrochemical battery simulators or detailed thermal-orbital tools.
+-->
+
+---
+
+## Why These Equations
+- SoC energy update (adapted from Coulomb-counting literature): [10.3390/en14144074](https://doi.org/10.3390/en14144074)
+- Utilization-power linear model: [10.1145/1273440.1250665](https://doi.org/10.1145/1273440.1250665)
+- Energy proportionality: [10.1109/MC.2007.443](https://doi.org/10.1109/MC.2007.443)
+
+<!--
+Speech script:
+These references justify the foundations:
+SoC integration, battery behavior, and utilization-power relationship.
+We use adapted forms of these ideas for LR-FHSS receiver operation; not every equation is copied directly.
+-->
+
+---
+
+## More Power-System References
+- Spacecraft EPS balance model:
+  - [10.1016/j.actaastro.2020.10.036](https://doi.org/10.1016/j.actaastro.2020.10.036)
+- CubeSat EPS survey:
+  - <https://link.springer.com/article/10.1007/s43937-025-00069-5>
+- CC-CV charge dynamics:
+  - [10.1016/j.est.2020.101342](https://doi.org/10.1016/j.est.2020.101342)
+
+<!--
+Speech script:
+These papers support the spacecraft EPS energy-balance simplification and the charge-taper behavior near full SoC.
+Together they justify the power-generation and battery-side parts of the model.
+-->

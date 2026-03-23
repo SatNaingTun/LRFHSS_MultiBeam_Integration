@@ -1,173 +1,335 @@
 ---
 marp: true
+size: 16:9
+paginate: true
 ---
 
+# Detailed Theory
+## LR-FHSS + Power Coupling
 
-# Detailed Workflow Explanation
-
-## 1) What this workflow does
-The workflow evaluates LR-FHSS uplink performance for many traffic loads and demodulator capacities. It combines satellite visibility constraints with decoding behavior and produces machine-readable metrics plus plots.
-
-Main execution path:
-- `run_integration.py` parses CLI arguments and ensures external repositories are available.
-- `workflow.py` executes the simulation pipeline and writes artifacts under `results/heavy_load/`.
-
----
-
-## 2) Entry point and orchestration
-`run_integration.py`:
-- Defines defaults for:
-  - Multi-beam framework path
-  - LR-FHSS framework path
-  - Output directory
-  - Seed
-  - Node list and demod list
-- If external repos are missing, it runs `ensure_reference_paths.py`.
-- Calls `workflow.run_workflow(...)` with all parameters.
-
-Why this matters:
-- You can run quickly with defaults.
-- You can also override specific parameters without editing code.
+<!--
+Speech script:
+This detailed deck is equation-first.
+I will define symbols, derive each block, and then combine the blocks into a final recurrence.
+-->
 
 ---
 
-## 3) Pipeline stages in `workflow.py`
+## Symbols (Core)
+- $N$: node load
+- $D_{\text{req}}$: requested demods
+- $D$: allocated demods
+- $T$: traffic demand per step
+- $u$: utilization
+- $V$: visibility (0/1)
+- $B_t$: battery SoC
 
-### Stage A - Initialize simulation parameters
-Function: `initialize_simulation_parameters(...)`
-- Builds a `PipelineConfig` dataclass:
-  - `node_loads`
-  - `demodulator_options`
-  - `runs_per_point`
-  - visibility threshold
-  - output path
-  - seed
-- If `nodes_list` is provided, it uses that list directly.
-- Otherwise it generates log-spaced node loads from min/max/points.
+<!--
+Speech script:
+These are the communication and state variables.
+They form the input to each simulation step.
+-->
+
+---
+
+## Symbols (Power)
+- $P_0$: baseline platform power
+- $P_{\text{cons}}$: consumption power
+- $P_{\text{solar}}$: solar array rating
+- $\eta_{\text{pc}}$: power conditioning efficiency
+- $P_{\text{gen}}$: generated power
+- $P_{\text{net}}$: battery-side net power
+- $C_{\text{Wh}}$: battery capacity
+
+<!--
+Speech script:
+These are the power-system parameters and outputs.
+Keep this slide as reference for the remaining equations.
+-->
 
 ---
 
-### Stage B - Load external simulation components
-Function call: `bootstrap(multi_beam_root, lrfhss_root)`
-- Loads geometry utilities and `LoRaNetwork` implementation from external repos.
-- This keeps this repository focused on integration flow rather than reimplementing the underlying PHY/network internals.
----
+## Code Trace (Symbols to `workflow.py`)
+- $N$ -> `nodes`
+- $D_{\text{req}}$ -> `requested_demods`
+- $D$ -> `allocated_demods`
+- $m_t$ -> `p_mode`
+- $V$ -> `visible`
+- $T$ -> `tx_count`
+- $u$ -> `compute_demod_utilization(...)`
+- $P_{\text{cons}}$ -> `power_consumption`
+- $P_{\text{net}}$ -> `net_power_watts`
+- $B_t, B_{t+1}$ -> `battery_percent_scenario`, `updated_battery_percent`
 
-### Stage C - Compute orbit and visibility
-Functions:
-- `compute_satellite_orbit(network_geometry)`
-- `generate_visibility_windows(sat_pos, utils_mod, min_elev_deg)`
-
-Details:
-- Satellite position is obtained from the geometry module.
-- Elevation angle is converted to degrees.
-- A boolean visibility mask is built using threshold `>= 10 deg`.
-- Continuous visible intervals are extracted as `(start_frame, end_frame)` tuples.
----
-
-### Stage D - Per-load traffic generation
-Functions:
-- `generate_iot_nodes(node_count)`
-- `assign_lrfhss_packets(nodes)`
-- `check_satellite_visibility(visibility_info)`
-- `select_satellite_power_mode(nodes)`
-- `transmit_fragments(packet_count, visible)`
----
-
-Details:
-- IoT nodes are represented as IDs `[0..N-1]`.
-- One packet per node is assigned in this baseline workflow.
-- A representative frame is chosen from the first visibility window.
-- Power mode logic:
-  - `sleep` for `0` nodes
-  - `idle` for `1..199`
-  - `busy` for `>=200`
-- If satellite not visible at selected frame, transmitted count is forced to `0`.
----
-
-### Stage E - Demodulator allocation and decode
-Functions:
-- `allocate_demodulators(requested_demods, mode)`
-- `baseline_packet_decoding(...)`
-- `detect_collisions(decoded_metrics)`
----
-
-Details:
-- In `sleep`, allocated demodulators are set to `0`.
-- Otherwise allocation equals requested value.
-- `baseline_packet_decoding` constructs `LoRaNetwork(...)`, runs simulation, and collects:
-  - `tracked_txs`
-  - `decoded_payloads`
-  - `decoded_bytes`
-  - `collided`
-- For zero-load or zero-demod cases, it returns zeros without running network simulation.
+<!--
+Speech script:
+This slide maps each equation symbol to the exact implementation variable.
+It helps reviewers verify that the math and code are consistent.
+-->
 
 ---
-### Stage F - Persist metrics and plots
-Functions:
-- `store_metrics(records, output_dir)`
-- `generate_performance_plots(records, output_dir)`
 
-Outputs:
-- JSON + CSV metrics
-- Plot with all series
-- Plot split by power mode
-- `workflow_summary.json` with workflow steps, power mode logic, output paths, and visibility windows
+## 1) Policy Equation
+$$
+m_t=
+\begin{cases}
+\text{sleep}, & B_t\le B_{\text{low}} \;\text{or}\; V=0 \;\text{or}\; N=0 \;\text{or}\; D=0\\
+\text{idle}, & B_t<B_{\text{idle}}\\
+\text{idle}, & N<200 \;\text{and}\; D\le D_{\text{hi}}\\
+\text{busy}, & \text{otherwise}
+\end{cases}
+$$
+
+<!--
+Speech script:
+Mode is decided first.
+Battery safety, visibility, no traffic, or no allocated demods can force sleep.
+Otherwise, threshold logic separates idle and busy operation, including low-load idle.
+-->
+
 ---
 
-## 4) Data schema (record-level)
-Each row in `heavy_load_metrics.csv` includes:
-- `nodes`
-- `power_mode`
-- `visible`
-- `selected_frame`
-- `requested_demods`
-- `allocated_demods`
-- `mode_label`
-- `decoded_payloads`
-- `tracked_txs`
-- `decoded_bytes`
-- `collided`
+## 2) Allocation Equation
+$$
+D=
+\begin{cases}
+0, & m_t=\text{sleep}\\
+D_{\text{req}}, & \text{idle/busy}
+\end{cases}
+$$
 
-This schema is enough to reproduce most performance analyses without rerunning simulation.
+Why:
+- Sleep disables demods.
+- Active modes use requested capacity.
+
+<!--
+Speech script:
+Mode becomes hardware allocation here.
+This is the bridge from policy to decoding capability.
+-->
+
 ---
 
-## 5) Interpreting the current result set
-From `results/heavy_load/heavy_load_metrics.csv` currently in the repo:
-- Total rows: `108`
-- Node range present: `0` to `1500`
-- Demod levels present: `10, 30, 50, 70, 100, 300, 500, 700, 1000`
-- Modes present: `sleep`, `idle`, `busy`
+## 3) Utilization Equation
+$$
+u=\min\!\left(1,\frac{T}{kD}\right)
+$$
 
-Observed behavior:
-- Decoded payload increases with demod count at lower loads.
-- Under high load, collisions rise and decoded payload can collapse, even with high demod counts.
-- The maximum demod count is not always the best operating point for each node load in this baseline setup.
+Interpretation:
+- $u\approx 0$: underloaded
+- $u\approx 1$: saturated
+
+<!--
+Speech script:
+Utilization compares demand to demod capacity.
+This gives a normalized stress variable between zero and one.
+-->
+
 ---
 
-## 6) Why performance drops at heavy load
-Likely combined causes:
-- Contention growth: more overlapping transmissions with larger node populations
-- Header/payload collisions: demodulator count helps concurrency but does not eliminate channel overlap
-- Saturation effects in baseline decode path under aggressive load
+## 4) Consumption Equation
+$$
+P_{\text{cons}}=
+\begin{cases}
+P_0, & \text{sleep}\\
+P_0 + D(a_i+b_i u), & \text{idle}\\
+P_0 + D(a_b+b_b u), & \text{busy}
+\end{cases}
+$$
 
-This is consistent with seeing near-zero decoded payload at very high node loads.
+<!--
+Speech script:
+Sleep is baseline-only power.
+Idle and busy add demod power, scaled by utilization.
+Busy coefficients are larger than idle by design.
+-->
+
 ---
 
-## 7) How to present this workflow clearly
-Suggested narrative:
-1. Problem and objective
-2. System model and assumptions
-3. End-to-end workflow diagram
-4. Parameter sweep design (nodes x demods)
-5. Result plots and interpretation
-6. Bottlenecks and next optimization targets
+## 5) Generation Equation
+$$
+P_{\text{gen}}=V P_{\text{solar}}\eta_{\text{pc}}
+$$
+
+Surplus:
+$$
+S=P_{\text{gen}}-P_{\text{cons}}
+$$
+
+<!--
+Speech script:
+Visibility gates generation.
+Surplus is the key sign variable:
+positive means potential charging, negative means required discharging.
+-->
+
 ---
 
-## 8) Recommended next technical improvements
-- Increase `runs_per_point` and report confidence intervals
-- Re-enable side-by-side comparison of `Baseline` vs `Early` decode/drop
-- Add normalization metrics:
-  - decode success ratio (`decoded_payloads / tracked_txs`)
-  - collision ratio (`collided / tracked_txs`)
-- Add auto-generated experiment manifest (CLI args + git commit hash) for strict reproducibility
+## 6) Charge Acceptance
+$$
+\alpha(B_t)=
+\begin{cases}
+1, & B_t<90\\
+0.5, & 90\le B_t<95\\
+0.25, & 95\le B_t<99\\
+0, & B_t\ge 99
+\end{cases}
+$$
+
+<!--
+Speech script:
+This captures CV-like taper near full battery.
+It limits accepted charging power as SoC approaches 100 percent.
+-->
+
+---
+
+## 7) Battery-Side Power Branch
+$$
+P_{\text{ch}}=\min(\max(S,0),P_{\text{ch,max}}\alpha(B_t))
+$$
+$$
+P_{\text{dis}}=\max(-S,0)
+$$
+$$
+P_{\text{net}}=P_{\text{ch}}-P_{\text{dis}}
+$$
+
+<!--
+Speech script:
+This is a piecewise branch written compactly.
+Only one branch is active at a time:
+charging branch for positive surplus, discharging branch for negative surplus.
+-->
+
+---
+
+## 8) Battery Energy Update
+$$
+\Delta E=
+\eta_{\text{ch}}\max(P_{\text{net}},0)\Delta t
+-\frac{1}{\eta_{\text{dis}}}\max(-P_{\text{net}},0)\Delta t
+$$
+
+$$
+B_{t+1}=\text{clip}_{[0,100]}
+\left(B_t+100\frac{\Delta E}{C_{\text{Wh}}}\right)
+$$
+
+<!--
+Speech script:
+We integrate power over step duration to get energy change.
+Then convert energy to SoC percentage.
+Clip ensures physically valid SoC bounds.
+-->
+
+---
+
+## 9) Combined Derivation
+$$
+(N,D_{\text{req}},V,B_t)
+\rightarrow m_t
+\rightarrow D
+\rightarrow u
+\rightarrow P_{\text{cons}}
+\rightarrow S
+\rightarrow P_{\text{net}}
+\rightarrow B_{t+1}
+$$
+
+Implementation note:
+- Current code evaluates one-step SoC per scenario and resets battery to initial value for each sweep point.
+
+<!--
+Speech script:
+This one-line chain is the full algorithm.
+Every block is deterministic once parameters are set.
+In code, this chain is applied as a one-step scenario update rather than a multi-step temporal rollout across scenarios.
+-->
+
+---
+
+## 10) Piecewise Net Power Result
+From $S=P_{\text{gen}}-P_{\text{cons}}$:
+
+$$
+P_{\text{net}}=
+\begin{cases}
+\min(S,P_{\text{ch,max}}\alpha(B_t)), & S\ge 0\\
+S, & S<0
+\end{cases}
+$$
+
+Meaning:
+- Positive surplus may still be charge-limited.
+
+<!--
+Speech script:
+This is the most important derived simplification.
+When surplus is positive, charging can still be capped by acceptance.
+When surplus is negative, net power simply follows deficit.
+-->
+
+---
+
+## 11) Applicability
+Use when:
+- fast trade studies are needed
+- policy comparisons are needed
+- interpretable model is preferred
+
+Avoid alone when:
+- thermal-electrochemical detail is required
+- high-fidelity orbit irradiance is required
+
+<!--
+Speech script:
+This model is intentionally lightweight.
+It is great for control and system-level trade space analysis.
+It should be complemented by high-fidelity models for final verification.
+-->
+
+---
+
+## 12) Validation Checklist
+1. Sleep consumption is constant.
+2. Active-mode consumption rises with $u$ and $D$.
+3. If $V=0$, then $P_{\text{gen}}=0$.
+4. $B_{t+1}$ always in $[0,100]$.
+
+<!--
+Speech script:
+These checks are quick sanity tests for implementation correctness.
+If any fail, either parameters or code logic should be reviewed.
+-->
+
+---
+
+## 13) Why These Formulas
+- Battery SoC update literature:
+  - [10.3390/en14144074](https://doi.org/10.3390/en14144074)
+- Utilization-power model:
+  - [10.1145/1273440.1250665](https://doi.org/10.1145/1273440.1250665)
+  - [10.1109/MC.2007.443](https://doi.org/10.1109/MC.2007.443)
+
+<!--
+Speech script:
+These references justify the foundational equations.
+Our contribution is how we combine and adapt them for LR-FHSS demodulator-constrained operation; some blocks are inspired approximations.
+-->
+
+---
+
+## 14) EPS + Charging References
+- Spacecraft EPS balance:
+  - [10.1016/j.actaastro.2020.10.036](https://doi.org/10.1016/j.actaastro.2020.10.036)
+- CubeSat EPS survey:
+  - <https://link.springer.com/article/10.1007/s43937-025-00069-5>
+- CC-CV charge model:
+  - [10.1016/j.est.2020.101342](https://doi.org/10.1016/j.est.2020.101342)
+
+<!--
+Speech script:
+These references support the EPS generation-load balance and the charge taper concept near full SoC.
+They underpin the power and battery blocks of our recurrence.
+-->

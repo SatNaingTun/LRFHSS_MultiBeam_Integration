@@ -122,7 +122,7 @@ def generate_performance_plots(records: list[dict], output_dir: Path):
     # Power consumption plots
     power_series = {}
     for r in records:
-        key = (r["power_mode"], r["requested_demods"])
+        key = (r["power_mode"], r["allocated_demods"])
         power_series.setdefault(key, {"x": [], "y": []})
         power_series[key]["x"].append(r["nodes"])
         power_series[key]["y"].append(r["power_consumption_watts"])
@@ -173,14 +173,14 @@ def generate_performance_plots(records: list[dict], output_dir: Path):
     plt.close(fig4)
 
     mode_names = [m for m in ["sleep", "idle", "busy"] if any(r["power_mode"] == m for r in records)]
-    demod_values = sorted(set(int(r["requested_demods"]) for r in records))
+    demod_values = sorted(set(int(r["allocated_demods"]) for r in records))
     fig5, axes5 = plt.subplots(nrows=len(mode_names), ncols=1, figsize=(12, 4 * max(1, len(mode_names))), sharex=True)
     if len(mode_names) == 1:
         axes5 = [axes5]
 
     for ax5, p_mode in zip(axes5, mode_names):
         for idx, demods in enumerate(demod_values):
-            sub = [r for r in records if r["power_mode"] == p_mode and int(r["requested_demods"]) == demods]
+            sub = [r for r in records if r["power_mode"] == p_mode and int(r["allocated_demods"]) == demods]
             if not sub:
                 continue
             x_vals = sorted(set(int(r["nodes"]) for r in sub))

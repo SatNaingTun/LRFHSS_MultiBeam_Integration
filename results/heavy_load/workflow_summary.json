@@ -23,8 +23,19 @@
   },
   "power_constants_watts": {
     "sleep": 5.0,
-    "idle_per_demod": 0.2,
-    "busy_per_demod": 0.8
+    "idle_per_demod_range": [
+      0.12,
+      0.2
+    ],
+    "busy_per_demod_range": [
+      0.25,
+      0.8
+    ],
+    "solar_array": 95.0,
+    "power_conditioning_efficiency": 0.9,
+    "battery_capacity_wh": 800.0,
+    "battery_max_charge_w": 120.0,
+    "demod_tx_capacity_per_step": 8.0
   },
   "node_range": {
     "min": 10,
