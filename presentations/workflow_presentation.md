@@ -1,5 +1,6 @@
 ---
 marp: true
+math: katex
 size: 16:9
 paginate: true
 ---
@@ -20,6 +21,8 @@ I will focus on three things: what we model, how the equations are combined, and
 - Limited demodulators
 - Battery + solar power
 - Load-dependent decoding
+- Header-only decode KPI (primary)
+- Header-including-payload KPI (secondary)
 
 State:
 - $N$: node load
@@ -44,6 +47,8 @@ These four state variables are enough to drive the one-step model.
 - $m_t$ -> `p_mode`
 - $V$ -> `visible`
 - $T$ -> `tx_count`
+- $H_{\text{hdr}}$ -> `decoded_headers`
+- $H_{\text{inc}}$ -> `decoded_headers_including_payloads`
 - $P_{\text{cons}}$ -> `power_consumption`
 - $P_{\text{net}}$ -> `net_power_watts`
 - $B_{t+1}$ -> `updated_battery_percent`
@@ -61,10 +66,7 @@ It makes implementation auditing straightforward.
 - Energy limits change operating mode.
 - We need decode + power in one loop.
 
-Goal:
-$$
-\text{maximize decode utility subject to battery feasibility}
-$$
+
 
 <!--
 Speech script:
@@ -86,6 +88,8 @@ m_t=
 \end{cases}
 $$
 
+Variables: $m_t$ operating mode, $B_t$ battery SoC (%), $B_{\text{low}}$ low-battery threshold, $B_{\text{idle}}$ idle-mode threshold, $V$ visibility flag, $N$ node load, $D$ allocated demods, $D_{\text{hi}}$ high-charge demod threshold.
+
 <!--
 Speech script:
 First we choose operating mode.
@@ -104,6 +108,8 @@ D=
 D_{\text{req}}, & \text{idle/busy}
 \end{cases}
 $$
+Label: Demod allocation rule.
+Variables: $D$ allocated demods, $D_{\text{req}}$ requested demods, $m_t$ operating mode.
 
 <!--
 Speech script:
@@ -119,6 +125,8 @@ This creates the coupling from policy to communication capacity.
 $$
 u=\min\!\left(1,\frac{T}{kD}\right), \quad u\in[0,1]
 $$
+Label: Utilization equation.
+Variables: $u$ utilization, $T$ traffic demand per step, $k$ per-demod step capacity, $D$ allocated demods.
 
 - $T$: traffic demand per step
 - $kD$: decode capacity per step
@@ -143,6 +151,8 @@ P_0 + D(a_b+b_b u), & \text{busy}
 \end{cases}
 $$
 
+Variables: $P_{\text{cons}}$ receiver power draw, $P_0$ baseline platform power, $D$ allocated demods, $u$ utilization, $(a_i,b_i)$ idle coefficients, $(a_b,b_b)$ busy coefficients.
+
 <!--
 Speech script:
 Consumption has a baseline plus an active demodulator term.
@@ -157,11 +167,15 @@ This follows energy-proportional modeling ideas adapted to demodulators.
 $$
 P_{\text{gen}} = V P_{\text{solar}}\eta_{\text{pc}}
 $$
+Label: Solar generation model.
+Variables: $P_{\text{gen}}$ generated power, $V$ visibility flag, $P_{\text{solar}}$ panel rating, $\eta_{\text{pc}}$ power-conditioning efficiency.
 
 Surplus:
 $$
 S=P_{\text{gen}}-P_{\text{cons}}
 $$
+Label: Power surplus.
+Variables: $S$ surplus power, $P_{\text{gen}}$ generated power, $P_{\text{cons}}$ consumption power.
 
 <!--
 Speech script:
@@ -179,13 +193,19 @@ $$
 \alpha(B_t)\in\{1,0.5,0.25,0\}
 $$
 
+Variables: $\alpha(B_t)$ charge-acceptance scale, $B_t$ battery SoC.
+
 $$
 P_{\text{ch}}=\min(\max(S,0),P_{\text{ch,max}}\alpha(B_t))
 $$
+
+Variables: $P_{\text{ch}}$ charging power, $S$ surplus power, $P_{\text{ch,max}}$ max charge power, $\alpha(B_t)$ charge-acceptance scale, $B_t$ battery SoC.
 $$
 P_{\text{dis}}=\max(-S,0),\quad
 P_{\text{net}}=P_{\text{ch}}-P_{\text{dis}}
 $$
+
+Variables: $P_{\text{dis}}$ discharging power, $S$ surplus power, $P_{\text{net}}$ net battery power, $P_{\text{ch}}$ charging power.
 
 <!--
 Speech script:
@@ -204,10 +224,14 @@ $$
 -\frac{1}{\eta_{\text{dis}}}\max(-P_{\text{net}},0)\Delta t
 $$
 
+Variables: $\Delta E$ battery energy change, $P_{\text{net}}$ net battery power, $\eta_{\text{ch}}$ charging efficiency, $\eta_{\text{dis}}$ discharging efficiency, $\Delta t$ step duration.
+
 $$
 B_{t+1}=\text{clip}_{[0,100]}
 \left(B_t+100\frac{\Delta E}{C_{\text{Wh}}}\right)
 $$
+
+Variables: $B_{t+1}$ next-step SoC, $B_t$ current SoC, $\Delta E$ battery energy change, $C_{\text{Wh}}$ battery capacity (Wh), $\text{clip}_{[0,100]}$ bound operator.
 
 <!--
 Speech script:
@@ -229,6 +253,8 @@ $$
 \rightarrow P_{\text{net}}
 \rightarrow B_{t+1}
 $$
+Label: Full simulation pipeline.
+Variables: $N$ node load, $D_{\text{req}}$ requested demods, $V$ visibility, $B_t$ current SoC, $m_t$ mode, $D$ allocated demods, $u$ utilization, $P_{\text{cons}}$ consumption power, $P_{\text{net}}$ net battery power, $B_{t+1}$ next-step SoC.
 
 Implementation note:
 - In current code, battery is reset per scenario: $B_t = B_{\text{init}}$ for each $(N,D_{\text{req}})$ point.
@@ -258,6 +284,54 @@ This is a first-order model.
 It is strong for design exploration and policy comparison.
 It is not a replacement for electrochemical battery simulators or detailed thermal-orbital tools.
 -->
+
+---
+
+# Results
+## Header-Only KPI
+Primary metric for performance comparison.
+
+![bg right:72% contain](../results/heavy_load/heavy_load_demodulator_constraints.png)
+
+---
+
+# Results
+## Header-Only by Mode
+Sleep, idle, and busy behavior split.
+
+![bg right:72% contain](../results/heavy_load/decoded_headers_by_power_mode.png)
+
+---
+
+# Results
+## Header-Including-Payload KPI
+Secondary metric: header decode including payload-decoded packets.
+
+![bg right:72% contain](../results/heavy_load/heavy_load_demodulator_constraints_header_payload.png)
+
+---
+
+# Results
+## Header-Including-Payload by Mode
+Mode-wise trend for the secondary KPI.
+
+![bg right:72% contain](../results/heavy_load/decoded_header_payloads_by_power_mode.png)
+
+---
+
+# Results
+## Power Consumption by Mode
+Receiver power trend across operating modes.
+
+![bg right:72% contain](../results/heavy_load/power_consumption_by_mode.png)
+
+---
+
+# Results
+## Net Power by Mode
+Charging minus discharging across traffic load.
+
+![bg right:72% contain](../results/heavy_load/net_power_by_mode.png)
 
 ---
 

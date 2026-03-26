@@ -220,7 +220,8 @@ def baseline_packet_decoding(LoRaNetwork, node_count: int, demods: int, use_earl
     if node_count <= 0 or demods <= 0:
         return {
             "tracked_txs": 0,
-            "decoded_payloads": 0,
+            "decoded_headers": 0,
+            "decoded_header_payloads": 0,
             "decoded_bytes": 0,
             "collided": 0,
         }
@@ -245,7 +246,8 @@ def baseline_packet_decoding(LoRaNetwork, node_count: int, demods: int, use_earl
 
     return {
         "tracked_txs": int(network.get_tracked_txs()),
-        "decoded_payloads": int(network.get_decoded_hrd_pld()),
+        "decoded_headers": int(network.get_decoded_hdr()),
+        "decoded_header_payloads": int(network.get_decoded_hrd_pld()),
         "decoded_bytes": int(network.get_decoded_bytes()),
         "collided": int(network.get_collided_hdr_pld()),
     }
@@ -343,7 +345,8 @@ def run_workflow(
             mode_options = [("Baseline", False, False)]
 
             for mode_label, use_earlydecode, use_earlydrop in mode_options:
-                decoded_payload_runs = []
+                decoded_header_runs = []
+                decoded_header_payload_runs = []
                 tracked_runs = []
                 decoded_bytes_runs = []
                 collision_runs = []
@@ -358,7 +361,8 @@ def run_workflow(
                         use_earlydrop=use_earlydrop,
                     )
                     collision_runs.append(detect_collisions(decode_metrics))
-                    decoded_payload_runs.append(decode_metrics["decoded_payloads"])
+                    decoded_header_runs.append(decode_metrics["decoded_headers"])
+                    decoded_header_payload_runs.append(decode_metrics["decoded_header_payloads"])
                     tracked_runs.append(decode_metrics["tracked_txs"])
                     decoded_bytes_runs.append(decode_metrics["decoded_bytes"])
 
@@ -377,7 +381,11 @@ def run_workflow(
                         "battery_percent": float(updated_battery_percent),
                         "charging": bool(charging),
                         "mode_label": mode_label,
-                        "decoded_payloads": float(np.mean(decoded_payload_runs)),
+                        "decoded_headers": float(np.mean(decoded_header_runs)),
+                        "decoded_header_payloads": float(np.mean(decoded_header_payload_runs)),
+                        "decoded_headers_including_payloads": float(
+                            np.mean(np.array(decoded_header_runs) + np.array(decoded_header_payload_runs))
+                        ),
                         "tracked_txs": float(np.mean(tracked_runs)),
                         "decoded_bytes": float(np.mean(decoded_bytes_runs)),
                         "collided": float(np.mean(collision_runs)),

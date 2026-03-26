@@ -60,7 +60,9 @@ python run_integration.py --help
 - `results/heavy_load/heavy_load_metrics.json`
 - `results/heavy_load/heavy_load_metrics.csv`
 - `results/heavy_load/heavy_load_demodulator_constraints.png`
-- `results/heavy_load/decoded_payloads_by_power_mode.png`
+- `results/heavy_load/decoded_headers_by_power_mode.png`
+- `results/heavy_load/heavy_load_demodulator_constraints_header_payload.png`
+- `results/heavy_load/decoded_header_payloads_by_power_mode.png`
 - `results/heavy_load/power_consumption_by_mode.png`
 - `results/heavy_load/battery_percentage_over_load.png`
 - `results/heavy_load/net_power_by_mode.png`

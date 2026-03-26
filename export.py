@@ -41,83 +41,120 @@ def generate_performance_plots(records: list[dict], output_dir: Path):
     markers = ["o", "s", "^", "D", "P", "X", "v", "<", ">"]
     line_styles = ["-", "--", "-.", ":"]
 
-    series = {}
-    for r in records:
-        key = (r["mode_label"], r["requested_demods"])
-        series.setdefault(key, {"x": [], "y": []})
-        series[key]["x"].append(r["nodes"])
-        series[key]["y"].append(r["decoded_payloads"])
+    def get_metric_value(record: dict, metric_key: str) -> float:
+        if metric_key in record:
+            return float(record[metric_key])
+        # Backward compatibility for older metric files.
+        if metric_key == "decoded_headers" and "decoded_payloads" in record:
+            return float(record["decoded_payloads"])
+        if metric_key == "decoded_headers_including_payloads":
+            header_only = float(record.get("decoded_headers", 0.0))
+            header_payload = float(record.get("decoded_header_payloads", record.get("decoded_payloads", 0.0)))
+            return header_only + header_payload
+        return 0.0
 
-    fig, ax = plt.subplots(figsize=(9, 6))
-    for idx, ((mode_label, demods), vals) in enumerate(sorted(series.items(), key=lambda t: (t[0][1], t[0][0]))):
-        x = np.array(vals["x"])
-        y = np.array(vals["y"])
-        order = np.argsort(x)
-        line_style = line_styles[idx % len(line_styles)]
-        ax.plot(
-            x[order],
-            y[order],
-            linestyle=line_style,
-            marker=markers[idx % len(markers)],
-            linewidth=1.6,
-            markersize=5,
-            color=colors[idx % len(colors)],
-            label=f"{mode_label} {demods} demods",
-        )
+    def build_series(data: list[dict], metric_key: str):
+        grouped = {}
+        for rec in data:
+            key = (rec["mode_label"], rec["requested_demods"])
+            grouped.setdefault(key, {"x": [], "y": []})
+            grouped[key]["x"].append(rec["nodes"])
+            grouped[key]["y"].append(get_metric_value(rec, metric_key))
+        return grouped
 
-    ax.set_xscale("symlog", linthresh=1)
-    ax.set_xlabel("Number of Nodes (Traffic Load)")
-    ax.set_ylabel("Decoded Payloads")
-    ax.set_title("Heavy Load Test for Demodulator Constraints")
-    ax.grid(True, which="both", linestyle=":", alpha=0.5)
-    ax.legend()
-    fig.tight_layout()
-    all_plot = output_dir / "heavy_load_demodulator_constraints.png"
-    fig.savefig(all_plot, dpi=200)
-    plt.close(fig)
-
-    mode_names = [m for m in ["sleep", "idle", "busy"] if any(r["power_mode"] == m for r in records)]
-    nrows = len(mode_names)
-    fig2, axes = plt.subplots(nrows=nrows, ncols=1, figsize=(10, 4 * max(1, nrows)), sharex=True)
-    if nrows == 1:
-        axes = [axes]
-
-    for ax, p_mode in zip(axes, mode_names):
-        sub = [r for r in records if r["power_mode"] == p_mode]
-        mode_series = {}
-        for r in sub:
-            key = (r["mode_label"], r["requested_demods"])
-            mode_series.setdefault(key, {"x": [], "y": []})
-            mode_series[key]["x"].append(r["nodes"])
-            mode_series[key]["y"].append(r["decoded_payloads"])
-
-        for idx, ((mode_label, demods), vals) in enumerate(sorted(mode_series.items(), key=lambda t: (t[0][1], t[0][0]))):
+    def plot_all_series(metric_key: str, ylabel: str, title: str, filename: str):
+        grouped = build_series(records, metric_key)
+        fig, ax = plt.subplots(figsize=(9, 6))
+        for idx, ((mode_label, demods), vals) in enumerate(sorted(grouped.items(), key=lambda t: (t[0][1], t[0][0]))):
             x = np.array(vals["x"])
             y = np.array(vals["y"])
             order = np.argsort(x)
-            line_style = line_styles[idx % len(line_styles)]
             ax.plot(
                 x[order],
                 y[order],
-                linestyle=line_style,
+                linestyle=line_styles[idx % len(line_styles)],
                 marker=markers[idx % len(markers)],
-                linewidth=1.4,
-                markersize=4.5,
+                linewidth=1.6,
+                markersize=5,
                 color=colors[idx % len(colors)],
                 label=f"{mode_label} {demods} demods",
             )
 
         ax.set_xscale("symlog", linthresh=1)
-        ax.set_ylabel("Decoded Payloads")
-        ax.set_title(f"Power Mode: {p_mode}")
+        ax.set_xlabel("Number of Nodes (Traffic Load)")
+        ax.set_ylabel(ylabel)
+        ax.set_title(title)
         ax.grid(True, which="both", linestyle=":", alpha=0.5)
-        ax.legend(loc="best", fontsize=8)
+        ax.legend()
+        fig.tight_layout()
+        out_path = output_dir / filename
+        fig.savefig(out_path, dpi=200)
+        plt.close(fig)
+        return out_path
 
-    axes[-1].set_xlabel("Number of Nodes (Traffic Load)")
-    fig2.tight_layout()
-    mode_plot = output_dir / "decoded_payloads_by_power_mode.png"
-    fig2.savefig(mode_plot, dpi=200)
-    plt.close(fig2)
+    def plot_by_mode(metric_key: str, ylabel: str, filename: str):
+        mode_names = [m for m in ["sleep", "idle", "busy"] if any(r["power_mode"] == m for r in records)]
+        nrows = len(mode_names)
+        fig, axes = plt.subplots(nrows=nrows, ncols=1, figsize=(10, 4 * max(1, nrows)), sharex=True)
+        if nrows == 1:
+            axes = [axes]
+
+        for ax, p_mode in zip(axes, mode_names):
+            sub = [r for r in records if r["power_mode"] == p_mode]
+            grouped = build_series(sub, metric_key)
+            for idx, ((mode_label, demods), vals) in enumerate(sorted(grouped.items(), key=lambda t: (t[0][1], t[0][0]))):
+                x = np.array(vals["x"])
+                y = np.array(vals["y"])
+                order = np.argsort(x)
+                ax.plot(
+                    x[order],
+                    y[order],
+                    linestyle=line_styles[idx % len(line_styles)],
+                    marker=markers[idx % len(markers)],
+                    linewidth=1.4,
+                    markersize=4.5,
+                    color=colors[idx % len(colors)],
+                    label=f"{mode_label} {demods} demods",
+                )
+
+            ax.set_xscale("symlog", linthresh=1)
+            ax.set_ylabel(ylabel)
+            ax.set_title(f"Power Mode: {p_mode}")
+            ax.grid(True, which="both", linestyle=":", alpha=0.5)
+            ax.legend(loc="best", fontsize=8)
+
+        axes[-1].set_xlabel("Number of Nodes (Traffic Load)")
+        fig.tight_layout()
+        out_path = output_dir / filename
+        fig.savefig(out_path, dpi=200)
+        plt.close(fig)
+        return out_path
+
+    # Primary metric: header-only decode count.
+    all_plot = plot_all_series(
+        metric_key="decoded_headers",
+        ylabel="Decoded Headers",
+        title="Heavy Load Test for Demodulator Constraints (Header Only)",
+        filename="heavy_load_demodulator_constraints.png",
+    )
+    mode_plot = plot_by_mode(
+        metric_key="decoded_headers",
+        ylabel="Decoded Headers",
+        filename="decoded_headers_by_power_mode.png",
+    )
+
+    # Secondary metric: fully decoded packets (header+payload).
+    all_plot_header_payload = plot_all_series(
+        metric_key="decoded_headers_including_payloads",
+        ylabel="Decoded Headers (Including Payload-Decoded)",
+        title="Heavy Load Test for Demodulator Constraints (Headers Including Payload-Decoded)",
+        filename="heavy_load_demodulator_constraints_header_payload.png",
+    )
+    mode_plot_header_payload = plot_by_mode(
+        metric_key="decoded_headers_including_payloads",
+        ylabel="Decoded Headers (Including Payload-Decoded)",
+        filename="decoded_header_payloads_by_power_mode.png",
+    )
 
     # Power consumption plots
     power_series = {}
@@ -217,6 +254,8 @@ def generate_performance_plots(records: list[dict], output_dir: Path):
     return {
         "all_series": all_plot,
         "by_power_mode": mode_plot,
+        "all_series_header_payload": all_plot_header_payload,
+        "by_power_mode_header_payload": mode_plot_header_payload,
         "power_consumption": power_plot,
         "battery_percentage": battery_plot,
         "net_power_by_mode": net_power_plot,

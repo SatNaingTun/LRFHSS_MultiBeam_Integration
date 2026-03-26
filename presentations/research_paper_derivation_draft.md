@@ -1,7 +1,7 @@
 # Energy-Aware LR-FHSS Multi-Beam Reception Under Satellite Power Constraints: A Derivation-Driven System Model
 
 ## Abstract
-Long-range frequency-hopping spread spectrum (LR-FHSS) reception on satellites is jointly constrained by demodulator availability and onboard electrical power limits. This draft presents a unified communication-energy model that couples traffic-dependent demodulator utilization, mode-dependent receiver power, electrical power subsystem (EPS) balance, and battery state-of-charge (SoC) evolution. The formulation starts from established equations in energy-proportional computing, queueing-based utilization, EPS power balance, and battery charging/discharging dynamics, and then derives a tractable recurrence suitable for time-step simulation. The resulting model enables joint analysis of decoding capacity and energy feasibility, which is essential when multi-beam operation must adapt to visibility and battery conditions.
+Long-range frequency-hopping spread spectrum (LR-FHSS) reception on satellites is jointly constrained by demodulator availability and onboard electrical power limits. This draft presents a unified communication-energy model that couples traffic-dependent demodulator utilization, mode-dependent receiver power, electrical power subsystem (EPS) balance, and battery state-of-charge (SoC) evolution. The formulation starts from established equations in energy-proportional computing, queueing-based utilization, EPS power balance, and battery charging/discharging dynamics, and then derives a tractable recurrence suitable for time-step simulation. The resulting model enables joint analysis of decoding capacity and energy feasibility, which is essential when multi-beam operation must adapt to visibility and battery conditions. In reporting, we use decoded headers (header-only) as the primary KPI and decoded headers including payload-decoded packets as a secondary KPI.
 
 ## 1. Introduction
 Multi-beam LR-FHSS reception improves uplink scalability, but each additional active demodulator increases receiver load and power demand. In orbit, available generation varies with visibility and operating state, making communication performance and energy feasibility inseparable. Existing studies provide strong component models for utilization-power relations [2], [3], spacecraft EPS balance [4], [5], and battery SoC propagation [1], [6], yet these components are often treated independently.
@@ -136,6 +136,8 @@ where $m_t=\pi(N_t,D_{\mathrm{req},t},V_t,B_t)$ and $u_t=\min\!\left(1,\frac{T_t
 | $m_t$ | Power mode | `p_mode = select_satellite_power_mode(...)` |
 | $V_t$ | Visibility | `visible = check_satellite_visibility(...)` |
 | $T_t$ | Traffic demand proxy | `tx_count = transmit_fragments(packet_count, visible)` |
+| $H_{\mathrm{hdr},t}$ | Header-only decoded count | `decoded_headers` |
+| $H_{\mathrm{inc},t}$ | Headers including payload-decoded count | `decoded_headers_including_payloads` |
 | $u_t$ | Utilization | `compute_demod_utilization(tx_count, allocated_demods)` |
 | $P_{\mathrm{cons},t}$ | Consumption power | `power_consumption = compute_power_consumption(...)` |
 | $P_{\mathrm{gen},t}$ | Generated power | `available_generation_watts` in `compute_power_balance(...)` |
