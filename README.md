@@ -38,6 +38,10 @@ Power model notes:
 - Net power is computed from solar generation minus platform consumption.
 - Battery update is energy-based and uses `net_power_watts` per simulation step.
 - Power and net-power plots are grouped by `allocated_demods` (not requested demods).
+- Refined equation: `P_total = P_base + P_RF + D * P_demod(rho)`.
+- Solar model: `P_gen = A_panel * G_sun * eta_panel` with eclipse windows.
+- Two policies are compared: `EnergyAware` (battery-aware demod scaling) and `NonEnergyAware`.
+- Monte Carlo statistics use `--runs-per-point` (default `50`) with variance and 95% confidence intervals.
 
 ## Run
 ```powershell
@@ -50,6 +54,10 @@ automatically runs `ensure_reference_paths.py` to download/extract or clone them
 ## Sample Commands
 ```powershell
 python run_integration.py --nodes 0 2 7 15 40 90 180 260 400 700 1000 1500 --demods 10 30 50 70 100 300 500 700 1000
+```
+
+```powershell
+python run_integration.py --runs-per-point 50 --scenario-steps 120 --battery-capacity-wh 220 --panel-area-m2 0.40
 ```
 
 ```powershell
@@ -66,4 +74,7 @@ python run_integration.py --help
 - `results/heavy_load/power_consumption_by_mode.png`
 - `results/heavy_load/battery_percentage_over_load.png`
 - `results/heavy_load/net_power_by_mode.png`
+- `results/heavy_load/throughput_bps.png`
+- `results/heavy_load/energy_per_decoded_bit.png`
+- `results/heavy_load/decoding_efficiency.png`
 - `results/heavy_load/workflow_summary.json`

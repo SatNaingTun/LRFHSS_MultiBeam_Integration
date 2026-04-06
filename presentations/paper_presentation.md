@@ -39,7 +39,7 @@ At each simulation step, we decide operation mode and demodulator allocation usi
 - Unified simulation workflow combining LR-FHSS decoding and energy model.
 - Battery-aware control policy with sleep/idle/busy modes.
 - Data-backed evaluation over heavy-load settings.
-- Literature-supported energy-model consistency proof.
+- Literature-supported energy-model consistency validation.
 <!-- 
 **Speaking script**
 The key novelty is not only the workflow integration but also a formal consistency check showing why the energy model is scientifically reasonable with respect to prior work. -->
@@ -76,9 +76,9 @@ We use a bounded utilization model and an affine, mode-dependent power law. This
 
 ## Slide 7: Key Equations (Generation and Battery)
 - Generation model:
-  - P_gen = V_t * P_solar * eta_pc
+  - P_gen = A_panel * G_sun * eta_panel
 - Net power:
-  - P_net = P_ch - P_dis = P_gen - P_sat
+  - P_net = P_ch - P_dis = P_gen - P_total
 - SoC update (energy integration with charge/discharge efficiency):
   - B_{t+1} = clip(B_t + 100 * DeltaE / C_Wh, 0, 100)
 
@@ -98,7 +98,7 @@ We intentionally use a first-order CC-CV-inspired taper to represent practical c
 
 ---
 
-## Slide 9: Energy-Model Consistency Proof (Summary)
+## Slide 9: Energy-Model Consistency Validation (Summary)
 - Proposition 1: utilization and consumption are bounded.
 - Proposition 2: charge/discharge complementarity follows EPS balance.
 - Proposition 3: SoC recurrence is stable and dimensionally consistent.
@@ -112,7 +112,7 @@ These propositions justify that the model is physically coherent and mathematica
 ## Slide 10: Experimental Setup
 - Nodes: {0, 2, 7, 15, 40, 90, 180, 260, 400, 700, 1000, 1500}
 - Requested demodulators: {10, 30, 50, 70, 100, 300, 500, 700, 1000}
-- One run per point in current dataset
+- Monte Carlo runs per point (>= 50)
 - Visibility frame selected from first window
 
 <!-- **Speaking script**
@@ -207,7 +207,7 @@ These references are cited only where model assumptions directly correlate with 
 - Cross-layer integration is necessary for realistic LEO IoT design.
 - Decoder scaling must be balanced with battery and generation limits.
 - Next steps:
-  - Monte Carlo runs for confidence intervals
+  - Report mean, variance, and confidence intervals
   - Elevation-angle sweep experiments
   - Adaptive demodulator policies (battery-aware)
 
