@@ -134,6 +134,10 @@ Interpretation:
 Speech script:
 Utilization compares demand to demod capacity.
 This gives a normalized stress variable between zero and one.
+Interpretation details:
+- $\frac{T}{kD}$ is demand/capacity.
+- $\min(1,\cdot)$ caps utilization at 100%.
+- Queue-free approximation: no buffering state is modeled.
 -->
 
 ---
@@ -155,6 +159,10 @@ Speech script:
 Sleep is baseline-only power.
 Idle and busy add demod power, scaled by utilization.
 Busy coefficients are larger than idle by design.
+Compact equivalent:
+- $P_{\text{total}}=P_{\text{base}}+P_{\text{RF}}+D\,P_{\text{demod}}(u)$.
+- Total power scales with $D$ and utilization-dependent per-demod draw.
+- Assumes independent demodulator scaling and bounded per-demod power.
 -->
 
 ---
@@ -178,6 +186,10 @@ Speech script:
 Visibility gates generation.
 Surplus is the key sign variable:
 positive means potential charging, negative means required discharging.
+Physical-equivalent note:
+- $P_{\text{gen}}=A_{\text{panel}}G_{\text{sun}}\eta_{\text{panel}}$, with $G_{\text{sun}}\approx 1361$ W/m$^2$.
+- During eclipse, $P_{\text{gen}}=0$.
+- No angle-of-incidence loss term is included.
 -->
 
 ---
@@ -225,6 +237,10 @@ Speech script:
 This is a piecewise branch written compactly.
 Only one branch is active at a time:
 charging branch for positive surplus, discharging branch for negative surplus.
+Sign interpretation:
+- $P_{\text{net}}>0$ means charging.
+- $P_{\text{net}}<0$ means discharging.
+- EPS balance identity: $P_{\text{net}}=P_{\text{gen}}-P_{\text{cons}}$.
 -->
 
 ---
@@ -250,6 +266,9 @@ Speech script:
 We integrate power over step duration to get energy change.
 Then convert energy to SoC percentage.
 Clip ensures physically valid SoC bounds.
+Important note:
+- Use $\Delta t$ in hours for Wh consistency.
+- The SoC mapping is linearized and ignores nonlinear voltage behavior.
 -->
 
 ---
@@ -329,6 +348,24 @@ It should be complemented by high-fidelity models for final verification.
 2. Active-mode consumption rises with $u$ and $D$.
 3. If $V=0$, then $P_{\text{gen}}=0$.
 4. $B_{t+1}$ always in $[0,100]$.
+5. $\Delta t$ converted to hours in the energy update.
+6. Model treated as first-order and not hardware-calibrated.
+
+---
+
+## Units and Assumptions
+Units:
+- Power: W
+- Energy: Wh
+- Time: s in logs, h in energy integration
+- SoC: %
+
+Assumptions:
+- Ideal battery equivalent model
+- No thermal effects
+- Linear/affine power scaling
+- No degradation/aging dynamics
+- CC-CV-inspired charge taper near full SoC
 
 <!--
 Speech script:

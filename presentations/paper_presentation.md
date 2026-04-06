@@ -70,7 +70,14 @@ This is the full loop we execute for each operating point. The important part is
   - busy: P_sat = 5 + D(0.25 + 0.55 rho)
 
 <!-- **Speaking script**
-We use a bounded utilization model and an affine, mode-dependent power law. This captures low-to-high activity transitions while keeping the model simple and controllable. -->
+We use a bounded utilization model and an affine, mode-dependent power law. This captures low-to-high activity transitions while keeping the model simple and controllable.
+Details:
+- rho is utilization ratio; N_t/(8D) is demand/capacity.
+- min(1, .) caps utilization at 100%, with rho < 1 underutilized and rho = 1 saturated.
+- Queue-free approximation: no buffering modeled.
+- Equivalent compact form: P_total = P_base + P_RF + D * P_demod(rho).
+- Power scales linearly with D; per-demod power is bounded from idle to peak.
+- Assumes independent demodulator scaling (no shared bottleneck). -->
 
 ---
 
@@ -83,7 +90,18 @@ We use a bounded utilization model and an affine, mode-dependent power law. This
   - B_{t+1} = clip(B_t + 100 * DeltaE / C_Wh, 0, 100)
 
 <!-- **Speaking script**
-Visibility gates generation, and the battery evolves from net power after efficiency losses. The clip operation enforces physical SoC bounds between 0 and 100 percent. -->
+Visibility gates generation, and the battery evolves from net power after efficiency losses. The clip operation enforces physical SoC bounds between 0 and 100 percent.
+Apanel is panel area (m2), Gsun is solar irradiance
+(W/m2), and ηpanel is dimensionless efficiency
+Details:
+- G_sun is approximately 1361 W/m^2 in space.
+- During eclipse, P_gen = 0.
+- No incidence-angle loss is modeled.
+- P_net > 0 means charging, P_net < 0 means discharging.
+- DeltaE uses eta_ch * max(P_net,0) * Delta t - (1/eta_dis) * max(-P_net,0) * Delta t.
+- Delta t must be in hours for Wh consistency.
+- SoC update is linearized and ignores nonlinear battery-voltage behavior.
+-->
 
 ---
 
@@ -93,8 +111,22 @@ Visibility gates generation, and the battery evolves from net power after effici
 - Model captures this by reducing charge acceptance near high SoC.
 - This is first-order and system-level, not full electrochemical simulation.
 
+---
+
+## Slide 8b: Units and Consistency
+- All variables and units are defined to ensure dimensional consistency.
+- Power: W
+- Energy: Wh
+- Time: s in logs, h in energy integration
+- SoC: %
+
 <!-- **Speaking script**
-We intentionally use a first-order CC-CV-inspired taper to represent practical charge saturation behavior, without adding heavy electrochemical complexity. -->
+We intentionally use a first-order CC-CV-inspired taper to represent practical charge saturation behavior, without adding heavy electrochemical complexity.
+Assumptions:
+- ideal battery model
+- no thermal effects
+- linear/affine power scaling
+- no degradation/aging dynamics -->
 
 ---
 
@@ -105,7 +137,8 @@ We intentionally use a first-order CC-CV-inspired taper to represent practical c
 - Correlation with literature is validated for each model block.
 
 <!-- **Speaking script**
-These propositions justify that the model is physically coherent and mathematically stable. They are the bridge between implementation convenience and scientific defensibility. -->
+These propositions justify that the model is physically coherent and mathematically stable. They are the bridge between implementation convenience and scientific defensibility.
+Validation note: this model is first-order and not hardware-calibrated. -->
 
 ---
 

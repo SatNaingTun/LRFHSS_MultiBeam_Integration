@@ -137,6 +137,10 @@ Now we map demand to utilization.
 The ratio T over kD tells us how loaded the demodulator pool is.
 Clipping at 1 means saturation.
 This variable drives both power consumption and performance stress.
+Interpretation details:
+- $\frac{T}{kD}$ is demand/capacity.
+- $\min(1,\cdot)$ caps utilization at 100%.
+- Queue-free approximation: no buffering state is modeled.
 -->
 
 ---
@@ -159,6 +163,10 @@ Consumption has a baseline plus an active demodulator term.
 The active term is affine in utilization.
 Busy mode uses larger coefficients than idle mode.
 This follows energy-proportional modeling ideas adapted to demodulators.
+Compact equivalent used in the manuscript:
+- $P_{\text{total}}=P_{\text{base}}+P_{\text{RF}}+D\,P_{\text{demod}}(u)$.
+- Linear scaling with demodulator count and bounded per-demod draw.
+- Assumes independent demodulator scaling (no shared bottleneck).
 -->
 
 ---
@@ -183,6 +191,11 @@ Generation is modeled from visibility and solar efficiency.
 Subtracting load gives surplus power.
 Positive surplus means charging is possible.
 Negative surplus means battery must discharge.
+Physical-equivalent note:
+- $P_{\text{gen}}=A_{\text{panel}}G_{\text{sun}}\eta_{\text{panel}}$,
+  with $G_{\text{sun}}\approx 1361$ W/m$^2$ in space.
+- Eclipse case uses $V=0 \Rightarrow P_{\text{gen}}=0$.
+- Angle-of-incidence loss is omitted in this first-order model.
 -->
 
 ---
@@ -213,6 +226,10 @@ Here we add battery realism.
 Near full SoC, charge acceptance tapers, so we cannot absorb all surplus.
 That is why positive surplus does not always mean large positive net charging.
 Net battery power is charge minus discharge branch.
+Sign interpretation:
+- $P_{\text{net}}>0$ means charging.
+- $P_{\text{net}}<0$ means discharging.
+- EPS balance identity: $P_{\text{net}}=P_{\text{gen}}-P_{\text{cons}}$.
 -->
 
 ---
@@ -239,6 +256,9 @@ Battery is updated from energy, not from ad-hoc percentages.
 We integrate net power over the step duration.
 Charge and discharge efficiencies are handled separately.
 Finally, SoC is clipped to physical limits.
+Important implementation note:
+- $\Delta t$ must be in hours for Wh consistency.
+- SoC change is linearized and does not model nonlinear battery-voltage behavior.
 -->
 
 ---
@@ -278,11 +298,32 @@ Not enough for:
 - high-fidelity electrochemistry
 - thermal-coupled battery physics
 
+Validation note:
+- This is a first-order approximation and is not hardware-calibrated.
+
+---
+
+## Units and Assumptions
+Units:
+- Power: W
+- Energy: Wh
+- Time: s in simulation logs, h in energy update
+- SoC: %
+
+Assumptions:
+- Ideal battery model
+- No thermal effects
+- Linear/affine power scaling
+- No degradation/aging dynamics
+- CC-CV-inspired charge taper
+
 <!--
 Speech script:
 This is a first-order model.
 It is strong for design exploration and policy comparison.
 It is not a replacement for electrochemical battery simulators or detailed thermal-orbital tools.
+Global note:
+- All variables and units are defined to ensure dimensional consistency.
 -->
 
 ---
