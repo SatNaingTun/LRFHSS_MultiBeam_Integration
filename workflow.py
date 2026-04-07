@@ -6,12 +6,14 @@ from pathlib import Path
 
 import numpy as np
 
+from demodulator_power import DemodulatorPowerModel
 from export import export_metrics, generate_performance_plots
 from lrfhss_connector import load_lrfhss_components
 from multi_beam_connector import load_multi_beam_modules
 
 EARTH_RADIUS_M = 6_371_000.0
 SPEED_OF_LIGHT_MPS = 299_792_458.0
+DEMOD_POWER_MODEL = DemodulatorPowerModel()
 
 
 def compute_generated_power_w(
@@ -52,24 +54,6 @@ def compute_power_balance(
     return charging, charging_power_watts, discharging_power_watts, net_power_watts
 
 
-def select_satellite_power_mode(
-    nodes: int,
-    allocated_demods: int,
-    visible: bool,
-    battery_percent: float,
-    low_battery_threshold: float,
-    idle_battery_threshold: float,
-    high_charge_threshold: float,
-) -> str:
-    if battery_percent <= low_battery_threshold or nodes <= 0 or not visible or allocated_demods == 0:
-        return "sleep"
-    if battery_percent < idle_battery_threshold:
-        return "idle"
-    if nodes < 200 and allocated_demods <= high_charge_threshold:
-        return "idle"
-    return "busy"
-
-
 def update_battery_percentage(
     battery_percent: float,
     net_power_watts: float,
@@ -89,37 +73,22 @@ def update_battery_percentage(
     return float(max(0.0, min(100.0, new_pct)))
 
 
-def compute_demod_utilization(tx_count: int, allocated_demods: int, demod_tx_capacity_per_step: float) -> float:
-    if allocated_demods <= 0:
-        return 0.0
-    capacity = float(max(1.0, allocated_demods * demod_tx_capacity_per_step))
-    return float(min(1.0, float(tx_count) / capacity))
-
-
-def compute_demod_dynamic_power_w(power_mode: str, utilization: float) -> float:
-    if power_mode == "idle":
-        return float(0.12 + 0.08 * utilization)
-    return float(0.25 + 0.55 * utilization)
-
-
 def compute_power_consumption(
-    power_mode: str,
+    visible: bool,
     allocated_demods: int,
     tx_count: int,
     demod_tx_capacity_per_step: float,
     base_power_w: float,
     rf_frontend_power_w: float,
 ) -> tuple[float, float, float]:
-    if power_mode == "sleep":
-        return float(base_power_w), 0.0, 0.0
-    utilization = compute_demod_utilization(
-        tx_count=tx_count,
+    demod_result = DEMOD_POWER_MODEL.evaluate(
+        visible=visible,
         allocated_demods=allocated_demods,
+        tx_count=tx_count,
         demod_tx_capacity_per_step=demod_tx_capacity_per_step,
     )
-    demod_power_w = compute_demod_dynamic_power_w(power_mode=power_mode, utilization=utilization)
-    total_w = float(base_power_w + rf_frontend_power_w + allocated_demods * demod_power_w)
-    return total_w, demod_power_w, utilization
+    total_w = float(base_power_w + rf_frontend_power_w + demod_result.total_demod_power_w)
+    return total_w, demod_result.mean_demod_power_w, demod_result.utilization
 
 
 @dataclass
@@ -353,7 +322,6 @@ def baseline_packet_decoding(LoRaNetwork, node_count: int, demods: int, use_earl
 def allocate_demodulators(
     policy_label: str,
     requested_demods: int,
-    mode: str,
     visible: bool,
     battery_percent: float,
     idle_battery_threshold: float,
@@ -361,7 +329,7 @@ def allocate_demodulators(
     max_demod_step_change: int,
     previous_allocated_demods: int,
 ) -> int:
-    if mode == "sleep" or not visible or requested_demods <= 0:
+    if (not visible) or requested_demods <= 0:
         return 0
 
     if policy_label == "NonEnergyAware":
@@ -477,7 +445,6 @@ def simulate_energy_policy(
 
     battery_trace = []
     allocated_trace = []
-    mode_trace = []
     power_trace_w = []
     net_power_trace_w = []
     utilization_trace = []
@@ -492,19 +459,9 @@ def simulate_energy_policy(
         sunlit = bool(sunlit_mask[frame])
         tx_count = int(transmit_fragments(packet_count=packet_count, visible=visible))
 
-        mode_estimate = select_satellite_power_mode(
-            nodes=nodes,
-            allocated_demods=max(allocated_demods, 0),
-            visible=visible,
-            battery_percent=battery_percent,
-            low_battery_threshold=cfg.low_battery_threshold,
-            idle_battery_threshold=cfg.idle_battery_threshold,
-            high_charge_threshold=cfg.high_charge_threshold,
-        )
         allocated_demods = allocate_demodulators(
             policy_label=policy_label,
             requested_demods=requested_demods,
-            mode=mode_estimate,
             visible=visible,
             battery_percent=battery_percent,
             idle_battery_threshold=cfg.idle_battery_threshold,
@@ -512,17 +469,8 @@ def simulate_energy_policy(
             max_demod_step_change=cfg.max_demod_step_change,
             previous_allocated_demods=allocated_demods,
         )
-        mode = select_satellite_power_mode(
-            nodes=nodes,
-            allocated_demods=allocated_demods,
-            visible=visible,
-            battery_percent=battery_percent,
-            low_battery_threshold=cfg.low_battery_threshold,
-            idle_battery_threshold=cfg.idle_battery_threshold,
-            high_charge_threshold=cfg.high_charge_threshold,
-        )
         power_consumption_w, demod_power_w, utilization = compute_power_consumption(
-            power_mode=mode,
+            visible=visible,
             allocated_demods=allocated_demods,
             tx_count=tx_count,
             demod_tx_capacity_per_step=cfg.demod_tx_capacity_per_step,
@@ -555,7 +503,6 @@ def simulate_energy_policy(
         del charging, charging_power_w, discharging_power_w
         battery_trace.append(float(battery_percent))
         allocated_trace.append(float(allocated_demods))
-        mode_trace.append(mode)
         power_trace_w.append(float(power_consumption_w))
         net_power_trace_w.append(float(net_power_w))
         utilization_trace.append(float(utilization))
@@ -563,11 +510,6 @@ def simulate_energy_policy(
         visible_trace.append(1.0 if visible else 0.0)
         sunlit_trace.append(1.0 if sunlit else 0.0)
 
-    mode_counts = {
-        "sleep": int(sum(1 for m in mode_trace if m == "sleep")),
-        "idle": int(sum(1 for m in mode_trace if m == "idle")),
-        "busy": int(sum(1 for m in mode_trace if m == "busy")),
-    }
     return {
         "policy_label": policy_label,
         "battery_percent_final": float(battery_trace[-1]),
@@ -580,8 +522,6 @@ def simulate_energy_policy(
         "mean_tx_count_per_step": float(np.mean(tx_trace)),
         "visibility_ratio": float(np.mean(visible_trace)),
         "sunlit_ratio": float(np.mean(sunlit_trace)),
-        "mode_counts": mode_counts,
-        "terminal_mode": mode_trace[-1],
         "terminal_allocated_demods": int(round(allocated_trace[-1])),
         "terminal_demod_power_watts": float(terminal_demod_power_w),
     }
@@ -700,7 +640,6 @@ def run_workflow(
                 )
                 representative_demods = int(round(energy_sim["mean_allocated_demods"]))
                 representative_tx = int(round(energy_sim["mean_tx_count_per_step"]))
-                representative_mode = str(energy_sim["terminal_mode"])
                 representative_visible = bool(energy_sim["visibility_ratio"] > 0.0 and global_visible)
 
                 decoded_header_runs = []
@@ -761,7 +700,6 @@ def run_workflow(
                     {
                         "nodes": int(nodes),
                         "policy_label": policy_label,
-                        "power_mode": representative_mode,
                         "visible": representative_visible,
                         "selected_frame": selected_frame_for_link,
                         "requested_demods": int(requested_demods),
@@ -803,9 +741,6 @@ def run_workflow(
                         "seed_formula": "seed_base + nodes*100000 + demods*1000 + run_idx + policy_offset",
                         "scenario_steps": int(cfg.scenario_steps),
                         "time_step_seconds": float(cfg.step_seconds),
-                        "mode_sleep_steps": int(energy_sim["mode_counts"]["sleep"]),
-                        "mode_idle_steps": int(energy_sim["mode_counts"]["idle"]),
-                        "mode_busy_steps": int(energy_sim["mode_counts"]["busy"]),
                     }
                 )
 
@@ -846,7 +781,7 @@ def run_workflow(
         ],
         "demodulator_definition": "Digital LR-FHSS decoding core allocation (hardware accelerator abstraction).",
         "power_model": {
-            "equation": "P_total = P_base + P_RF + D * P_demod(rho)",
+            "equation": "P_total = P_base + P_RF + N_sleep*P_sleep + N_idle*P_idle + N_busy*P_busy",
             "P_base_w": cfg.base_power_w,
             "P_RF_w": cfg.rf_frontend_power_w,
             "demod_tx_capacity_per_step": cfg.demod_tx_capacity_per_step,
