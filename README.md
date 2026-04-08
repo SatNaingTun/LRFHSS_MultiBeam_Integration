@@ -72,4 +72,7 @@ Examples:
 python lrfhss_communication.py --demods 100 --y-max 600
 python lrfhss_communication.py --demods 1000 --y-max 2600
 python lrfhss_communication.py --demods 100 --x-min 100 --x-max 10000
+python lrfhss_communication.py --demods 1000 --include-infp
+python lrfhss_communication.py --demods 100 --packet-only
+python lrfhss_communication.py --demods 100 --drop-mode headerdrop
 ```

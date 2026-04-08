@@ -21,6 +21,8 @@ class ComparisonSeries:
     driver_earlydd: np.ndarray
     lifan_base: np.ndarray | None = None
     lifan_earlydd: np.ndarray | None = None
+    driver_infp: np.ndarray | None = None
+    lifan_infp: np.ndarray | None = None
     demods: int = 100
     coding_rate: int = 1
     metric: str = "dec_payld"
@@ -93,29 +95,43 @@ def build_comparison_series(
     demods: int = 100,
     coding_rate: int = 1,
     metric: str = "dec_payld",
+    drop_mode: str = "rlydd",
     include_lifan: bool = True,
+    include_infp: bool = False,
     node_min: float | None = None,
     node_max: float | None = None,
     selected_nodes: list[float] | None = None,
 ) -> ComparisonSeries:
     rows = load_row_csv(reference_csv)
     suffix_base = f"CR{int(coding_rate)}-{int(demods)}p-{metric}-base"
-    suffix_early = f"CR{int(coding_rate)}-{int(demods)}p-{metric}-rlydd"
+    suffix_drop = f"CR{int(coding_rate)}-{int(demods)}p-{metric}-{drop_mode}"
 
     required = [
         "nodes",
         f"driver-{suffix_base}",
-        f"driver-{suffix_early}",
+        f"driver-{suffix_drop}",
     ]
     if include_lifan:
         required.extend(
             [
                 f"lifan-{suffix_base}",
-                f"lifan-{suffix_early}",
+                f"lifan-{suffix_drop}",
             ]
         )
+    if include_infp:
+        required.append(f"driver-CR{int(coding_rate)}-infp-{metric}")
+        if include_lifan:
+            required.append(f"lifan-CR{int(coding_rate)}-infp-{metric}")
 
     missing = [k for k in required if k not in rows]
+    if missing and drop_mode != "rlydd":
+        fallback_required = [k.replace(f"-{drop_mode}", "-rlydd") for k in required]
+        fallback_missing = [k for k in fallback_required if k not in rows]
+        if not fallback_missing:
+            required = fallback_required
+            suffix_drop = suffix_drop.replace(f"-{drop_mode}", "-rlydd")
+            print(f"[lrfhss] Requested drop_mode='{drop_mode}' not found; using 'rlydd' from reference CSV.")
+            missing = []
     if missing:
         available = list_available_demod_counts(reference_csv, coding_rate=coding_rate, family="driver")
         raise KeyError(
@@ -127,11 +143,15 @@ def build_comparison_series(
 
     values: dict[str, np.ndarray] = {
         "driver_base": rows[f"driver-{suffix_base}"][:common_len],
-        "driver_earlydd": rows[f"driver-{suffix_early}"][:common_len],
+        "driver_earlydd": rows[f"driver-{suffix_drop}"][:common_len],
     }
     if include_lifan:
         values["lifan_base"] = rows[f"lifan-{suffix_base}"][:common_len]
-        values["lifan_earlydd"] = rows[f"lifan-{suffix_early}"][:common_len]
+        values["lifan_earlydd"] = rows[f"lifan-{suffix_drop}"][:common_len]
+    if include_infp:
+        values["driver_infp"] = rows[f"driver-CR{int(coding_rate)}-infp-{metric}"][:common_len]
+        if include_lifan:
+            values["lifan_infp"] = rows[f"lifan-CR{int(coding_rate)}-infp-{metric}"][:common_len]
 
     nodes = rows["nodes"][:common_len]
     nodes, filtered = _filter_nodes(
@@ -148,6 +168,8 @@ def build_comparison_series(
         driver_earlydd=filtered["driver_earlydd"],
         lifan_base=filtered.get("lifan_base"),
         lifan_earlydd=filtered.get("lifan_earlydd"),
+        driver_infp=filtered.get("driver_infp"),
+        lifan_infp=filtered.get("lifan_infp"),
         demods=int(demods),
         coding_rate=int(coding_rate),
         metric=metric,
@@ -162,6 +184,7 @@ def plot_comparison_curves(
     x_min: float | None = None,
     x_max: float | None = None,
     include_lifan: bool = True,
+    include_infp: bool = False,
     title: str | None = None,
 ) -> None:
     fig, ax = plt.subplots(figsize=(10, 8))
@@ -169,6 +192,10 @@ def plot_comparison_curves(
     if include_lifan and series.lifan_base is not None and series.lifan_earlydd is not None:
         ax.plot(series.nodes, series.lifan_base, color="#ff7f0e", linewidth=2, label="li-fan base")
         ax.plot(series.nodes, series.lifan_earlydd, color="#1f77b4", linewidth=2, label="li-fan earlydd")
+    if include_infp and series.driver_infp is not None:
+        ax.plot(series.nodes, series.driver_infp, color="#d62728", linewidth=2, linestyle="--", label="driver infp")
+    if include_infp and include_lifan and series.lifan_infp is not None:
+        ax.plot(series.nodes, series.lifan_infp, color="#d62728", linewidth=2, label="li-fan infp")
 
     ax.plot(series.nodes, series.driver_base, color="#ff7f0e", linewidth=2, linestyle="--", label="driver base")
     ax.plot(series.nodes, series.driver_earlydd, color="#1f77b4", linewidth=2, linestyle="--", label="driver earlydd")
@@ -204,10 +231,12 @@ def run_reference_comparison(
     demods: int = 100,
     coding_rate: int = 1,
     metric: str = "dec_payld",
+    drop_mode: str = "rlydd",
     y_max: float | None = None,
     x_min: float | None = None,
     x_max: float | None = None,
     include_lifan: bool = True,
+    include_infp: bool = False,
     node_min: float | None = 100.0,
     node_max: float | None = 10000.0,
     selected_nodes: list[float] | None = None,
@@ -218,7 +247,9 @@ def run_reference_comparison(
         demods=demods,
         coding_rate=coding_rate,
         metric=metric,
+        drop_mode=drop_mode,
         include_lifan=include_lifan,
+        include_infp=include_infp,
         node_min=node_min,
         node_max=node_max,
         selected_nodes=selected_nodes,
@@ -234,6 +265,7 @@ def run_reference_comparison(
         x_min=x_min,
         x_max=x_max,
         include_lifan=include_lifan,
+        include_infp=include_infp,
     )
     return out_png, out_pdf
 
@@ -253,6 +285,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--demods", type=int, default=100)
     parser.add_argument("--coding-rate", type=int, default=1)
     parser.add_argument("--metric", type=str, default="dec_payld")
+    parser.add_argument(
+        "--drop-mode",
+        type=str,
+        default="rlydd",
+        choices=["rlydd", "headerdrop", "hdrdd"],
+        help="Drop-policy curve key to compare against base. headerdrop maps to hdrdd key if available.",
+    )
+    parser.add_argument(
+        "--packet-only",
+        action="store_true",
+        help="Use packet metric (dec_pckts) instead of payload metric (dec_payld).",
+    )
     parser.add_argument("--x-min", type=float, default=None, help="Optional fixed X-axis min.")
     parser.add_argument("--x-max", type=float, default=None, help="Optional fixed X-axis max.")
     parser.add_argument("--node-min", type=float, default=100.0)
@@ -263,6 +307,11 @@ def parse_args() -> argparse.Namespace:
         "--include-lifan",
         action="store_true",
         help="Also include li-fan base/earlydd curves (default is driver-only).",
+    )
+    parser.add_argument(
+        "--include-infp",
+        action="store_true",
+        help="Also include infinite-demod (infp) curve from reference data.",
     )
     parser.add_argument(
         "--list-demods",
@@ -285,16 +334,21 @@ def main() -> None:
         print(f"Available driver demods for CR{int(args.coding_rate)}: {available}")
         return
 
+    metric = "dec_pckts" if args.packet_only else args.metric
+    drop_mode = "hdrdd" if args.drop_mode == "headerdrop" else args.drop_mode
+
     out_png, out_pdf = run_reference_comparison(
         reference_csv=args.reference_csv,
         output_dir=args.output_dir,
         demods=args.demods,
         coding_rate=args.coding_rate,
-        metric=args.metric,
+        metric=metric,
+        drop_mode=drop_mode,
         y_max=args.y_max,
         x_min=args.x_min,
         x_max=args.x_max,
         include_lifan=args.include_lifan,
+        include_infp=args.include_infp,
         node_min=args.node_min,
         node_max=args.node_max,
         selected_nodes=args.nodes,
