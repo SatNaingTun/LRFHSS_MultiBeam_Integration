@@ -2,1251 +2,1501 @@
   "ABW": {
     "latitude": 12.5,
     "longitude": -69.96666666,
-    "population": 107566
+    "population": 107566,
+    "area_km2": 180.0
   },
   "AFG": {
     "latitude": 33.0,
     "longitude": 65.0,
-    "population": 43844000
+    "population": 43844000,
+    "area_km2": 652230.0
   },
   "AGO": {
     "latitude": -12.5,
     "longitude": 18.5,
-    "population": 36170961
+    "population": 36170961,
+    "area_km2": 1246700.0
   },
   "AIA": {
     "latitude": 18.25,
     "longitude": -63.16666666,
-    "population": 16010
+    "population": 16010,
+    "area_km2": 91.0
   },
   "ALA": {
     "latitude": 60.116667,
     "longitude": 19.9,
-    "population": 30654
+    "population": 30654,
+    "area_km2": 1580.0
   },
   "ALB": {
     "latitude": 41.0,
     "longitude": 20.0,
-    "population": 2363314
+    "population": 2363314,
+    "area_km2": 28748.0
   },
   "AND": {
     "latitude": 42.5,
     "longitude": 1.5,
-    "population": 88406
+    "population": 88406,
+    "area_km2": 468.0
   },
   "ARE": {
     "latitude": 24.0,
     "longitude": 54.0,
-    "population": 11294243
+    "population": 11294243,
+    "area_km2": 83600.0
   },
   "ARG": {
     "latitude": -34.0,
     "longitude": -64.0,
-    "population": 46735004
+    "population": 46735004,
+    "area_km2": 2780400.0
   },
   "ARM": {
     "latitude": 40.0,
     "longitude": 45.0,
-    "population": 3076200
+    "population": 3076200,
+    "area_km2": 29743.0
   },
   "ASM": {
     "latitude": -14.33333333,
     "longitude": -170.0,
-    "population": 49710
+    "population": 49710,
+    "area_km2": 199.0
   },
   "ATA": {
     "latitude": -90.0,
     "longitude": 0.0,
-    "population": 1300
+    "population": 1300,
+    "area_km2": 14000000.0
   },
   "ATF": {
     "latitude": -49.25,
     "longitude": 69.167,
-    "population": 400
+    "population": 400,
+    "area_km2": 7747.0
   },
   "ATG": {
     "latitude": 17.05,
     "longitude": -61.8,
-    "population": 103603
+    "population": 103603,
+    "area_km2": 442.0
   },
   "AUS": {
     "latitude": -27.0,
     "longitude": 133.0,
-    "population": 27536874
+    "population": 27536874,
+    "area_km2": 7692024.0
   },
   "AUT": {
     "latitude": 47.33333333,
     "longitude": 13.33333333,
-    "population": 9200931
+    "population": 9200931,
+    "area_km2": 83871.0
   },
   "AZE": {
     "latitude": 40.5,
     "longitude": 47.5,
-    "population": 10241722
+    "population": 10241722,
+    "area_km2": 86600.0
   },
   "BDI": {
     "latitude": -3.5,
     "longitude": 30.0,
-    "population": 12332788
+    "population": 12332788,
+    "area_km2": 27834.0
   },
   "BEL": {
     "latitude": 50.83333333,
     "longitude": 4.0,
-    "population": 11825551
+    "population": 11825551,
+    "area_km2": 30528.0
   },
   "BEN": {
     "latitude": 9.5,
     "longitude": 2.25,
-    "population": 13224860
+    "population": 13224860,
+    "area_km2": 112622.0
   },
   "BES": {
     "latitude": 12.18,
     "longitude": -68.25,
-    "population": 31980
+    "population": 31980,
+    "area_km2": 328.0
   },
   "BFA": {
     "latitude": 13.0,
     "longitude": -2.0,
-    "population": 24070553
+    "population": 24070553,
+    "area_km2": 272967.0
   },
   "BGD": {
     "latitude": 24.0,
     "longitude": 90.0,
-    "population": 169828911
+    "population": 169828911,
+    "area_km2": 147570.0
   },
   "BGR": {
     "latitude": 43.0,
     "longitude": 25.0,
-    "population": 6437360
+    "population": 6437360,
+    "area_km2": 110879.0
   },
   "BHR": {
     "latitude": 26.0,
     "longitude": 50.55,
-    "population": 1594654
+    "population": 1594654,
+    "area_km2": 765.0
   },
   "BHS": {
     "latitude": 25.0343,
     "longitude": -77.3963,
-    "population": 398165
+    "population": 398165,
+    "area_km2": 13943.0
   },
   "BIH": {
     "latitude": 44.0,
     "longitude": 18.0,
-    "population": 3422000
+    "population": 3422000,
+    "area_km2": 51209.0
   },
   "BLM": {
     "latitude": 18.5,
     "longitude": -63.41666666,
-    "population": 10562
+    "population": 10562,
+    "area_km2": 21.0
   },
   "BLR": {
     "latitude": 53.0,
     "longitude": 28.0,
-    "population": 9109280
+    "population": 9109280,
+    "area_km2": 207600.0
   },
   "BLZ": {
     "latitude": 17.25,
     "longitude": -88.75,
-    "population": 417634
+    "population": 417634,
+    "area_km2": 22966.0
   },
   "BMU": {
     "latitude": 32.33333333,
     "longitude": -64.75,
-    "population": 64055
+    "population": 64055,
+    "area_km2": 54.0
   },
   "BOL": {
     "latitude": -17.0,
     "longitude": -65.0,
-    "population": 11365333
+    "population": 11365333,
+    "area_km2": 1098581.0
   },
   "BRA": {
     "latitude": -10.0,
     "longitude": -55.0,
-    "population": 213421037
+    "population": 213421037,
+    "area_km2": 8515767.0
   },
   "BRB": {
     "latitude": 13.16666666,
     "longitude": -59.53333333,
-    "population": 267800
+    "population": 267800,
+    "area_km2": 430.0
   },
   "BRN": {
     "latitude": 4.5,
     "longitude": 114.66666666,
-    "population": 455500
+    "population": 455500,
+    "area_km2": 5765.0
   },
   "BTN": {
     "latitude": 27.5,
     "longitude": 90.5,
-    "population": 784043
+    "population": 784043,
+    "area_km2": 38394.0
   },
   "BVT": {
     "latitude": -54.4208,
     "longitude": 3.3464,
-    "population": 0
+    "population": 0,
+    "area_km2": 49.0
   },
   "BWA": {
     "latitude": -22.0,
     "longitude": 24.0,
-    "population": 2359609
+    "population": 2359609,
+    "area_km2": 582000.0
   },
   "CAF": {
     "latitude": 7.0,
     "longitude": 21.0,
-    "population": 6470307
+    "population": 6470307,
+    "area_km2": 622984.0
   },
   "CAN": {
     "latitude": 60.0,
     "longitude": -95.0,
-    "population": 41651653
+    "population": 41651653,
+    "area_km2": 9984670.0
   },
   "CCK": {
     "latitude": -12.1642,
     "longitude": 96.871,
-    "population": 593
+    "population": 593,
+    "area_km2": 14.0
   },
   "CHE": {
     "latitude": 47.0,
     "longitude": 8.0,
-    "population": 9082848
+    "population": 9082848,
+    "area_km2": 41284.0
   },
   "CHL": {
     "latitude": -30.0,
     "longitude": -71.0,
-    "population": 20206953
+    "population": 20206953,
+    "area_km2": 756102.0
   },
   "CHN": {
     "latitude": 35.0,
     "longitude": 105.0,
-    "population": 1408280000
+    "population": 1408280000,
+    "area_km2": 9706961.0
   },
   "CIV": {
     "latitude": 8.0,
     "longitude": -5.0,
-    "population": 31719275
+    "population": 31719275,
+    "area_km2": 322463.0
   },
   "CMR": {
     "latitude": 6.0,
     "longitude": 12.0,
-    "population": 29442327
+    "population": 29442327,
+    "area_km2": 475442.0
   },
   "COD": {
     "latitude": 0.0,
     "longitude": 25.0,
-    "population": 112832000
+    "population": 112832000,
+    "area_km2": 2344858.0
   },
   "COG": {
     "latitude": -1.0,
     "longitude": 15.0,
-    "population": 6142180
+    "population": 6142180,
+    "area_km2": 342000.0
   },
   "COK": {
     "latitude": -21.23333333,
     "longitude": -159.76666666,
-    "population": 15040
+    "population": 15040,
+    "area_km2": 236.0
   },
   "COL": {
     "latitude": 4.0,
     "longitude": -72.0,
-    "population": 53057212
+    "population": 53057212,
+    "area_km2": 1141748.0
   },
   "COM": {
     "latitude": -12.16666666,
     "longitude": 44.25,
-    "population": 919901
+    "population": 919901,
+    "area_km2": 1862.0
   },
   "CPV": {
     "latitude": 16.5388,
     "longitude": -23.0418,
-    "population": 491233
+    "population": 491233,
+    "area_km2": 4033.0
   },
   "CRI": {
     "latitude": 10.0,
     "longitude": -84.0,
-    "population": 5309625
+    "population": 5309625,
+    "area_km2": 51100.0
   },
   "CUB": {
     "latitude": 21.5,
     "longitude": -80.0,
-    "population": 9748007
+    "population": 9748007,
+    "area_km2": 109884.0
   },
   "CUW": {
     "latitude": 12.116667,
     "longitude": -68.933333,
-    "population": 156115
+    "population": 156115,
+    "area_km2": 444.0
   },
   "CXR": {
     "latitude": -10.5,
     "longitude": 105.66666666,
-    "population": 1692
+    "population": 1692,
+    "area_km2": 135.0
   },
   "CYM": {
     "latitude": 19.3133,
     "longitude": -81.2546,
-    "population": 84738
+    "population": 84738,
+    "area_km2": 264.0
   },
   "CYP": {
     "latitude": 35.0,
     "longitude": 33.0,
-    "population": 1442614
+    "population": 1442614,
+    "area_km2": 9251.0
   },
   "CZE": {
     "latitude": 49.75,
     "longitude": 15.5,
-    "population": 10882341
+    "population": 10882341,
+    "area_km2": 78865.0
   },
   "DEU": {
     "latitude": 51.0,
     "longitude": 9.0,
-    "population": 83491249
+    "population": 83491249,
+    "area_km2": 357114.0
   },
   "DJI": {
     "latitude": 11.5,
     "longitude": 43.0,
-    "population": 1066809
+    "population": 1066809,
+    "area_km2": 23200.0
   },
   "DMA": {
     "latitude": 15.41666666,
     "longitude": -61.33333333,
-    "population": 67408
+    "population": 67408,
+    "area_km2": 751.0
   },
   "DNK": {
     "latitude": 56.0,
     "longitude": 10.0,
-    "population": 6011488
+    "population": 6011488,
+    "area_km2": 43094.0
   },
   "DOM": {
     "latitude": 19.0,
     "longitude": -70.66666666,
-    "population": 10771504
+    "population": 10771504,
+    "area_km2": 48671.0
   },
   "DZA": {
     "latitude": 28.0,
     "longitude": 3.0,
-    "population": 47400000
+    "population": 47400000,
+    "area_km2": 2381741.0
   },
   "ECU": {
     "latitude": -2.0,
     "longitude": -77.5,
-    "population": 18103660
+    "population": 18103660,
+    "area_km2": 276841.0
   },
   "EGY": {
     "latitude": 27.0,
     "longitude": 30.0,
-    "population": 107271260
+    "population": 107271260,
+    "area_km2": 1002450.0
   },
   "ERI": {
     "latitude": 15.0,
     "longitude": 39.0,
-    "population": 3607000
+    "population": 3607000,
+    "area_km2": 117600.0
   },
   "ESH": {
     "latitude": 24.5,
     "longitude": -13.0,
-    "population": 600904
+    "population": 600904,
+    "area_km2": 266000.0
   },
   "ESP": {
     "latitude": 40.0,
     "longitude": -4.0,
-    "population": 49315949
+    "population": 49315949,
+    "area_km2": 505992.0
   },
   "EST": {
     "latitude": 59.0,
     "longitude": 26.0,
-    "population": 1369995
+    "population": 1369995,
+    "area_km2": 45227.0
   },
   "ETH": {
     "latitude": 8.0,
     "longitude": 38.0,
-    "population": 111652998
+    "population": 111652998,
+    "area_km2": 1104300.0
   },
   "FIN": {
     "latitude": 64.0,
     "longitude": 26.0,
-    "population": 5650325
+    "population": 5650325,
+    "area_km2": 338455.0
   },
   "FJI": {
     "latitude": -17.7134,
     "longitude": 178.065,
-    "population": 900869
+    "population": 900869,
+    "area_km2": 18272.0
   },
   "FLK": {
     "latitude": -51.75,
     "longitude": -59.0,
-    "population": 3662
+    "population": 3662,
+    "area_km2": 12173.0
   },
   "FRA": {
     "latitude": 46.0,
     "longitude": 2.0,
-    "population": 66351959
+    "population": 66351959,
+    "area_km2": 543908.0
   },
   "FRO": {
     "latitude": 62.0,
     "longitude": -7.0,
-    "population": 54885
+    "population": 54885,
+    "area_km2": 1393.0
   },
   "FSM": {
     "latitude": 6.91666666,
     "longitude": 158.25,
-    "population": 105564
+    "population": 105564,
+    "area_km2": 702.0
   },
   "GAB": {
     "latitude": -1.0,
     "longitude": 11.75,
-    "population": 2469296
+    "population": 2469296,
+    "area_km2": 267668.0
   },
   "GBR": {
     "latitude": 54.0,
     "longitude": -2.0,
-    "population": 69281437
+    "population": 69281437,
+    "area_km2": 244376.0
   },
   "GEO": {
     "latitude": 42.0,
     "longitude": 43.5,
-    "population": 4000921
+    "population": 4000921,
+    "area_km2": 69700.0
   },
   "GGY": {
     "latitude": 49.46666666,
     "longitude": -2.58333333,
-    "population": 64781
+    "population": 64781,
+    "area_km2": 78.0
   },
   "GHA": {
     "latitude": 8.0,
     "longitude": -2.0,
-    "population": 33742380
+    "population": 33742380,
+    "area_km2": 238533.0
   },
   "GIB": {
     "latitude": 36.13333333,
     "longitude": -5.35,
-    "population": 38000
+    "population": 38000,
+    "area_km2": 6.0
   },
   "GIN": {
     "latitude": 11.0,
     "longitude": -10.0,
-    "population": 14363931
+    "population": 14363931,
+    "area_km2": 245857.0
   },
   "GLP": {
     "latitude": 16.25,
     "longitude": -61.583333,
-    "population": 378561
+    "population": 378561,
+    "area_km2": 1628.0
   },
   "GMB": {
     "latitude": 13.46666666,
     "longitude": -16.56666666,
-    "population": 2422712
+    "population": 2422712,
+    "area_km2": 10689.0
   },
   "GNB": {
     "latitude": 12.0,
     "longitude": -15.0,
-    "population": 1781308
+    "population": 1781308,
+    "area_km2": 36125.0
   },
   "GNQ": {
     "latitude": 2.0,
     "longitude": 10.0,
-    "population": 1668768
+    "population": 1668768,
+    "area_km2": 28051.0
   },
   "GRC": {
     "latitude": 39.0,
     "longitude": 22.0,
-    "population": 10400720
+    "population": 10400720,
+    "area_km2": 131990.0
   },
   "GRD": {
     "latitude": 12.11666666,
     "longitude": -61.66666666,
-    "population": 109021
+    "population": 109021,
+    "area_km2": 344.0
   },
   "GRL": {
     "latitude": 72.0,
     "longitude": -40.0,
-    "population": 56542
+    "population": 56542,
+    "area_km2": 2166086.0
   },
   "GTM": {
     "latitude": 15.5,
     "longitude": -90.25,
-    "population": 18079810
+    "population": 18079810,
+    "area_km2": 108889.0
   },
   "GUF": {
     "latitude": 4.0,
     "longitude": -53.0,
-    "population": 292354
+    "population": 292354,
+    "area_km2": 83534.0
   },
   "GUM": {
     "latitude": 13.46666666,
     "longitude": 144.78333333,
-    "population": 153836
+    "population": 153836,
+    "area_km2": 549.0
   },
   "GUY": {
     "latitude": 5.0,
     "longitude": -59.0,
-    "population": 772975
+    "population": 772975,
+    "area_km2": 214969.0
   },
   "HKG": {
     "latitude": 22.267,
     "longitude": 114.188,
-    "population": 7527500
+    "population": 7527500,
+    "area_km2": 1104.0
   },
   "HMD": {
     "latitude": -53.0818,
     "longitude": 73.5042,
-    "population": 0
+    "population": 0,
+    "area_km2": 412.0
   },
   "HND": {
     "latitude": 15.0,
     "longitude": -86.5,
-    "population": 9892632
+    "population": 9892632,
+    "area_km2": 112492.0
   },
   "HRV": {
     "latitude": 45.16666666,
     "longitude": 15.5,
-    "population": 3866233
+    "population": 3866233,
+    "area_km2": 56594.0
   },
   "HTI": {
     "latitude": 19.0,
     "longitude": -72.41666666,
-    "population": 11867032
+    "population": 11867032,
+    "area_km2": 27750.0
   },
   "HUN": {
     "latitude": 47.0,
     "longitude": 20.0,
-    "population": 9539502
+    "population": 9539502,
+    "area_km2": 93028.0
   },
   "IDN": {
     "latitude": -5.0,
     "longitude": 120.0,
-    "population": 284438782
+    "population": 284438782,
+    "area_km2": 1904569.0
   },
   "IMN": {
     "latitude": 54.25,
     "longitude": -4.5,
-    "population": 84530
+    "population": 84530,
+    "area_km2": 572.0
   },
   "IND": {
     "latitude": 20.0,
     "longitude": 77.0,
-    "population": 1417492000
+    "population": 1417492000,
+    "area_km2": 3287263.0
   },
   "IOT": {
     "latitude": -6.0,
     "longitude": 71.5,
-    "population": 0
+    "population": 0,
+    "area_km2": 60.0
   },
   "IRL": {
     "latitude": 53.0,
     "longitude": -8.0,
-    "population": 5458600
+    "population": 5458600,
+    "area_km2": 70273.0
   },
   "IRN": {
     "latitude": 32.0,
     "longitude": 53.0,
-    "population": 85961000
+    "population": 85961000,
+    "area_km2": 1648195.0
   },
   "IRQ": {
     "latitude": 33.0,
     "longitude": 44.0,
-    "population": 46118793
+    "population": 46118793,
+    "area_km2": 438317.0
   },
   "ISL": {
     "latitude": 65.0,
     "longitude": -18.0,
-    "population": 391810
+    "population": 391810,
+    "area_km2": 103000.0
   },
   "ISR": {
     "latitude": 31.47,
     "longitude": 35.13,
-    "population": 10134800
+    "population": 10134800,
+    "area_km2": 21937.0
   },
   "ITA": {
     "latitude": 42.83333333,
     "longitude": 12.83333333,
-    "population": 58927633
+    "population": 58927633,
+    "area_km2": 301336.0
   },
   "JAM": {
     "latitude": 18.25,
     "longitude": -77.5,
-    "population": 2825544
+    "population": 2825544,
+    "area_km2": 10991.0
   },
   "JEY": {
     "latitude": 49.25,
     "longitude": -2.16666666,
-    "population": 103267
+    "population": 103267,
+    "area_km2": 116.0
   },
   "JOR": {
     "latitude": 31.0,
     "longitude": 36.0,
-    "population": 11734000
+    "population": 11734000,
+    "area_km2": 89342.0
   },
   "JPN": {
     "latitude": 36.0,
     "longitude": 138.0,
-    "population": 123210000
+    "population": 123210000,
+    "area_km2": 377930.0
   },
   "KAZ": {
     "latitude": 48.0196,
     "longitude": 66.9237,
-    "population": 20426568
+    "population": 20426568,
+    "area_km2": 2724900.0
   },
   "KEN": {
     "latitude": 1.0,
     "longitude": 38.0,
-    "population": 53330978
+    "population": 53330978,
+    "area_km2": 580367.0
   },
   "KGZ": {
     "latitude": 41.0,
     "longitude": 75.0,
-    "population": 7281800
+    "population": 7281800,
+    "area_km2": 199951.0
   },
   "KHM": {
     "latitude": 13.0,
     "longitude": 105.0,
-    "population": 17577760
+    "population": 17577760,
+    "area_km2": 181035.0
   },
   "KIR": {
     "latitude": 1.41666666,
     "longitude": 173.0,
-    "population": 120740
+    "population": 120740,
+    "area_km2": 811.0
   },
   "KNA": {
     "latitude": 17.33333333,
     "longitude": -62.75,
-    "population": 51320
+    "population": 51320,
+    "area_km2": 261.0
   },
   "KOR": {
     "latitude": 37.0,
     "longitude": 127.5,
-    "population": 51159889
+    "population": 51159889,
+    "area_km2": 100210.0
   },
   "KWT": {
     "latitude": 29.5,
     "longitude": 45.75,
-    "population": 4881254
+    "population": 4881254,
+    "area_km2": 17818.0
   },
   "LAO": {
     "latitude": 18.0,
     "longitude": 105.0,
-    "population": 7647000
+    "population": 7647000,
+    "area_km2": 236800.0
   },
   "LBN": {
     "latitude": 33.83333333,
     "longitude": 35.83333333,
-    "population": 5490000
+    "population": 5490000,
+    "area_km2": 10452.0
   },
   "LBR": {
     "latitude": 6.5,
     "longitude": -9.5,
-    "population": 5248621
+    "population": 5248621,
+    "area_km2": 111369.0
   },
   "LBY": {
     "latitude": 25.0,
     "longitude": 17.0,
-    "population": 7459000
+    "population": 7459000,
+    "area_km2": 1759540.0
   },
   "LCA": {
     "latitude": 13.88333333,
     "longitude": -60.96666666,
-    "population": 184100
+    "population": 184100,
+    "area_km2": 616.0
   },
   "LIE": {
     "latitude": 47.26666666,
     "longitude": 9.53333333,
-    "population": 40900
+    "population": 40900,
+    "area_km2": 160.0
   },
   "LKA": {
     "latitude": 7.0,
     "longitude": 81.0,
-    "population": 21763170
+    "population": 21763170,
+    "area_km2": 65610.0
   },
   "LSO": {
     "latitude": -29.5,
     "longitude": 28.5,
-    "population": 2116427
+    "population": 2116427,
+    "area_km2": 30355.0
   },
   "LTU": {
     "latitude": 56.0,
     "longitude": 24.0,
-    "population": 2894886
+    "population": 2894886,
+    "area_km2": 65300.0
   },
   "LUX": {
     "latitude": 49.75,
     "longitude": 6.16666666,
-    "population": 681973
+    "population": 681973,
+    "area_km2": 2586.0
   },
   "LVA": {
     "latitude": 57.0,
     "longitude": 25.0,
-    "population": 1829000
+    "population": 1829000,
+    "area_km2": 64559.0
   },
   "MAC": {
     "latitude": 22.16666666,
     "longitude": 113.55,
-    "population": 685900
+    "population": 685900,
+    "area_km2": 30.0
   },
   "MAF": {
     "latitude": 18.0708,
     "longitude": -63.0501,
-    "population": 31496
+    "population": 31496,
+    "area_km2": 53.0
   },
   "MAR": {
     "latitude": 32.0,
     "longitude": -5.0,
-    "population": 36828330
+    "population": 36828330,
+    "area_km2": 446550.0
   },
   "MCO": {
     "latitude": 43.73333333,
     "longitude": 7.4,
-    "population": 38423
+    "population": 38423,
+    "area_km2": 2.02
   },
   "MDA": {
     "latitude": 47.0,
     "longitude": 29.0,
-    "population": 2749076
+    "population": 2749076,
+    "area_km2": 33847.0
   },
   "MDG": {
     "latitude": -20.0,
     "longitude": 47.0,
-    "population": 31727042
+    "population": 31727042,
+    "area_km2": 587041.0
   },
   "MDV": {
     "latitude": 3.25,
     "longitude": 73.0,
-    "population": 515132
+    "population": 515132,
+    "area_km2": 300.0
   },
   "MEX": {
     "latitude": 23.0,
     "longitude": -102.0,
-    "population": 130575786
+    "population": 130575786,
+    "area_km2": 1964375.0
   },
   "MHL": {
     "latitude": 9.0,
     "longitude": 168.0,
-    "population": 42418
+    "population": 42418,
+    "area_km2": 181.0
   },
   "MKD": {
     "latitude": 41.83333333,
     "longitude": 22.0,
-    "population": 1822612
+    "population": 1822612,
+    "area_km2": 25713.0
   },
   "MLI": {
     "latitude": 17.0,
     "longitude": -4.0,
-    "population": 22395489
+    "population": 22395489,
+    "area_km2": 1240192.0
   },
   "MLT": {
     "latitude": 35.9375,
     "longitude": 14.3754,
-    "population": 574250
+    "population": 574250,
+    "area_km2": 316.0
   },
   "MMR": {
     "latitude": 22.0,
     "longitude": 98.0,
-    "population": 51316756
+    "population": 51316756,
+    "area_km2": 676578.0
   },
   "MNE": {
     "latitude": 42.5,
     "longitude": 19.3,
-    "population": 623327
+    "population": 623327,
+    "area_km2": 13812.0
   },
   "MNG": {
     "latitude": 46.0,
     "longitude": 105.0,
-    "population": 3544835
+    "population": 3544835,
+    "area_km2": 1564110.0
   },
   "MNP": {
     "latitude": 15.2,
     "longitude": 145.75,
-    "population": 47329
+    "population": 47329,
+    "area_km2": 464.0
   },
   "MOZ": {
     "latitude": -18.25,
     "longitude": 35.0,
-    "population": 34090466
+    "population": 34090466,
+    "area_km2": 801590.0
   },
   "MRT": {
     "latitude": 20.0,
     "longitude": -12.0,
-    "population": 4927532
+    "population": 4927532,
+    "area_km2": 1030700.0
   },
   "MSR": {
     "latitude": 16.75,
     "longitude": -62.2,
-    "population": 4386
+    "population": 4386,
+    "area_km2": 102.0
   },
   "MTQ": {
     "latitude": 14.666667,
     "longitude": -61.0,
-    "population": 349925
+    "population": 349925,
+    "area_km2": 1128.0
   },
   "MUS": {
     "latitude": -20.28333333,
     "longitude": 57.55,
-    "population": 1243741
+    "population": 1243741,
+    "area_km2": 2040.0
   },
   "MWI": {
     "latitude": -13.5,
     "longitude": 34.0,
-    "population": 20734262
+    "population": 20734262,
+    "area_km2": 118484.0
   },
   "MYS": {
     "latitude": 2.5,
     "longitude": 112.5,
-    "population": 34231700
+    "population": 34231700,
+    "area_km2": 330803.0
   },
   "MYT": {
     "latitude": -12.83333333,
     "longitude": 45.16666666,
-    "population": 320901
+    "population": 320901,
+    "area_km2": 374.0
   },
   "NAM": {
     "latitude": -22.0,
     "longitude": 17.0,
-    "population": 3022401
+    "population": 3022401,
+    "area_km2": 825615.0
   },
   "NCL": {
     "latitude": -21.5,
     "longitude": 165.5,
-    "population": 264596
+    "population": 264596,
+    "area_km2": 18575.0
   },
   "NER": {
     "latitude": 16.0,
     "longitude": 8.0,
-    "population": 26312034
+    "population": 26312034,
+    "area_km2": 1267000.0
   },
   "NFK": {
     "latitude": -29.03333333,
     "longitude": 167.95,
-    "population": 2188
+    "population": 2188,
+    "area_km2": 36.0
   },
   "NGA": {
     "latitude": 10.0,
     "longitude": 8.0,
-    "population": 223800000
+    "population": 223800000,
+    "area_km2": 923768.0
   },
   "NIC": {
     "latitude": 13.0,
     "longitude": -85.0,
-    "population": 6803886
+    "population": 6803886,
+    "area_km2": 130373.0
   },
   "NIU": {
     "latitude": -19.03333333,
     "longitude": -169.86666666,
-    "population": 1681
+    "population": 1681,
+    "area_km2": 260.0
   },
   "NLD": {
     "latitude": 52.5,
     "longitude": 5.75,
-    "population": 18100436
+    "population": 18100436,
+    "area_km2": 41865.0
   },
   "NOR": {
     "latitude": 62.0,
     "longitude": 10.0,
-    "population": 5606944
+    "population": 5606944,
+    "area_km2": 386224.0
   },
   "NPL": {
     "latitude": 28.0,
     "longitude": 84.0,
-    "population": 29911840
+    "population": 29911840,
+    "area_km2": 147181.0
   },
   "NRU": {
     "latitude": -0.53333333,
     "longitude": 166.91666666,
-    "population": 11680
+    "population": 11680,
+    "area_km2": 21.0
   },
   "NZL": {
     "latitude": -41.0,
     "longitude": 174.0,
-    "population": 5324700
+    "population": 5324700,
+    "area_km2": 268838.0
   },
   "OMN": {
     "latitude": 21.0,
     "longitude": 57.0,
-    "population": 5343630
+    "population": 5343630,
+    "area_km2": 309500.0
   },
   "PAK": {
     "latitude": 30.0,
     "longitude": 70.0,
-    "population": 241499431
+    "population": 241499431,
+    "area_km2": 796095.0
   },
   "PAN": {
     "latitude": 9.0,
     "longitude": -80.0,
-    "population": 4064780
+    "population": 4064780,
+    "area_km2": 75417.0
   },
   "PCN": {
     "latitude": -25.06666666,
     "longitude": -130.1,
-    "population": 35
+    "population": 35,
+    "area_km2": 47.0
   },
   "PER": {
     "latitude": -10.0,
     "longitude": -76.0,
-    "population": 34350244
+    "population": 34350244,
+    "area_km2": 1285216.0
   },
   "PHL": {
     "latitude": 13.0,
     "longitude": 122.0,
-    "population": 114123600
+    "population": 114123600,
+    "area_km2": 342353.0
   },
   "PLW": {
     "latitude": 7.5,
     "longitude": 134.5,
-    "population": 16733
+    "population": 16733,
+    "area_km2": 459.0
   },
   "PNG": {
     "latitude": -6.0,
     "longitude": 147.0,
-    "population": 11781559
+    "population": 11781559,
+    "area_km2": 462840.0
   },
   "POL": {
     "latitude": 52.0,
     "longitude": 20.0,
-    "population": 37392000
+    "population": 37392000,
+    "area_km2": 312679.0
   },
   "PRI": {
     "latitude": 18.25,
     "longitude": -66.5,
-    "population": 3203295
+    "population": 3203295,
+    "area_km2": 8870.0
   },
   "PRK": {
     "latitude": 40.0,
     "longitude": 127.0,
-    "population": 25950000
+    "population": 25950000,
+    "area_km2": 120538.0
   },
   "PRT": {
     "latitude": 39.5,
     "longitude": -8.0,
-    "population": 10749635
+    "population": 10749635,
+    "area_km2": 92090.0
   },
   "PRY": {
     "latitude": -23.0,
     "longitude": -58.0,
-    "population": 6109644
+    "population": 6109644,
+    "area_km2": 406752.0
   },
   "PSE": {
     "latitude": 31.9,
     "longitude": 35.2,
-    "population": 5483450
+    "population": 5483450,
+    "area_km2": 6220.0
   },
   "PYF": {
     "latitude": -17.6797,
     "longitude": -149.4068,
-    "population": 279500
+    "population": 279500,
+    "area_km2": 4167.0
   },
   "QAT": {
     "latitude": 25.5,
     "longitude": 51.25,
-    "population": 3173024
+    "population": 3173024,
+    "area_km2": 11586.0
   },
   "REU": {
     "latitude": -21.15,
     "longitude": 55.5,
-    "population": 896175
+    "population": 896175,
+    "area_km2": 2511.0
   },
   "ROU": {
     "latitude": 46.0,
     "longitude": 25.0,
-    "population": 19036031
+    "population": 19036031,
+    "area_km2": 238391.0
   },
   "RUS": {
     "latitude": 60.0,
     "longitude": 100.0,
-    "population": 146028325
+    "population": 146028325,
+    "area_km2": 17098246.0
   },
   "RWA": {
     "latitude": -2.0,
     "longitude": 30.0,
-    "population": 14104969
+    "population": 14104969,
+    "area_km2": 26338.0
   },
   "SAU": {
     "latitude": 25.0,
     "longitude": 45.0,
-    "population": 35300280
+    "population": 35300280,
+    "area_km2": 2149690.0
   },
   "SDN": {
     "latitude": 15.0,
     "longitude": 30.0,
-    "population": 51662000
+    "population": 51662000,
+    "area_km2": 1886068.0
   },
   "SEN": {
     "latitude": 14.0,
     "longitude": -14.0,
-    "population": 18593258
+    "population": 18593258,
+    "area_km2": 196722.0
   },
   "SGP": {
     "latitude": 1.36666666,
     "longitude": 103.8,
-    "population": 6110200
+    "population": 6110200,
+    "area_km2": 710.0
   },
   "SGS": {
     "latitude": -54.5,
     "longitude": -37.0,
-    "population": 0
+    "population": 0,
+    "area_km2": 3903.0
   },
   "SHN": {
     "latitude": -15.95,
     "longitude": -5.72,
-    "population": 5651
+    "population": 5651,
+    "area_km2": 394.0
   },
   "SJM": {
     "latitude": 78.0,
     "longitude": 20.0,
-    "population": 2530
+    "population": 2530,
+    "area_km2": 61399.0
   },
   "SLB": {
     "latitude": -8.0,
     "longitude": 159.0,
-    "population": 750325
+    "population": 750325,
+    "area_km2": 28896.0
   },
   "SLE": {
     "latitude": 8.5,
     "longitude": -11.5,
-    "population": 9077691
+    "population": 9077691,
+    "area_km2": 71740.0
   },
   "SLV": {
     "latitude": 13.83333333,
     "longitude": -88.91666666,
-    "population": 6029976
+    "population": 6029976,
+    "area_km2": 21041.0
   },
   "SMR": {
     "latitude": 43.76666666,
     "longitude": 12.41666666,
-    "population": 34132
+    "population": 34132,
+    "area_km2": 61.0
   },
   "SOM": {
     "latitude": 10.0,
     "longitude": 49.0,
-    "population": 19655000
+    "population": 19655000,
+    "area_km2": 637657.0
   },
   "SPM": {
     "latitude": 46.83333333,
     "longitude": -56.33333333,
-    "population": 5819
+    "population": 5819,
+    "area_km2": 242.0
   },
   "SRB": {
     "latitude": 44.0,
     "longitude": 21.0,
-    "population": 6567783
+    "population": 6567783,
+    "area_km2": 77589.0
   },
   "SSD": {
     "latitude": 7.0,
     "longitude": 30.0,
-    "population": 15786898
+    "population": 15786898,
+    "area_km2": 619745.0
   },
   "STP": {
     "latitude": 1.0,
     "longitude": 7.0,
-    "population": 209607
+    "population": 209607,
+    "area_km2": 964.0
   },
   "SUR": {
     "latitude": 4.0,
     "longitude": -56.0,
-    "population": 616500
+    "population": 616500,
+    "area_km2": 163820.0
   },
   "SVK": {
     "latitude": 48.66666666,
     "longitude": 19.5,
-    "population": 5413813
+    "population": 5413813,
+    "area_km2": 49037.0
   },
   "SVN": {
     "latitude": 46.11666666,
     "longitude": 14.81666666,
-    "population": 2130638
+    "population": 2130638,
+    "area_km2": 20273.0
   },
   "SWE": {
     "latitude": 62.0,
     "longitude": 15.0,
-    "population": 10605098
+    "population": 10605098,
+    "area_km2": 450295.0
   },
   "SWZ": {
     "latitude": -26.5,
     "longitude": 31.5,
-    "population": 1235549
+    "population": 1235549,
+    "area_km2": 17364.0
   },
   "SXM": {
     "latitude": 18.033333,
     "longitude": -63.05,
-    "population": 41349
+    "population": 41349,
+    "area_km2": 34.0
   },
   "SYC": {
     "latitude": -4.58333333,
     "longitude": 55.66666666,
-    "population": 122729
+    "population": 122729,
+    "area_km2": 452.0
   },
   "SYR": {
     "latitude": 35.0,
     "longitude": 38.0,
-    "population": 25620000
+    "population": 25620000,
+    "area_km2": 185180.0
   },
   "TCA": {
     "latitude": 21.75,
     "longitude": -71.58333333,
-    "population": 50828
+    "population": 50828,
+    "area_km2": 948.0
   },
   "TCD": {
     "latitude": 15.0,
     "longitude": 19.0,
-    "population": 19340757
+    "population": 19340757,
+    "area_km2": 1284000.0
   },
   "TGO": {
     "latitude": 8.0,
     "longitude": 1.16666666,
-    "population": 8095498
+    "population": 8095498,
+    "area_km2": 56785.0
   },
   "THA": {
     "latitude": 15.0,
     "longitude": 100.0,
-    "population": 65859640
+    "population": 65859640,
+    "area_km2": 513120.0
   },
   "TJK": {
     "latitude": 39.0,
     "longitude": 71.0,
-    "population": 10499000
+    "population": 10499000,
+    "area_km2": 143100.0
   },
   "TKL": {
     "latitude": -9.0,
     "longitude": -172.0,
-    "population": 2608
+    "population": 2608,
+    "area_km2": 12.0
   },
   "TKM": {
     "latitude": 40.0,
     "longitude": 60.0,
-    "population": 7057841
+    "population": 7057841,
+    "area_km2": 488100.0
   },
   "TLS": {
     "latitude": -8.83333333,
     "longitude": 125.91666666,
-    "population": 1391221
+    "population": 1391221,
+    "area_km2": 14874.0
   },
   "TON": {
     "latitude": -20.0,
     "longitude": -175.0,
-    "population": 100179
+    "population": 100179,
+    "area_km2": 747.0
   },
   "TTO": {
     "latitude": 10.6918,
     "longitude": -61.2225,
-    "population": 1367764
+    "population": 1367764,
+    "area_km2": 5130.0
   },
   "TUN": {
     "latitude": 34.0,
     "longitude": 9.0,
-    "population": 11972169
+    "population": 11972169,
+    "area_km2": 163610.0
   },
   "TUR": {
     "latitude": 39.0,
     "longitude": 35.0,
-    "population": 85664944
+    "population": 85664944,
+    "area_km2": 783562.0
   },
   "TUV": {
     "latitude": -8.0,
     "longitude": 178.0,
-    "population": 10643
+    "population": 10643,
+    "area_km2": 26.0
   },
   "TWN": {
     "latitude": 23.5,
     "longitude": 121.0,
-    "population": 23317031
+    "population": 23317031,
+    "area_km2": 36197.0
   },
   "TZA": {
     "latitude": -6.0,
     "longitude": 35.0,
-    "population": 68153004
+    "population": 68153004,
+    "area_km2": 947303.0
   },
   "UGA": {
     "latitude": 1.0,
     "longitude": 32.0,
-    "population": 45905417
+    "population": 45905417,
+    "area_km2": 241550.0
   },
   "UKR": {
     "latitude": 49.0,
     "longitude": 32.0,
-    "population": 32862000
+    "population": 32862000,
+    "area_km2": 603550.0
   },
   "UMI": {
     "latitude": 19.3,
     "longitude": 166.633333,
-    "population": 0
+    "population": 0,
+    "area_km2": 34.2
   },
   "UNK": {
     "latitude": 42.666667,
     "longitude": 21.166667,
-    "population": 1585566
+    "population": 1585566,
+    "area_km2": 10908.0
   },
   "URY": {
     "latitude": -33.0,
     "longitude": -56.0,
-    "population": 3499451
+    "population": 3499451,
+    "area_km2": 181034.0
   },
   "USA": {
     "latitude": 38.0,
     "longitude": -97.0,
-    "population": 340110988
+    "population": 340110988,
+    "area_km2": 9525067.0
   },
   "UZB": {
     "latitude": 41.0,
     "longitude": 64.0,
-    "population": 37859698
+    "population": 37859698,
+    "area_km2": 447400.0
   },
   "VAT": {
     "latitude": 41.9,
     "longitude": 12.45,
-    "population": 882
+    "population": 882,
+    "area_km2": 0.49
   },
   "VCT": {
     "latitude": 13.25,
     "longitude": -61.2,
-    "population": 110872
+    "population": 110872,
+    "area_km2": 389.0
   },
   "VEN": {
     "latitude": 8.0,
     "longitude": -66.0,
-    "population": 28517000
+    "population": 28517000,
+    "area_km2": 916445.0
   },
   "VGB": {
     "latitude": 18.431383,
     "longitude": -64.62305,
-    "population": 39471
+    "population": 39471,
+    "area_km2": 151.0
   },
   "VIR": {
     "latitude": 18.35,
     "longitude": -64.933333,
-    "population": 87146
+    "population": 87146,
+    "area_km2": 347.0
   },
   "VNM": {
     "latitude": 16.16666666,
     "longitude": 107.83333333,
-    "population": 101343800
+    "population": 101343800,
+    "area_km2": 331212.0
   },
   "VUT": {
     "latitude": -16.0,
     "longitude": 167.0,
-    "population": 321409
+    "population": 321409,
+    "area_km2": 12189.0
   },
   "WLF": {
     "latitude": -13.3,
     "longitude": -176.2,
-    "population": 11620
+    "population": 11620,
+    "area_km2": 142.0
   },
   "WSM": {
     "latitude": -13.58333333,
     "longitude": -172.33333333,
-    "population": 205557
+    "population": 205557,
+    "area_km2": 2842.0
   },
   "YEM": {
     "latitude": 15.0,
     "longitude": 48.0,
-    "population": 32684503
+    "population": 32684503,
+    "area_km2": 527968.0
   },
   "ZAF": {
     "latitude": -29.0,
     "longitude": 24.0,
-    "population": 63100945
+    "population": 63100945,
+    "area_km2": 1221037.0
   },
   "ZMB": {
     "latitude": -15.0,
     "longitude": 30.0,
-    "population": 19693423
+    "population": 19693423,
+    "area_km2": 752612.0
   },
   "ZWE": {
     "latitude": -20.0,
     "longitude": 30.0,
-    "population": 17073087
+    "population": 17073087,
+    "area_km2": 390757.0
   }
 }

@@ -8,6 +8,8 @@ import numpy as np
 
 from demodulator_power import DemodulatorPowerModel
 from export import export_metrics, generate_performance_plots
+from coverage_population import export_coverage_population_csv
+from leo_kepler_rotation import run_leo_orbit_rotation_task
 from lrfhss_connector import load_lrfhss_components
 from multi_beam_connector import load_multi_beam_modules
 
@@ -212,10 +214,18 @@ def initialize_simulation_parameters(
         noise_figure_db=5.0,
     )
 
-def compute_satellite_orbit(network_geometry):
-    sat_pos = network_geometry.get_satellite_pos()
-    sat_pos[:, 38537] = np.array([0, 0, 600e3])
-    return sat_pos
+def compute_satellite_orbit(network_geometry, params_mod, step_seconds: float, scenario_steps: int):
+    del network_geometry
+    params_config = None
+    if params_mod is not None and hasattr(params_mod, "read_params"):
+        params_config = params_mod.read_params()
+
+    orbit_state = run_leo_orbit_rotation_task(
+        params_config=params_config,
+        fallback_step_s=step_seconds,
+        minimum_frames=max(720, int(scenario_steps) * 10),
+    )
+    return orbit_state["satellite_positions_m"], orbit_state
 
 
 def _extract_windows(mask: np.ndarray) -> list[tuple[int, int]]:
@@ -429,41 +439,36 @@ def compute_orbit_parameters(sat_pos: np.ndarray, step_seconds: float) -> dict:
         "mean_orbital_speed_km_s": speed_km_s,
     }
 
-def simulate_energy_policy(
+def simulate_power_policy(
     cfg: PipelineConfig,
     nodes: int,
     requested_demods: int,
     packet_count: int,
     selected_frame: int,
     visibility_mask: np.ndarray,
-    sunlit_mask: np.ndarray,
     policy_label: str,
 ) -> dict:
-    battery_percent = float(cfg.battery_initial_percent)
+    del nodes
     allocated_demods = int(requested_demods)
     frame_count = len(visibility_mask)
 
-    battery_trace = []
     allocated_trace = []
     power_trace_w = []
-    net_power_trace_w = []
     utilization_trace = []
     tx_trace = []
     visible_trace = []
-    sunlit_trace = []
     terminal_demod_power_w = 0.0
 
     for step in range(cfg.scenario_steps):
         frame = (selected_frame + step) % frame_count
         visible = bool(visibility_mask[frame])
-        sunlit = bool(sunlit_mask[frame])
         tx_count = int(transmit_fragments(packet_count=packet_count, visible=visible))
 
         allocated_demods = allocate_demodulators(
             policy_label=policy_label,
             requested_demods=requested_demods,
             visible=visible,
-            battery_percent=battery_percent,
+            battery_percent=100.0,
             idle_battery_threshold=cfg.idle_battery_threshold,
             min_demod_allocation=cfg.min_demod_allocation,
             max_demod_step_change=cfg.max_demod_step_change,
@@ -478,50 +483,19 @@ def simulate_energy_policy(
             rf_frontend_power_w=cfg.rf_frontend_power_w,
         )
         terminal_demod_power_w = demod_power_w
-        generated_power_w = compute_generated_power_w(
-            sunlit=sunlit,
-            panel_area_m2=cfg.panel_area_m2,
-            solar_irradiance_w_m2=cfg.solar_irradiance_w_m2,
-            panel_efficiency=cfg.panel_efficiency,
-            power_conditioning_efficiency=cfg.power_conditioning_efficiency,
-        )
-        charging, charging_power_w, discharging_power_w, net_power_w = compute_power_balance(
-            generated_power_w=generated_power_w,
-            power_consumption_watts=power_consumption_w,
-            battery_percent=battery_percent,
-            battery_max_charge_w=cfg.battery_max_charge_w,
-        )
-        battery_percent = update_battery_percentage(
-            battery_percent=battery_percent,
-            net_power_watts=net_power_w,
-            step_seconds=cfg.step_seconds,
-            battery_capacity_wh=cfg.battery_capacity_wh,
-            battery_charge_efficiency=cfg.battery_charge_efficiency,
-            battery_discharge_efficiency=cfg.battery_discharge_efficiency,
-        )
-
-        del charging, charging_power_w, discharging_power_w
-        battery_trace.append(float(battery_percent))
         allocated_trace.append(float(allocated_demods))
         power_trace_w.append(float(power_consumption_w))
-        net_power_trace_w.append(float(net_power_w))
         utilization_trace.append(float(utilization))
         tx_trace.append(float(tx_count))
         visible_trace.append(1.0 if visible else 0.0)
-        sunlit_trace.append(1.0 if sunlit else 0.0)
 
     return {
         "policy_label": policy_label,
-        "battery_percent_final": float(battery_trace[-1]),
-        "battery_percent_min": float(np.min(battery_trace)),
-        "battery_percent_max": float(np.max(battery_trace)),
         "mean_allocated_demods": float(np.mean(allocated_trace)),
         "mean_power_consumption_watts": float(np.mean(power_trace_w)),
-        "mean_net_power_watts": float(np.mean(net_power_trace_w)),
         "mean_demod_utilization": float(np.mean(utilization_trace)),
         "mean_tx_count_per_step": float(np.mean(tx_trace)),
         "visibility_ratio": float(np.mean(visible_trace)),
-        "sunlit_ratio": float(np.mean(sunlit_trace)),
         "terminal_allocated_demods": int(round(allocated_trace[-1])),
         "terminal_demod_power_watts": float(terminal_demod_power_w),
     }
@@ -595,16 +569,40 @@ def run_workflow(
         max_demod_step_change=max_demod_step_change,
     )
 
-    _, network_geometry, _, utils_mod = load_multi_beam_modules(multi_beam_root)
+    _, network_geometry, params_mod, utils_mod = load_multi_beam_modules(multi_beam_root)
     LoRaNetwork = load_lrfhss_components(lrfhss_root)
 
     random.seed(cfg.seed)
     np.random.seed(cfg.seed)
 
-    sat_pos = compute_satellite_orbit(network_geometry)
+    sat_pos, orbit_task_info = compute_satellite_orbit(
+        network_geometry=network_geometry,
+        params_mod=params_mod,
+        step_seconds=cfg.step_seconds,
+        scenario_steps=cfg.scenario_steps,
+    )
     visibility_info = generate_visibility_windows(sat_pos, utils_mod, cfg.visibility_min_elev_deg)
-    sunlight_info = generate_sunlight_windows(sat_pos)
-    orbit_parameters = compute_orbit_parameters(sat_pos=sat_pos, step_seconds=cfg.step_seconds)
+    params_config = params_mod.read_params() if params_mod is not None and hasattr(params_mod, "read_params") else {}
+    coverage_csv_path = cfg.output_dir.parent / "csv" / "coverage_population_devices.csv"
+    coverage_trace_csv_path = cfg.output_dir.parent / "csv" / "coverage_track_trace.csv"
+    ground_track_lat = orbit_task_info.get("satellite_ground_track_lat_deg")
+    ground_track_lon = orbit_task_info.get("satellite_ground_track_lon_deg")
+    coverage_info = export_coverage_population_csv(
+        input_csv=Path("Data") / "adult_population_country_coordinates.csv",
+        output_csv=coverage_csv_path,
+        params_config=params_config,
+        ground_track_lat_deg=np.array(ground_track_lat, copy=True) if ground_track_lat is not None else None,
+        ground_track_lon_deg=np.array(ground_track_lon, copy=True) if ground_track_lon is not None else None,
+        max_ground_track_points=2000,
+        trace_csv=coverage_trace_csv_path,
+        print_track_changes=True,
+        device_penetration_ratio=0.001,
+        devices_per_demodulator=250,
+    )
+    orbit_parameters = compute_orbit_parameters(
+        sat_pos=sat_pos,
+        step_seconds=orbit_task_info["orbit_task"]["orbit_config"]["time_step_s"],
+    )
     global_visible, selected_frame = check_satellite_visibility(visibility_info)
     selected_frame_for_link = int(selected_frame) if selected_frame is not None else 0
     link_budget = compute_link_budget_and_doppler(
@@ -628,19 +626,18 @@ def run_workflow(
 
         for requested_demods in cfg.demodulator_options:
             for policy_label in cfg.policy_labels:
-                energy_sim = simulate_energy_policy(
+                power_sim = simulate_power_policy(
                     cfg=cfg,
                     nodes=nodes,
                     requested_demods=requested_demods,
                     packet_count=packet_count,
                     selected_frame=selected_frame_for_link,
                     visibility_mask=visibility_info["visible_mask"],
-                    sunlit_mask=sunlight_info["sunlit_mask"],
                     policy_label=policy_label,
                 )
-                representative_demods = int(round(energy_sim["mean_allocated_demods"]))
-                representative_tx = int(round(energy_sim["mean_tx_count_per_step"]))
-                representative_visible = bool(energy_sim["visibility_ratio"] > 0.0 and global_visible)
+                representative_demods = int(round(power_sim["mean_allocated_demods"]))
+                representative_tx = int(round(power_sim["mean_tx_count_per_step"]))
+                representative_visible = bool(power_sim["visibility_ratio"] > 0.0 and global_visible)
 
                 decoded_header_runs = []
                 decoded_header_payload_runs = []
@@ -675,7 +672,7 @@ def run_workflow(
 
                     throughput_bps = float((decoded_bytes * 8.0) / max(cfg.step_seconds, 1e-9))
                     decoded_bits = max(decoded_bytes * 8.0, 1.0)
-                    energy_per_decoded_bit_j = float((energy_sim["mean_power_consumption_watts"] * cfg.step_seconds) / decoded_bits)
+                    energy_per_decoded_bit_j = float((power_sim["mean_power_consumption_watts"] * cfg.step_seconds) / decoded_bits)
                     decoding_efficiency = float(decoded_header_payloads / max(tracked, 1.0))
 
                     tracked_runs.append(tracked)
@@ -704,12 +701,7 @@ def run_workflow(
                         "selected_frame": selected_frame_for_link,
                         "requested_demods": int(requested_demods),
                         "allocated_demods": int(representative_demods),
-                        "power_consumption_watts": float(energy_sim["mean_power_consumption_watts"]),
-                        "net_power_watts": float(energy_sim["mean_net_power_watts"]),
-                        "battery_percent": float(energy_sim["battery_percent_final"]),
-                        "battery_percent_min": float(energy_sim["battery_percent_min"]),
-                        "battery_percent_max": float(energy_sim["battery_percent_max"]),
-                        "charging": bool(energy_sim["mean_net_power_watts"] > 0.0),
+                        "power_consumption_watts": float(power_sim["mean_power_consumption_watts"]),
                         "mode_label": "Baseline",
                         "decoded_headers": decoded_headers_stats["mean"],
                         "decoded_headers_variance": decoded_headers_stats["variance"],
@@ -751,22 +743,19 @@ def run_workflow(
         "workflow": [
             "START",
             "Initialize simulation parameters",
-            "Compute satellite orbit",
+            "Check LEO orbit config or use default, then propagate Kepler rotation",
+            "Check Earth coverage areas (lat/lon) and estimate devices/demodulators",
             "Generate visibility windows",
-            "Generate sunlight/eclipse windows",
             "Generate IoT nodes and packets",
             "Apply policy-based demodulator allocation",
             "Run LR-FHSS baseline decoding",
-            "Compute power generation and consumption",
-            "Update battery SoC over time horizon",
+            "Compute power consumption",
             "Monte Carlo aggregation (mean/variance/CI95)",
             "Generate performance plots",
             "END",
         ],
         "dimensions_and_units": {
             "power": "W",
-            "energy": "Wh",
-            "battery": "%",
             "time_step": "s",
             "throughput": "bps",
             "doppler": "Hz",
@@ -774,34 +763,24 @@ def run_workflow(
             "snr": "dB",
         },
         "assumptions": [
-            "ideal battery open-circuit model (no thermal effects)",
-            "simplified CC-CV charge-acceptance taper",
-            "first-order eclipse mask using orbit half-plane",
+            "power model excludes generation/storage dynamics",
             "fixed LR-FHSS profile per run (no adaptive coding)",
         ],
         "demodulator_definition": "Digital LR-FHSS decoding core allocation (hardware accelerator abstraction).",
         "power_model": {
-            "equation": "P_total = P_base + P_RF + N_sleep*P_sleep + N_idle*P_idle + N_busy*P_busy",
+            "equation": "P_total = P_circuit + N_idle*P_idle + N_busy*P_busy",
+            "P_circuit_w": float(cfg.base_power_w + cfg.rf_frontend_power_w),
             "P_base_w": cfg.base_power_w,
             "P_RF_w": cfg.rf_frontend_power_w,
             "demod_tx_capacity_per_step": cfg.demod_tx_capacity_per_step,
-        },
-        "solar_model": {
-            "equation": "P_gen = A_panel * G_sun * eta_panel",
-            "panel_area_m2": cfg.panel_area_m2,
-            "solar_irradiance_w_m2": cfg.solar_irradiance_w_m2,
-            "panel_efficiency": cfg.panel_efficiency,
-            "power_conditioning_efficiency": cfg.power_conditioning_efficiency,
-            "sunlit_ratio": sunlight_info["sunlit_ratio"],
-            "eclipse_ratio": sunlight_info["eclipse_ratio"],
         },
         "visibility_model": {
             "elevation_threshold_deg": cfg.visibility_min_elev_deg,
             "visible_ratio": visibility_info["visible_ratio"],
             "visibility_windows": visibility_info["windows"],
-            "sunlit_windows": sunlight_info["sunlit_windows"],
-            "eclipse_windows": sunlight_info["eclipse_windows"],
         },
+        "coverage_model": coverage_info,
+        "orbit_task": orbit_task_info["orbit_task"],
         "orbit_parameters": orbit_parameters,
         "communication_model": {
             "lrfhss_spreading": cfg.lrfhss_spreading_label,

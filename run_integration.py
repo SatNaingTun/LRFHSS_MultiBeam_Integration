@@ -11,7 +11,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description=(
             "Run full workflow: orbit -> visibility -> nodes -> LR-FHSS packets -> visibility check -> "
-            "battery-aware demod allocation -> transmit -> collisions -> demods -> baseline decode -> metrics -> plots"
+            "demod allocation -> transmit -> collisions -> demods -> baseline decode -> metrics -> plots"
         )
     )
     parser.add_argument("--multi-beam-root", type=Path, default=snt_root / "Multi-Beam-LEO-Framework")

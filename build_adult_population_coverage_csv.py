@@ -14,6 +14,7 @@ Output columns:
 - adult_ratio_used
 - latitude
 - longitude
+- area_km2
 
 Notes:
 - The provided WPP F02 file is metadata and does not include direct adult population
@@ -59,6 +60,18 @@ def _to_int(value: str) -> Optional[int]:
         if "." in cleaned:
             return int(float(cleaned))
         return int(cleaned)
+    except ValueError:
+        return None
+
+
+def _to_float(value: str) -> Optional[float]:
+    if value is None:
+        return None
+    cleaned = str(value).strip()
+    if not cleaned:
+        return None
+    try:
+        return float(cleaned)
     except ValueError:
         return None
 
@@ -214,6 +227,7 @@ def load_country_facts_cache(cache_path: Path) -> Dict[str, Dict[str, float]]:
         lat = facts.get("latitude")
         lon = facts.get("longitude")
         pop = facts.get("population")
+        area_km2 = facts.get("area_km2")
         row: Dict[str, float] = {}
         if isinstance(lat, (int, float)):
             row["latitude"] = float(lat)
@@ -221,6 +235,8 @@ def load_country_facts_cache(cache_path: Path) -> Dict[str, Dict[str, float]]:
             row["longitude"] = float(lon)
         if isinstance(pop, (int, float)):
             row["population"] = int(pop)
+        if isinstance(area_km2, (int, float)):
+            row["area_km2"] = float(area_km2)
         if row:
             out[iso3.upper()] = row
     return out
@@ -246,6 +262,7 @@ def load_country_facts_from_csv(csv_path: Path) -> Dict[str, Dict[str, float]]:
             lat = _to_int(row.get("latitude", ""))
             lon = _to_int(row.get("longitude", ""))
             pop = _to_int(row.get("population", ""))
+            area_km2 = _to_float(row.get("area_km2", ""))
 
             # Try float parse for latitude/longitude before integer fallback.
             lat_raw = str(row.get("latitude", "")).strip()
@@ -264,13 +281,15 @@ def load_country_facts_from_csv(csv_path: Path) -> Dict[str, Dict[str, float]]:
                         item["longitude"] = float(lon)
             if pop is not None:
                 item["population"] = int(pop)
+            if area_km2 is not None and area_km2 > 0.0:
+                item["area_km2"] = float(area_km2)
             if item:
                 facts[iso3] = item
     return facts
 
 
 def fetch_restcountries_country_facts(timeout_sec: int = 30) -> Dict[str, Dict[str, float]]:
-    url = "https://restcountries.com/v3.1/all?fields=cca3,latlng,population"
+    url = "https://restcountries.com/v3.1/all?fields=cca3,latlng,population,area"
     req = urllib.request.Request(
         url=url,
         headers={"User-Agent": "satellite-coverage-adult-population-export/1.0"},
@@ -283,6 +302,7 @@ def fetch_restcountries_country_facts(timeout_sec: int = 30) -> Dict[str, Dict[s
         iso3 = str(item.get("cca3", "")).upper().strip()
         latlng = item.get("latlng", [])
         population = item.get("population")
+        area = item.get("area")
         row: Dict[str, float] = {}
         if len(iso3) == 3 and isinstance(latlng, list) and len(latlng) >= 2:
             lat = latlng[0]
@@ -292,6 +312,8 @@ def fetch_restcountries_country_facts(timeout_sec: int = 30) -> Dict[str, Dict[s
                 row["longitude"] = float(lon)
         if isinstance(population, (int, float)):
             row["population"] = int(population)
+        if isinstance(area, (int, float)) and area > 0:
+            row["area_km2"] = float(area)
         if len(iso3) == 3 and row:
             facts[iso3] = row
     return facts
@@ -302,10 +324,11 @@ def export_csv(
     output_csv: Path,
     adult_ratio: float,
     country_facts: Dict[str, Dict[str, float]],
-) -> Tuple[int, int, int]:
+) -> Tuple[int, int, int, int]:
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     missing_coords = 0
     missing_population = 0
+    missing_area = 0
 
     with output_csv.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
@@ -319,6 +342,7 @@ def export_csv(
                 "adult_ratio_used",
                 "latitude",
                 "longitude",
+                "area_km2",
             ],
         )
         writer.writeheader()
@@ -334,10 +358,13 @@ def export_csv(
 
             lat = facts.get("latitude")
             lon = facts.get("longitude")
+            area_km2 = facts.get("area_km2")
             if lat is None or lon is None:
                 missing_coords += 1
             if total_population is None:
                 missing_population += 1
+            if area_km2 is None:
+                missing_area += 1
             writer.writerow(
                 {
                     "country": row.country,
@@ -348,9 +375,10 @@ def export_csv(
                     "adult_ratio_used": adult_ratio,
                     "latitude": "" if lat is None else f"{lat:.6f}",
                     "longitude": "" if lon is None else f"{lon:.6f}",
+                    "area_km2": "" if area_km2 is None else f"{float(area_km2):.3f}",
                 }
             )
-    return len(rows), missing_coords, missing_population
+    return len(rows), missing_coords, missing_population, missing_area
 
 
 def parse_args() -> argparse.Namespace:
@@ -385,7 +413,7 @@ def parse_args() -> argparse.Namespace:
         "--country-facts-csv",
         type=Path,
         default=None,
-        help="Optional local CSV with columns: iso3,latitude,longitude,population.",
+        help="Optional local CSV with columns: iso3,latitude,longitude,population,area_km2.",
     )
     parser.add_argument(
         "--skip-online-coordinates",
@@ -404,6 +432,10 @@ def main() -> None:
         raise ValueError("--adult-ratio must be > 0 and <= 1.")
 
     records = load_country_records_from_wpp_overall(args.input_xlsx)
+    if not records:
+        raise RuntimeError(
+            "No country records parsed from WPP workbook; aborting to avoid overwriting output CSV with empty data."
+        )
     country_facts_cache = load_country_facts_cache(args.cache_json)
     if args.country_facts_csv is not None:
         country_facts_cache.update(load_country_facts_from_csv(args.country_facts_csv))
@@ -418,7 +450,7 @@ def main() -> None:
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
             print(f"Warning: could not fetch online country facts ({exc}). Using cache only.")
 
-    total_rows, missing_coords, missing_population = export_csv(
+    total_rows, missing_coords, missing_population, missing_area = export_csv(
         rows=records,
         output_csv=args.output_csv,
         adult_ratio=args.adult_ratio,
@@ -434,6 +466,10 @@ def main() -> None:
         print(f"Countries without population value: {missing_population}")
     else:
         print("All exported countries have a population value.")
+    if missing_area:
+        print(f"Countries without area value: {missing_area}")
+    else:
+        print("All exported countries have an area value.")
     print("Note: adult_population_estimated = total_population_2022 * adult_ratio_used")
 
 

@@ -15,11 +15,9 @@ class DemodulatorPowerResult:
 class DemodulatorPowerModel:
     def __init__(
         self,
-        sleep_power_w: float = 0.02,
         idle_power_w: float = 0.12,
         busy_power_w: float = 0.80,
     ) -> None:
-        self.sleep_power_w = float(sleep_power_w)
         self.idle_power_w = float(idle_power_w)
         self.busy_power_w = float(busy_power_w)
 
@@ -40,13 +38,12 @@ class DemodulatorPowerModel:
         if allocated_demods <= 0:
             return 0, 0, 0
         if not visible:
-            return int(allocated_demods), 0, 0
+            return 0, int(allocated_demods), 0
 
         cap_per_demod = float(max(1.0, demod_tx_capacity_per_step))
         busy_demods = int(min(allocated_demods, math.ceil(float(max(0, tx_count)) / cap_per_demod)))
         idle_demods = int(max(0, allocated_demods - busy_demods))
-        sleep_demods = 0
-        return sleep_demods, idle_demods, busy_demods
+        return 0, idle_demods, busy_demods
 
     def evaluate(
         self,
@@ -66,11 +63,7 @@ class DemodulatorPowerModel:
             tx_count=tx_count,
             demod_tx_capacity_per_step=demod_tx_capacity_per_step,
         )
-        total_demod_power_w = float(
-            sleep_demods * self.sleep_power_w
-            + idle_demods * self.idle_power_w
-            + busy_demods * self.busy_power_w
-        )
+        total_demod_power_w = float(idle_demods * self.idle_power_w + busy_demods * self.busy_power_w)
         mean_demod_power_w = float(total_demod_power_w / max(allocated_demods, 1))
         return DemodulatorPowerResult(
             sleep_demods=sleep_demods,

@@ -146,69 +146,6 @@ def generate_performance_plots(records: list[dict], output_dir: Path):
     fig3.savefig(power_plot, dpi=200)
     plt.close(fig3)
 
-    battery_x = []
-    battery_y = []
-    for r in records:
-        battery_x.append(r["nodes"])
-        battery_y.append(r["battery_percent"])
-
-    fig4, ax4 = plt.subplots(figsize=(9, 6))
-    ax4.scatter(battery_x, battery_y, c="tab:blue", s=18, label="Battery %")
-    ax4.set_xscale("symlog", linthresh=1)
-    ax4.set_ylabel("Battery State of Charge, SoC (%)")
-    ax4.set_xlabel("Number of Nodes, N (count)")
-    ax4.set_title("Battery State of Charge over Traffic Load")
-    ax4.grid(True, which="both", linestyle=":", alpha=0.5)
-    ax4.legend(loc="best")
-    fig4.tight_layout()
-    battery_plot = output_dir / "battery_percentage_over_load.png"
-    fig4.savefig(battery_plot, dpi=200)
-    plt.close(fig4)
-
-    demod_policy_values = sorted(
-        set((r.get("policy_label", "Policy"), int(r["allocated_demods"])) for r in records),
-        key=lambda x: (x[1], x[0]),
-    )
-    fig5, ax5 = plt.subplots(figsize=(12, 5))
-
-    for idx, (policy_label, demods) in enumerate(demod_policy_values):
-        sub = [
-            r
-            for r in records
-            if int(r["allocated_demods"]) == demods
-            and r.get("policy_label", "Policy") == policy_label
-        ]
-        if not sub:
-            continue
-        x_vals = sorted(set(int(r["nodes"]) for r in sub))
-        y_vals = []
-        for x in x_vals:
-            y_at_x = [float(r.get("net_power_watts", 0.0)) for r in sub if int(r["nodes"]) == x]
-            y_vals.append(float(np.mean(y_at_x)))
-
-        ax5.plot(
-            x_vals,
-            y_vals,
-            linestyle=line_styles[idx % len(line_styles)],
-            marker=markers[idx % len(markers)],
-            linewidth=1.8,
-            markersize=4.5,
-            color=colors[idx % len(colors)],
-            label=f"{policy_label} {demods} demods",
-        )
-
-    ax5.axhline(0.0, color="#444444", linewidth=1.0, linestyle="--", alpha=0.8)
-    ax5.set_xscale("symlog", linthresh=1)
-    ax5.set_xlabel("Number of Nodes, N (count)")
-    ax5.set_ylabel("Net Power (W)")
-    ax5.set_title("Net Power (Charging - Discharging) by Demodulators")
-    ax5.grid(True, which="both", linestyle=":", alpha=0.5)
-    ax5.legend(loc="best", fontsize=8)
-    fig5.tight_layout()
-    net_power_plot = output_dir / "net_power_by_demods.png"
-    fig5.savefig(net_power_plot, dpi=200)
-    plt.close(fig5)
-
     throughput_plot = plot_all_series(
         metric_key="throughput_bps",
         ylabel="Throughput (bps)",
@@ -232,8 +169,6 @@ def generate_performance_plots(records: list[dict], output_dir: Path):
         "all_series": all_plot,
         "all_series_header_payload": all_plot_header_payload,
         "power_consumption": power_plot,
-        "battery_percentage": battery_plot,
-        "net_power_by_demods": net_power_plot,
         "throughput_bps": throughput_plot,
         "energy_per_decoded_bit": energy_per_bit_plot,
         "decoding_efficiency": decoding_efficiency_plot,
