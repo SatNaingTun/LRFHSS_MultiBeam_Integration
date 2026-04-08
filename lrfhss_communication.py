@@ -6,6 +6,7 @@ import csv
 from dataclasses import dataclass
 from pathlib import Path
 import re
+import shutil
 
 import matplotlib
 
@@ -254,9 +255,17 @@ def run_reference_comparison(
         node_max=node_max,
         selected_nodes=selected_nodes,
     )
-    stem = f"lrfhss_demod_{int(demods)}"
-    out_png = output_dir / f"{stem}.png"
-    out_pdf = output_dir / f"{stem}.pdf"
+    base_stem = f"lrfhss_demod_{int(demods)}"
+    name_parts = [base_stem]
+    if metric == "dec_pckts":
+        name_parts.append("packet_only")
+    if include_infp:
+        name_parts.append("infp")
+    if drop_mode in {"hdrdd", "headerdrop"}:
+        name_parts.append("headerdrop")
+    tagged_stem = "_".join(name_parts)
+    out_png = output_dir / f"{base_stem}.png"
+    out_pdf = output_dir / f"{base_stem}.pdf"
     plot_comparison_curves(
         series=series,
         out_png=out_png,
@@ -267,6 +276,12 @@ def run_reference_comparison(
         include_lifan=include_lifan,
         include_infp=include_infp,
     )
+    if tagged_stem != base_stem:
+        tagged_png = output_dir / f"{tagged_stem}.png"
+        shutil.copyfile(out_png, tagged_png)
+        if export_pdf:
+            tagged_pdf = output_dir / f"{tagged_stem}.pdf"
+            shutil.copyfile(out_pdf, tagged_pdf)
     return out_png, out_pdf
 
 
