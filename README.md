@@ -29,7 +29,7 @@ Power model notes:
 python run_integration.py
 ```
 
-If `Multi-Beam-LEO-Framework` or `LR-FHSS_LEO` does not exist in the SNT parent folder, `run_integration.py`
+If `Multi-Beam-LEO-Framework` or `lr-fhss_seq-families` does not exist in the SNT parent folder, `run_integration.py`
 automatically runs `ensure_reference_paths.py` to download/extract or clone them.
 
 ## Sample Commands
@@ -55,3 +55,21 @@ python run_integration.py --help
 - `results/heavy_load/energy_per_decoded_bit.png`
 - `results/heavy_load/decoding_efficiency.png`
 - `results/heavy_load/workflow_summary.json`
+
+## LR-FHSS Compare Plot
+Use `lrfhss_communication.py` for paper-style comparison output in `results/lrfhss_compare` with name
+`lrfhss_demod_<demods>.png`.
+
+Recommended `ymax`:
+- `100` demodulators: `--y-max 600`
+- `1000` demodulators: `--y-max 2600`
+
+Plot window is not fixed by default (auto-scale). If needed, set explicit X limits with
+`--x-min` and `--x-max`.
+
+Examples:
+```powershell
+python lrfhss_communication.py --demods 100 --y-max 600
+python lrfhss_communication.py --demods 1000 --y-max 2600
+python lrfhss_communication.py --demods 100 --x-min 100 --x-max 10000
+```

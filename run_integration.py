@@ -15,7 +15,7 @@ def parse_args():
         )
     )
     parser.add_argument("--multi-beam-root", type=Path, default=snt_root / "Multi-Beam-LEO-Framework")
-    parser.add_argument("--lrfhss-root", type=Path, default=snt_root / "LR-FHSS_LEO")
+    parser.add_argument("--lrfhss-root", type=Path, default=snt_root / "lr-fhss_seq-families")
     parser.add_argument("--output-dir", type=Path, default=integration_root / "results" / "heavy_load")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--node-min", type=int, default=10)

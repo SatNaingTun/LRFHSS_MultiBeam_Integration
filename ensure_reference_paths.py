@@ -14,8 +14,8 @@ except ImportError:  # pragma: no cover - optional dependency
 
 
 LRFHSS_GIT_URLS = [
-    "https://github.com/SatNaingTun/LR-FHSS_LEO.git",
-    "git@github.com:SatNaingTun/LR-FHSS_LEO.git",
+    "https://github.com/diegomm6/lr-fhss_seq-families.git",
+    "git@github.com:diegomm6/lr-fhss_seq-families.git",
 ]
 MULTI_BEAM_ZIP_URL = (
     "https://researchdata.tuwien.at/records/j31fx-wf765/files/Multi-Beam-LEO-Framework.zip?download=1"
@@ -149,8 +149,8 @@ def parse_args():
     parser.add_argument(
         "--lrfhss-root",
         type=Path,
-        default=snt_root / "LR-FHSS_LEO",
-        help="Path where LR-FHSS_LEO should exist (default: sibling folder under SNT root).",
+        default=snt_root / "lr-fhss_seq-families",
+        help="Path where lr-fhss_seq-families should exist (default: sibling folder under SNT root).",
     )
     return parser.parse_args()
 
