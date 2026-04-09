@@ -74,8 +74,7 @@ def run_elevation_angle_study(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     with _pushd(multi_beam_root):
-        channel, network_geometry, params_mod, _ = load_multi_beam_modules(multi_beam_root)
-        import simulation  # loaded from Multi-Beam repo after connector adds path
+        channel, network_geometry, params_mod, _, simulation = load_multi_beam_modules(multi_beam_root)
 
         footprint_km = [200, 100, 50, 5]
         footprint_m = [km * 1e3 for km in footprint_km]

@@ -37,7 +37,7 @@ def run_workflow(
     if not available_reference_demods:
         raise ValueError(f"No available demod rows found in reference CSV: {reference_csv}")
 
-    _, network_geometry, params_mod, _ = load_multi_beam_modules(multi_beam_root)
+    _, network_geometry, params_mod, _, simulation = load_multi_beam_modules(multi_beam_root)
     sat_pos, orbit_task_info = compute_satellite_orbit(
         network_geometry=network_geometry,
         params_mod=params_mod,
