@@ -263,7 +263,8 @@ def run_leo_orbit_rotation_task(
     psi_horizon = math.acos(max(-1.0, min(1.0, cfg.earth_radius_m / cfg.semi_major_axis_m)))
     span_seconds = float((4.0 * psi_horizon) / max(cfg.mean_motion_rad_s, 1e-12))
     adaptive_frames = int(span_seconds / cfg.time_step_s) + 1
-    frame_count = int(max(minimum_frames, adaptive_frames))
+    one_orbit_frames = int(math.ceil(cfg.orbital_period_s / max(cfg.time_step_s, 1e-12))) + 1
+    frame_count = int(max(minimum_frames, adaptive_frames, one_orbit_frames))
 
     state = propagate_kepler_orbit_with_rotation(orbit_cfg=cfg, frame_count=frame_count)
     center_lat_deg = _safe_float((params_config or {}).get("latitude_center"), 35.6761919)

@@ -1,0 +1,138 @@
+{
+  "workflow": [
+    "Propagate Kepler rotation",
+    "At each rotation step derive nodes/demods from coverage",
+    "Call build_comparison_series and write stepwise LR-FHSS rows",
+    "After rotation aggregate by country and export final plot",
+    "END"
+  ],
+  "mode": "rotation_stepwise_reference_series_lrfhss",
+  "orbit_task": {
+    "task": "check_leo_orbit_or_default_then_kepler_rotation",
+    "algorithm": [
+      "two_body_kepler_propagation_classical_orbital_elements",
+      "newton_raphson_kepler_equation_solver"
+    ],
+    "citations": [
+      "Vallado, Fundamentals of Astrodynamics and Applications (4th ed.)",
+      "Curtis, Orbital Mechanics for Engineering Students (4th ed.)"
+    ],
+    "config_source": {
+      "source": "params.json",
+      "used_default": false,
+      "reason": "valid LEO config"
+    },
+    "orbit_config": {
+      "altitude_m": 600000.0,
+      "eccentricity": 0.001,
+      "inclination_deg": 86.4,
+      "raan_deg": 0.0,
+      "arg_perigee_deg": 0.0,
+      "mean_anomaly_epoch_deg": 0.0,
+      "earth_mu_m3_s2": 398600441800000.0,
+      "earth_radius_m": 6371000.0,
+      "time_step_s": 0.01
+    },
+    "frame_count": 579235,
+    "earth_rotation_rad_s": 7.2921159e-05,
+    "ground_track_reference_center": {
+      "latitude_deg": 35.6761919,
+      "longitude_deg": 139.6503106
+    }
+  },
+  "orbit_parameters": {
+    "altitude_km": 2163.602534547033,
+    "inclination_deg": 90.0,
+    "mean_orbital_speed_km_s": 7.561731238718133
+  },
+  "one_orbit_seconds": 5792.33410959309,
+  "one_orbit_frames": 579235,
+  "one_orbit_track_frames_used": 579235,
+  "coverage_trace_steps": 1998,
+  "coverage_model": {
+    "input_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\Data\\adult_population_country_coordinates.csv",
+    "output_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\csv\\coverage_population_devices.csv",
+    "trace_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\csv\\coverage_track_trace.csv",
+    "coverage_center_latitude": 35.6761919,
+    "coverage_center_longitude": 139.6503106,
+    "coverage_radius_m": 500000.0,
+    "native_footprint_radius_m": 100000.0,
+    "country_centroid_buffer_applied": true,
+    "coverage_mode": "moving_ground_track",
+    "ground_track_points_used": 1998,
+    "device_penetration_ratio": 0.001,
+    "devices_per_demodulator": 250,
+    "countries_total": 237,
+    "countries_in_coverage": 7,
+    "adult_population_in_coverage": 85568571,
+    "estimated_devices_total": 85568,
+    "estimated_demodulators_total": 347
+  },
+  "post_rotation_node_demod_check": {
+    "status": "ok",
+    "coverage_constraints": {
+      "countries_in_coverage": 7,
+      "estimated_devices_total": 85568,
+      "estimated_demodulators_total": 347
+    },
+    "node_count_options": [
+      2,
+      7,
+      15,
+      40,
+      90,
+      180,
+      260,
+      400,
+      700,
+      1000,
+      1500
+    ],
+    "node_count_options_in_coverage": [
+      2,
+      7,
+      15,
+      40,
+      90,
+      180,
+      260,
+      400,
+      700,
+      1000,
+      1500
+    ],
+    "node_count_options_out_of_coverage": [],
+    "demod_count_options": [
+      10,
+      30,
+      50,
+      70,
+      100,
+      300,
+      500,
+      700,
+      1000
+    ],
+    "demod_count_options_in_coverage": [
+      10,
+      30,
+      50,
+      70,
+      100,
+      300
+    ],
+    "demod_count_options_out_of_coverage": [
+      500,
+      700,
+      1000
+    ]
+  },
+  "covered_countries_count": 7,
+  "reference_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\lr-fhss_seq-families\\headerResults\\data-25dc-cr1.csv",
+  "country_csv_files": [
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country_csv\\JPN_Japan_lrfhss_stepwise.csv"
+  ],
+  "country_avg_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\covered_countries_lrfhss_country_avg.csv",
+  "combined_plot_file": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\sent_packets_vs_decoded_payload_country_avg.png",
+  "aggregate_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\covered_countries_lrfhss_stepwise_results.csv"
+}

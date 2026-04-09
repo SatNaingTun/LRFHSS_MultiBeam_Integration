@@ -5,3 +5,4 @@ __pycache__
 *.pyo
 
 paper/*
+results/lrfhss_communication/sent_packets_vs_decoded_payload_country_avg.png

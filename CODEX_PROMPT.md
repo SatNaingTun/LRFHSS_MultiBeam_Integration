@@ -69,3 +69,12 @@ Provide:
 1. Connector code
 2. Integration code
 3. Minimal explanation
+
+---
+
+## NEW RULE (WORKFLOW FLOW ISOLATION)
+
+### RULE 5: NEW WORKFLOW FLOW MUST BE A NEW FILE
+If you add a new workflow flow, implement it in a new Python file (for example: `workflow_tasks/<name>.py`).
+Do NOT implement new workflow flows directly inside `workflow.py`.
+`workflow.py` should remain the orchestrator/entry integration layer.
