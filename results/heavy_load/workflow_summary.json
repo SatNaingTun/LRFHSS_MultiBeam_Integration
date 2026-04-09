@@ -1,64 +1,139 @@
 {
   "workflow": [
-    "START",
-    "Initialize simulation parameters",
-    "Compute satellite orbit",
-    "Generate visibility windows",
-    "Generate IoT nodes",
-    "Assign LR-FHSS packets",
-    "Check satellite visibility",
-    "Select satellite power mode",
-    "Transmit fragments",
-    "Detect collisions",
-    "Allocate demodulators",
-    "Baseline packet decoding",
-    "Store metrics",
-    "Generate performance plots",
+    "Propagate Kepler rotation",
+    "Estimate coverage from rotated ground track",
+    "Check node and demod options constrained by covered satellite locations",
     "END"
   ],
-  "power_mode_logic": {
-    "sleep": "nodes==0 or no visibility or allocated_demods==0",
-    "idle": "nodes<200 and allocated_demods<=20",
-    "busy": "otherwise"
-  },
-  "power_constants_watts": {
-    "sleep": 5.0,
-    "idle_per_demod_range": [
-      0.12,
-      0.2
+  "mode": "rotation_coverage_node_demod_checks_only",
+  "seed": 42,
+  "orbit_task": {
+    "task": "check_leo_orbit_or_default_then_kepler_rotation",
+    "algorithm": [
+      "two_body_kepler_propagation_classical_orbital_elements",
+      "newton_raphson_kepler_equation_solver"
     ],
-    "busy_per_demod_range": [
-      0.25,
-      0.8
+    "citations": [
+      "Vallado, Fundamentals of Astrodynamics and Applications (4th ed.)",
+      "Curtis, Orbital Mechanics for Engineering Students (4th ed.)"
     ],
-    "solar_array": 95.0,
-    "power_conditioning_efficiency": 0.9,
-    "battery_capacity_wh": 800.0,
-    "battery_max_charge_w": 120.0,
-    "demod_tx_capacity_per_step": 8.0
+    "config_source": {
+      "source": "params.json",
+      "used_default": false,
+      "reason": "valid LEO config"
+    },
+    "orbit_config": {
+      "altitude_m": 600000.0,
+      "eccentricity": 0.001,
+      "inclination_deg": 86.4,
+      "raan_deg": 0.0,
+      "arg_perigee_deg": 0.0,
+      "mean_anomaly_epoch_deg": 0.0,
+      "earth_mu_m3_s2": 398600441800000.0,
+      "earth_radius_m": 6371000.0,
+      "time_step_s": 0.01
+    },
+    "frame_count": 154115,
+    "earth_rotation_rad_s": 7.2921159e-05,
+    "ground_track_reference_center": {
+      "latitude_deg": 35.6761919,
+      "longitude_deg": 139.6503106
+    }
   },
+  "orbit_parameters": {
+    "altitude_km": -3513.3021954032993,
+    "inclination_deg": 89.99999999997031,
+    "mean_orbital_speed_km_s": 7.568446072730478
+  },
+  "coverage_model": {
+    "input_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\Data\\adult_population_country_coordinates.csv",
+    "output_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\csv\\coverage_population_devices.csv",
+    "trace_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\csv\\coverage_track_trace.csv",
+    "coverage_center_latitude": 35.6761919,
+    "coverage_center_longitude": 139.6503106,
+    "coverage_radius_m": 500000.0,
+    "native_footprint_radius_m": 100000.0,
+    "country_centroid_buffer_applied": true,
+    "coverage_mode": "moving_ground_track",
+    "ground_track_points_used": 1976,
+    "device_penetration_ratio": 0.001,
+    "devices_per_demodulator": 250,
+    "countries_total": 237,
+    "countries_in_coverage": 4,
+    "adult_population_in_coverage": 84070767,
+    "estimated_devices_total": 84071,
+    "estimated_demodulators_total": 338
+  },
+  "post_rotation_node_demod_check": {
+    "status": "ok",
+    "coverage_constraints": {
+      "countries_in_coverage": 4,
+      "estimated_devices_total": 84071,
+      "estimated_demodulators_total": 338
+    },
+    "node_count_options": [
+      0,
+      2,
+      7,
+      15,
+      40,
+      90,
+      180,
+      260,
+      400,
+      700,
+      1000,
+      1500
+    ],
+    "node_count_options_in_coverage": [
+      0,
+      2,
+      7,
+      15,
+      40,
+      90,
+      180,
+      260,
+      400,
+      700,
+      1000,
+      1500
+    ],
+    "node_count_options_out_of_coverage": [],
+    "demod_count_options": [
+      10,
+      30,
+      50,
+      70,
+      100,
+      300,
+      500,
+      700,
+      1000
+    ],
+    "demod_count_options_in_coverage": [
+      10,
+      30,
+      50,
+      70,
+      100,
+      300
+    ],
+    "demod_count_options_out_of_coverage": [
+      500,
+      700,
+      1000
+    ],
+    "node_min": 0,
+    "node_max": 1500,
+    "demod_min": 10,
+    "demod_max": 1000
+  },
+  "scenario_steps": 120,
+  "step_seconds": 228.0,
   "node_range": {
     "min": 10,
     "max": 1500,
     "points": 14
-  },
-  "metrics_json": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\heavy_load_metrics.json",
-  "metrics_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\heavy_load_metrics.csv",
-  "plots": {
-    "all_series": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\heavy_load_demodulator_constraints.png",
-    "by_power_mode": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\decoded_headers_by_power_mode.png",
-    "all_series_header_payload": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\heavy_load_demodulator_constraints_header_payload.png",
-    "by_power_mode_header_payload": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\decoded_header_payloads_by_power_mode.png",
-    "power_consumption": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\power_consumption_by_mode.png",
-    "battery_percentage": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\battery_percentage_over_load.png",
-    "net_power_by_mode": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\heavy_load\\net_power_by_mode.png"
-  },
-  "visibility_windows": [
-    [
-      13052,
-      77074
-    ]
-  ],
-  "export_csv": true,
-  "generate_plots": true
+  }
 }
