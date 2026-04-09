@@ -134,6 +134,14 @@ def ensure_paths(multi_beam_root: Path, lrfhss_root: Path) -> None:
     _download_zip_if_missing(multi_beam_root, MULTI_BEAM_ZIP_URL)
     _clone_repo_if_missing(lrfhss_root, LRFHSS_GIT_URLS)
 
+def ensure_multi_beam_root(multi_beam_root: Path) -> Path:
+    _download_zip_if_missing(multi_beam_root, MULTI_BEAM_ZIP_URL)
+    return multi_beam_root
+
+def ensure_lrfhss_root(lrfhss_root: Path) -> Path:
+    _clone_repo_if_missing(lrfhss_root, LRFHSS_GIT_URLS)
+    return lrfhss_root
+
 
 def parse_args():
     integration_root = Path(__file__).resolve().parent

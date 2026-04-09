@@ -1,0 +1,19 @@
+{
+  "multi_beam_root": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\Multi-Beam-LEO-Framework",
+  "output_dir": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\elevation_angle",
+  "seed": 42,
+  "n_user": 100000,
+  "elevation_deg": [
+    90,
+    55,
+    25
+  ],
+  "footprint_km": [
+    200,
+    100,
+    50,
+    5
+  ],
+  "plot": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\elevation_angle\\elevation_angle_ecdf_snr_sinr.png",
+  "metrics_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\elevation_angle\\elevation_angle_metrics.csv"
+}
