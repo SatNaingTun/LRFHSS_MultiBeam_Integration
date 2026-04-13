@@ -11,7 +11,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description=(
             "Run workflow (rotation scope only): orbit rotation -> coverage at satellite location -> "
-            "check nodes/demods -> LR-FHSS decode payload -> per-country CSV/plots -> summary"
+            "check nodes/demods -> LR-FHSS decode payload/collision analysis -> per-country CSV/plots -> summary"
         )
     )
     parser.add_argument("--multi-beam-root", type=Path, default=snt_root / "Multi-Beam-LEO-Framework")
@@ -37,6 +37,22 @@ def parse_args():
     parser.add_argument("--scenario-steps", type=int, default=120)
     parser.add_argument("--step-seconds", type=float, default=228.0)
     parser.add_argument("--runs-per-point", type=int, default=10)
+    parser.add_argument("--baseline-circuit-power-w", type=float, default=35.0)
+    parser.add_argument("--per-idle-demodulator-power-w", type=float, default=0.12)
+    parser.add_argument("--per-busy-demodulator-power-w", type=float, default=0.80)
+    parser.add_argument("--demod-tx-capacity-per-step", type=float, default=250.0)
+    parser.add_argument(
+        "--elevation-user-cap",
+        type=int,
+        default=5000,
+        help="Max users used in rotation-based elevation SNR/SINR stage (smaller = faster).",
+    )
+    parser.add_argument(
+        "--elevation-steps-per-angle",
+        type=int,
+        default=1,
+        help="How many rotation steps to sample per target elevation angle (25/55/90).",
+    )
     return parser.parse_args()
 
 
@@ -73,6 +89,12 @@ def main():
         scenario_steps=args.scenario_steps,
         step_seconds=args.step_seconds,
         runs_per_point=args.runs_per_point,
+        baseline_circuit_power_w=args.baseline_circuit_power_w,
+        per_idle_demodulator_power_w=args.per_idle_demodulator_power_w,
+        per_busy_demodulator_power_w=args.per_busy_demodulator_power_w,
+        demod_tx_capacity_per_step=args.demod_tx_capacity_per_step,
+        elevation_user_cap=args.elevation_user_cap,
+        elevation_steps_per_angle=args.elevation_steps_per_angle,
     )
 
 

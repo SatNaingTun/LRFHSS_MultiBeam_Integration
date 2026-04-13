@@ -113,6 +113,7 @@ def export_coverage_population_csv(
     ground_track_lon_deg: np.ndarray | None = None,
     max_ground_track_points: int = 2000,
     trace_csv: Path | None = None,
+    step_country_csv: Path | None = None,
     print_track_changes: bool = True,
     device_penetration_ratio: float = 0.001,
     devices_per_demodulator: int = 250,
@@ -173,6 +174,8 @@ def export_coverage_population_csv(
 
     if trace_csv is not None:
         trace_csv.parent.mkdir(parents=True, exist_ok=True)
+        if step_country_csv is not None:
+            step_country_csv.parent.mkdir(parents=True, exist_ok=True)
         with trace_csv.open("w", newline="", encoding="utf-8") as f_trace:
             trace_writer = csv.DictWriter(
                 f_trace,
@@ -182,6 +185,9 @@ def export_coverage_population_csv(
                     "satellite_longitude",
                     "coverage_center_latitude",
                     "coverage_center_longitude",
+                    "native_footprint_radius_m",
+                    "footprint_radius_m",
+                    "footprint_area_km2",
                     "covered_countries",
                     "covered_adult_population",
                     "estimated_devices_total",
@@ -189,48 +195,117 @@ def export_coverage_population_csv(
                 ],
             )
             trace_writer.writeheader()
-            for idx, (c_lat, c_lon) in enumerate(zip(center_lats, center_lons)):
-                step_covered_countries = 0
-                step_covered_adult_pop = 0
-                step_effective_population = 0.0
-                for country in country_records:
-                    overlap_fraction, _ = country_coverage_fraction(
-                        country_lat_deg=float(country["latitude"]),
-                        country_lon_deg=float(country["longitude"]),
-                        satellite_lat_deg=float(c_lat),
-                        satellite_lon_deg=float(c_lon),
-                        coverage_radius_m=centroid_buffer_radius_m,
-                        country_area_km2=float(country.get("area_km2", 0.0)),
-                        adult_population=int(country["adult_population_estimated"]),
-                    )
-                    if overlap_fraction > 0.0:
-                        step_covered_countries += 1
-                        step_covered_adult_pop += int(country["adult_population_estimated"])
-                        step_effective_population += float(country["adult_population_estimated"]) * float(overlap_fraction)
-
-                step_estimated_devices = int(round(step_effective_population * ratio))
-                step_estimated_demods = int(math.ceil(step_estimated_devices / demod_capacity)) if step_estimated_devices > 0 else 0
-
-                trace_writer.writerow(
-                    {
-                        "step": int(idx),
-                        "satellite_latitude": f"{float(c_lat):.6f}",
-                        "satellite_longitude": f"{float(c_lon):.6f}",
-                        "coverage_center_latitude": f"{float(c_lat):.6f}",
-                        "coverage_center_longitude": f"{float(c_lon):.6f}",
-                        "covered_countries": int(step_covered_countries),
-                        "covered_adult_population": int(step_covered_adult_pop),
-                        "estimated_devices_total": int(step_estimated_devices),
-                        "estimated_demodulators_total": int(step_estimated_demods),
-                    }
+            step_country_writer = None
+            f_step_country = None
+            if step_country_csv is not None:
+                f_step_country = step_country_csv.open("w", newline="", encoding="utf-8")
+                step_country_writer = csv.DictWriter(
+                    f_step_country,
+                    fieldnames=[
+                        "step",
+                        "satellite_latitude",
+                        "satellite_longitude",
+                        "native_footprint_radius_m",
+                        "footprint_radius_m",
+                        "footprint_area_km2",
+                        "country",
+                        "iso3",
+                        "overlap_fraction",
+                        "effective_population",
+                        "population_coverage_share",
+                        "step_effective_population",
+                        "step_devices_total",
+                        "step_demodulators_total",
+                    ],
                 )
-                if print_track_changes:
-                    print(
-                        f"[CoverageTrack] step={idx} "
-                        f"sat=({float(c_lat):.6f}, {float(c_lon):.6f}) "
-                        f"center=({float(c_lat):.6f}, {float(c_lon):.6f}) "
-                        f"demods={step_estimated_demods}"
+                step_country_writer.writeheader()
+
+            try:
+                for idx, (c_lat, c_lon) in enumerate(zip(center_lats, center_lons)):
+                    step_covered_countries = 0
+                    step_covered_adult_pop = 0
+                    step_effective_population = 0.0
+                    step_country_overlaps: list[dict[str, Any]] = []
+                    for country in country_records:
+                        overlap_fraction, _ = country_coverage_fraction(
+                            country_lat_deg=float(country["latitude"]),
+                            country_lon_deg=float(country["longitude"]),
+                            satellite_lat_deg=float(c_lat),
+                            satellite_lon_deg=float(c_lon),
+                            coverage_radius_m=centroid_buffer_radius_m,
+                            country_area_km2=float(country.get("area_km2", 0.0)),
+                            adult_population=int(country["adult_population_estimated"]),
+                        )
+                        if overlap_fraction > 0.0:
+                            adult_pop = int(country["adult_population_estimated"])
+                            effective_pop = float(adult_pop) * float(overlap_fraction)
+                            step_covered_countries += 1
+                            step_covered_adult_pop += adult_pop
+                            step_effective_population += effective_pop
+                            step_country_overlaps.append(
+                                {
+                                    "country": str(country["country"]),
+                                    "iso3": str(country["iso3"]),
+                                    "overlap_fraction": float(overlap_fraction),
+                                    "effective_population": float(effective_pop),
+                                }
+                            )
+
+                    step_estimated_devices = int(round(step_effective_population * ratio))
+                    step_estimated_demods = (
+                        int(math.ceil(step_estimated_devices / demod_capacity)) if step_estimated_devices > 0 else 0
                     )
+                    footprint_area_km2 = float(math.pi * centroid_buffer_radius_m * centroid_buffer_radius_m / 1_000_000.0)
+
+                    trace_writer.writerow(
+                        {
+                            "step": int(idx),
+                            "satellite_latitude": f"{float(c_lat):.6f}",
+                            "satellite_longitude": f"{float(c_lon):.6f}",
+                            "coverage_center_latitude": f"{float(c_lat):.6f}",
+                            "coverage_center_longitude": f"{float(c_lon):.6f}",
+                            "native_footprint_radius_m": float(footprint_radius_m),
+                            "footprint_radius_m": float(centroid_buffer_radius_m),
+                            "footprint_area_km2": float(footprint_area_km2),
+                            "covered_countries": int(step_covered_countries),
+                            "covered_adult_population": int(step_covered_adult_pop),
+                            "estimated_devices_total": int(step_estimated_devices),
+                            "estimated_demodulators_total": int(step_estimated_demods),
+                        }
+                    )
+
+                    if step_country_writer is not None and step_effective_population > 0.0:
+                        for c in step_country_overlaps:
+                            share = float(c["effective_population"]) / float(step_effective_population)
+                            step_country_writer.writerow(
+                                {
+                                    "step": int(idx),
+                                    "satellite_latitude": f"{float(c_lat):.6f}",
+                                    "satellite_longitude": f"{float(c_lon):.6f}",
+                                    "native_footprint_radius_m": float(footprint_radius_m),
+                                    "footprint_radius_m": float(centroid_buffer_radius_m),
+                                    "footprint_area_km2": float(footprint_area_km2),
+                                    "country": c["country"],
+                                    "iso3": c["iso3"],
+                                    "overlap_fraction": float(c["overlap_fraction"]),
+                                    "effective_population": float(c["effective_population"]),
+                                    "population_coverage_share": float(max(0.0, min(1.0, share))),
+                                    "step_effective_population": float(step_effective_population),
+                                    "step_devices_total": int(step_estimated_devices),
+                                    "step_demodulators_total": int(step_estimated_demods),
+                                }
+                            )
+
+                    if print_track_changes:
+                        print(
+                            f"[CoverageTrack] step={idx} "
+                            f"sat=({float(c_lat):.6f}, {float(c_lon):.6f}) "
+                            f"center=({float(c_lat):.6f}, {float(c_lon):.6f}) "
+                            f"demods={step_estimated_demods}"
+                        )
+            finally:
+                if f_step_country is not None:
+                    f_step_country.close()
 
     covered_rows: list[dict[str, Any]] = []
     for country in country_records:

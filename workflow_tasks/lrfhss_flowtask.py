@@ -82,6 +82,9 @@ def _load_trace_steps(trace_csv_path: Path) -> list[dict]:
                     "step": int(float(row.get("step", 0) or 0)),
                     "satellite_latitude": float(row.get("satellite_latitude", 0.0) or 0.0),
                     "satellite_longitude": float(row.get("satellite_longitude", 0.0) or 0.0),
+                    "native_footprint_radius_m": float(row.get("native_footprint_radius_m", 0.0) or 0.0),
+                    "footprint_radius_m": float(row.get("footprint_radius_m", 0.0) or 0.0),
+                    "footprint_area_km2": float(row.get("footprint_area_km2", 0.0) or 0.0),
                     "estimated_devices_total": max(0, int(float(row.get("estimated_devices_total", 0) or 0))),
                     "estimated_demodulators_total": max(0, int(float(row.get("estimated_demodulators_total", 0) or 0))),
                 }
