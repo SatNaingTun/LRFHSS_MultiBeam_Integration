@@ -8,11 +8,15 @@ from pathlib import Path
 import re
 import shutil
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
+
+try:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    plt = None
 
 
 @dataclass
@@ -188,6 +192,8 @@ def plot_comparison_curves(
     include_infp: bool = False,
     title: str | None = None,
 ) -> None:
+    if plt is None:
+        raise ModuleNotFoundError("matplotlib is required for plotting. Install with: pip install matplotlib")
     fig, ax = plt.subplots(figsize=(10, 8))
 
     if include_lifan and series.lifan_base is not None and series.lifan_earlydd is not None:
@@ -286,7 +292,7 @@ def run_reference_comparison(
 
 
 def parse_args() -> argparse.Namespace:
-    integration_root = Path(__file__).resolve().parent
+    integration_root = Path(__file__).resolve().parents[1]
     snt_root = integration_root.parent
     parser = argparse.ArgumentParser(
         description="Reusable LR-FHSS communication replication with configurable demods and node range."

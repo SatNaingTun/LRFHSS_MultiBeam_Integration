@@ -6,7 +6,7 @@ import numpy as np
 from tqdm import tqdm
 import random
 from coverage_population import export_coverage_population_csv
-from lrfhss_communication import build_comparison_series, list_available_demod_counts
+from workflow_tasks.lrfhss_communication import build_comparison_series, list_available_demod_counts
 from multi_beam_connector import load_multi_beam_modules
 from workflow_tasks.lrfhss_flowtask import _build_node_loads, _check_nodes_and_demods_for_coverage, _extract_series_value_for_nodes, _load_covered_countries, _load_trace_steps, _normalize_demods, _sanitize_filename, _stable_country_hash, plot_country_sent_vs_payload, _select_available_demod
 from workflow_tasks.orbit_visibility import compute_orbit_parameters, compute_satellite_orbit
@@ -279,4 +279,3 @@ def run_workflow(
 
     print("Workflow completed (stepwise reference-series LR-FHSS flow).")
     print(f"Summary:      {summary_path.resolve()}")
-

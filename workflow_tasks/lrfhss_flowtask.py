@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 
 from coverage_population import export_coverage_population_csv
-from lrfhss_communication import build_comparison_series, list_available_demod_counts
+from .lrfhss_communication import build_comparison_series, list_available_demod_counts
 from multi_beam_connector import load_multi_beam_modules
 from workflow_tasks.orbit_visibility import compute_orbit_parameters, compute_satellite_orbit
 

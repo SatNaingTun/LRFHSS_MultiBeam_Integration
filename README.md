@@ -57,7 +57,7 @@ python run_integration.py --help
 - `results/heavy_load/workflow_summary.json`
 
 ## LR-FHSS Compare Plot
-Use `lrfhss_communication.py` for paper-style comparison output in `results/lrfhss_compare` with name
+Use `workflow_tasks/lrfhss_communication.py` for paper-style comparison output in `results/lrfhss_compare` with name
 `lrfhss_demod_<demods>.png`.
 
 Recommended `ymax`:
@@ -69,10 +69,20 @@ Plot window is not fixed by default (auto-scale). If needed, set explicit X limi
 
 Examples:
 ```powershell
-python lrfhss_communication.py --demods 100 --y-max 600
-python lrfhss_communication.py --demods 1000 --y-max 2600
-python lrfhss_communication.py --demods 100 --x-min 100 --x-max 10000
-python lrfhss_communication.py --demods 1000 --include-infp
-python lrfhss_communication.py --demods 100 --packet-only
-python lrfhss_communication.py --demods 100 --drop-mode headerdrop
+python workflow_tasks/lrfhss_communication.py --demods 100 --y-max 600
+python workflow_tasks/lrfhss_communication.py --demods 1000 --y-max 2600
+python workflow_tasks/lrfhss_communication.py --demods 100 --x-min 100 --x-max 10000
+python workflow_tasks/lrfhss_communication.py --demods 1000 --include-infp
+python workflow_tasks/lrfhss_communication.py --demods 100 --packet-only
+python workflow_tasks/lrfhss_communication.py --demods 100 --drop-mode headerdrop
+```
+
+## Paper Replication (Two Methods)
+Use `replicate_paper.py` to run either or both replication methods:
+
+```powershell
+python replicate_paper.py --method lrfhss --demods 100 --y-max 600
+python replicate_paper.py --method lrfhss --demods 1000 --y-max 2600
+python replicate_paper.py --method elevation --n-user 100000
+python replicate_paper.py --method both --demods 100 --y-max 600 --n-user 100000
 ```
