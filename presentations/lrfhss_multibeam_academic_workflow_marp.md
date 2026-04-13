@@ -84,47 +84,29 @@ Distance varies with geometry and affects signal strength.
 
 ---
 
-<!-- # Study on NR to Support NTN (TR 38.811)
-### 3GPP
+# Coverage-Weighted Population Mapping
+### Geometry + UN World Population Prospects 2024
 
 $$
 \xi_c(t)=\frac{A_{overlap,c}}{A_c}, \quad
-P_{eff}(t)=\sum_c P_c \xi_c(t)
+P_{eff}(t)=\sum_c P_c \, \xi_c(t)
 $$
 
-- $\xi_c(t)$: fraction of country $c$ covered at time $t$  
-- $A_{overlap,c}$: area of country $c$ inside satellite coverage  
+- $\xi_c(t)$: covered fraction of country $c$ at time $t$  
+- $A_{overlap,c}$: overlap area between footprint and country $c$  
 - $A_c$: total area of country $c$  
 - $P_c$: population assigned to country $c$  
 - $P_{eff}(t)$: effective covered population at time $t$  
-- $\sum_c$: aggregation over all covered countries or cells  
+- $\sum_c$: sum over covered countries/cells  
+- Population input source: UN DESA Population Division, World Population Prospects 2024  
+- Source: https://population.un.org/wpp/downloads?folder=Documentation&group=Documentation  
 
 <!--
-Coverage maps geometry to user distribution.
--->
-
---- -->
-
-# LR-FHSS: Overview and Performance Analysis (2021)
-### N. Boquet et al.
-
-$$
-N_{dev}(t)=\rho P_{eff}(t), \quad
-D(t)=\left\lceil \frac{N_{dev}(t)}{C_{dev/demod}} \right\rceil
-$$
-
-- $N_{dev}(t)$: number of active LR-FHSS devices at time $t$  
-- $\rho$: penetration or activity factor converting population to active devices  
-- $P_{eff}(t)$: effective covered population at time $t$  
-- $D(t)$: required number of demodulators at time $t$  
-- $C_{dev/demod}$: device-handling capacity per demodulator  
-- $\lceil \cdot \rceil$: ceiling operator used to round up to an integer number of demodulators  
-
-<!--
-Load determines number of active devices.
+This slide maps geometric overlap into covered population.
 -->
 
 ---
+
 
 # A Note on a Simple Transmission Formula (1946)
 ### H. T. Friis
@@ -167,61 +149,6 @@ SNR defines signal quality baseline.
 
 ---
 
-# Channel Quality Evidence
-### SNR / SINR across elevation angles
-
-![h:320px](../results/lrfhss_communication/elevation_angle/elevation_angle_ecdf_snr_sinr.png)
-
-- Higher elevation shifts SNR/SINR toward better operating points
-- SINR remains below SNR because of inter-beam interference
-
-<!--
-This plot supports the channel-quality discussion with measured ECDFs.
--->
-
----
-<!-- 
-# Study on NR to Support NTN (TR 38.811)
-### 3GPP
-
-$$
-\mathrm{SINR}=\frac{|h_{u,b^*}|^2}{\sum_{b\neq b^*}|h_{u,b}|^2+N}
-$$
-
-- $\mathrm{SINR}$: signal-to-interference-plus-noise ratio  
-- $h_{u,b^*}$: channel gain from the serving beam $b^*$ to user $u$  
-- $|h_{u,b^*}|^2$: desired received power from the selected beam  
-- $h_{u,b}$: channel gain from interfering beam $b$ to user $u$  
-- $\sum_{b\neq b^*}|h_{u,b}|^2$: aggregate inter-beam interference power  
-- $b^*$: serving or selected beam index  
-- $N$: receiver noise power  
-
-<!--
-SINR includes interference from other beams.
--->
-
---- -->
-
-<!-- # Enhancing LR-FHSS Scalability Through Advanced Sequence Design and Demodulator Allocation
-### (Diego et al.)
-
-$$
-Y_{c,t}=f_d(n_{c,t}), \quad
-\gamma_{c,t}=1-\frac{Y_{c,t}}{n_{c,t}}
-$$
-
-- $n_{c,t}$: number of transmitted packets in cell $c$ at time $t$  
-- $f_d(\cdot)$: decoding function determined by LR-FHSS reception limits  
-- $Y_{c,t}$: number of successfully decoded packets in cell $c$ at time $t$  
-- $\gamma_{c,t}$: collision or packet-loss ratio in cell $c$ at time $t$  
-- $Y_{c,t}/n_{c,t}$: fraction of packets decoded successfully  
-
-<!--
-Decoding determines successful transmission.
--->
-
---- -->
-
 # Decoding Evidence
 ### Offered load versus decoded payload
 
@@ -235,6 +162,22 @@ This figure shows how successful payload delivery diverges from offered traffic.
 -->
 
 ---
+
+# Channel Quality Evidence
+### SNR / SINR across elevation angles
+
+![h:320px](../results/lrfhss_communication/elevation_angle/elevation_angle_ecdf_snr_sinr.png)
+
+- Higher elevation shifts SNR/SINR toward better operating points
+- SINR remains below SNR because of inter-beam interference
+
+<!--
+This plot supports the channel-quality discussion with measured ECDFs.
+-->
+
+---
+
+
 
 # The ALOHA System (1970)
 ### N. Abramson
