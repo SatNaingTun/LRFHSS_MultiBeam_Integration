@@ -9,6 +9,7 @@ from coverage_population import export_coverage_population_csv
 from demodulator_power import DemodulatorPowerModel
 from multi_beam_connector import load_multi_beam_modules
 from workflow_tasks.lrfhss_communication import build_comparison_series, list_available_demod_counts
+from workflow_tasks.lrfhss_communication import load_row_csv
 from workflow_tasks.lrfhss_flowtask import (
     _build_node_loads,
     _check_nodes_and_demods_for_coverage,
@@ -101,7 +102,18 @@ def _plot_stepwise_sent_vs_decoded(records: list[dict], out_png: Path) -> None:
     shaped_records = [
         {
             "selected_nodes": float(r.get("sent_packets_used", 0.0) or 0.0),
-            "decoded_payload_mean": float(r.get("decoded_payload_mean", 0.0) or 0.0),
+            "decoded_payload_base": float(r.get("decoded_payload_base", 0.0) or 0.0),
+            "decoded_payload_early_decode_drop": float(
+                r.get(
+                    "decoded_payload_early_decode_drop",
+                    (
+                        float(r.get("decoded_payload_early_decode", r.get("decoded_payload_mean", 0.0)) or 0.0)
+                        + float(r.get("decoded_payload_early_drop", 0.0) or 0.0)
+                    ),
+                )
+                or 0.0
+            ),
+            "decoded_payload_early_drop": float(r.get("decoded_payload_early_drop", np.nan) or np.nan),
         }
         for r in records
     ]
@@ -118,6 +130,52 @@ def _sampled_indices(total_count: int, max_points: int = 2000) -> np.ndarray:
         return np.array([], dtype=int)
     stride = int(max(1, np.ceil(n / max(1, int(max_points)))))
     return np.arange(0, n, stride, dtype=int)
+
+
+def _resolve_headerdrop_reference_csv(reference_csv: Path) -> Path | None:
+    candidate = reference_csv.with_name(f"{reference_csv.stem}-hdrdrop{reference_csv.suffix}")
+    if candidate.exists():
+        return candidate
+    return None
+
+
+def _extract_reference_row_value_for_nodes(
+    row_tables: dict[Path, dict[str, np.ndarray]],
+    reference_csv: Path | None,
+    demods: int,
+    target_nodes: int,
+    metric: str,
+    coding_rate: int = 1,
+    family: str = "driver",
+) -> float | None:
+    if reference_csv is None or not reference_csv.exists():
+        return None
+    rows = row_tables.get(reference_csv)
+    if rows is None:
+        rows = load_row_csv(reference_csv)
+        row_tables[reference_csv] = rows
+    nodes = rows.get("nodes")
+    if nodes is None or len(nodes) <= 0:
+        return None
+
+    candidates = [
+        f"{family}-CR{int(coding_rate)}-{int(demods)}p-{metric}-rlydd",
+        f"{family}-CR{int(coding_rate)}-{int(demods)}p-{metric}",
+    ]
+    values = None
+    for key in candidates:
+        candidate_values = rows.get(key)
+        if candidate_values is not None:
+            values = candidate_values
+            break
+    if values is None:
+        return None
+
+    common_len = min(len(nodes), len(values))
+    if common_len <= 0:
+        return None
+    idx = int(np.argmin(np.abs(np.array(nodes[:common_len], dtype=float) - float(target_nodes))))
+    return float(values[idx])
 
 
 def _plot_collision_rate_ecdf_by_elevation(
@@ -421,6 +479,8 @@ def run_workflow(
     filtered_demods = node_demod_check["demod_count_options_in_coverage"]
     if not filtered_nodes or not filtered_demods:
         raise ValueError("No node/demod options remain after coverage filtering.")
+    headerdrop_reference_csv = _resolve_headerdrop_reference_csv(reference_csv)
+    row_tables: dict[Path, dict[str, np.ndarray]] = {}
 
     trace_steps = _load_trace_steps(trace_csv_path=coverage_trace_csv_path)
     step_country_coverage = _load_step_country_coverage(step_country_csv=coverage_step_country_csv_path)
@@ -458,6 +518,9 @@ def run_workflow(
         "series_demod_used",
         "sent_packets_used",
         "decoded_payload_base",
+        "decoded_payload_early_decode",
+        "decoded_payload_early_drop",
+        "decoded_payload_early_decode_drop",
         "decoded_payload_mean",
         "collision_rate",
         "elevation_deg",
@@ -554,6 +617,13 @@ def run_workflow(
                     series=series,
                     target_nodes=selected_nodes,
                 )
+                early_drop_count = _extract_reference_row_value_for_nodes(
+                    row_tables=row_tables,
+                    reference_csv=headerdrop_reference_csv,
+                    demods=series_demod,
+                    target_nodes=selected_nodes,
+                    metric="hdr_dropd",
+                )
 
                 if sent_packets_used > 0:
                     collection_rate = float(decoded_earlydd / float(sent_packets_used))
@@ -580,6 +650,11 @@ def run_workflow(
                     "series_demod_used": int(series_demod),
                     "sent_packets_used": int(sent_packets_used),
                     "decoded_payload_base": float(decoded_base),
+                    "decoded_payload_early_decode": float(decoded_earlydd),
+                    "decoded_payload_early_drop": (
+                        float(early_drop_count) if early_drop_count is not None else np.nan
+                    ),
+                    "decoded_payload_early_decode_drop": float(decoded_earlydd) + float(early_drop_count or 0.0),
                     "decoded_payload_mean": float(decoded_earlydd),
                     "collision_rate": collision_rate,
                     "elevation_deg": float(elevation_deg),
@@ -657,7 +732,18 @@ def run_workflow(
             country_plot_records = [
                 {
                     "selected_nodes": float(r.get("sent_packets_used", 0.0) or 0.0),
-                    "decoded_payload_mean": float(r.get("decoded_payload_mean", 0.0) or 0.0),
+                    "decoded_payload_base": float(r.get("decoded_payload_base", 0.0) or 0.0),
+                    "decoded_payload_early_decode_drop": float(
+                        r.get(
+                            "decoded_payload_early_decode_drop",
+                            (
+                                float(r.get("decoded_payload_early_decode", r.get("decoded_payload_mean", 0.0)) or 0.0)
+                                + float(r.get("decoded_payload_early_drop", 0.0) or 0.0)
+                            ),
+                        )
+                        or 0.0
+                    ),
+                    "decoded_payload_early_drop": float(r.get("decoded_payload_early_drop", np.nan) or np.nan),
                 }
                 for r in rows
             ]
@@ -676,9 +762,34 @@ def run_workflow(
         grouped: dict[tuple[str, str], dict[str, list[float]]] = {}
         for row in all_records:
             key = (str(row["country"]), str(row["iso3"]))
-            grouped.setdefault(key, {"sent_packets_used": [], "decoded_payload_mean": [], "collision_rate": []})
+            grouped.setdefault(
+                key,
+                {
+                    "sent_packets_used": [],
+                    "decoded_payload_base": [],
+                    "decoded_payload_early_decode": [],
+                    "decoded_payload_early_drop": [],
+                    "decoded_payload_early_decode_drop": [],
+                    "collision_rate": [],
+                },
+            )
             grouped[key]["sent_packets_used"].append(float(row["sent_packets_used"]))
-            grouped[key]["decoded_payload_mean"].append(float(row["decoded_payload_mean"]))
+            grouped[key]["decoded_payload_base"].append(float(row.get("decoded_payload_base", 0.0)))
+            grouped[key]["decoded_payload_early_decode"].append(
+                float(row.get("decoded_payload_early_decode", row.get("decoded_payload_mean", 0.0)))
+            )
+            early_drop_value = float(row.get("decoded_payload_early_drop", np.nan))
+            if np.isfinite(early_drop_value):
+                grouped[key]["decoded_payload_early_drop"].append(early_drop_value)
+            grouped[key]["decoded_payload_early_decode_drop"].append(
+                float(
+                    row.get(
+                        "decoded_payload_early_decode_drop",
+                        float(row.get("decoded_payload_early_decode", row.get("decoded_payload_mean", 0.0))) +
+                        (early_drop_value if np.isfinite(early_drop_value) else 0.0),
+                    )
+                )
+            )
             grouped[key]["collision_rate"].append(float(row["collision_rate"]))
 
         country_avg_records: list[dict] = []
@@ -688,9 +799,21 @@ def run_workflow(
                     "country": country_name,
                     "iso3": iso3,
                     "selected_nodes": float(np.mean(np.array(vals["sent_packets_used"], dtype=float))),
-                    "decoded_payload_mean": float(np.mean(np.array(vals["decoded_payload_mean"], dtype=float))),
+                    "decoded_payload_base": float(np.mean(np.array(vals["decoded_payload_base"], dtype=float))),
+                    "decoded_payload_early_decode": float(
+                        np.mean(np.array(vals["decoded_payload_early_decode"], dtype=float))
+                    ),
+                    "decoded_payload_early_drop": (
+                        float(np.mean(np.array(vals["decoded_payload_early_drop"], dtype=float)))
+                        if vals["decoded_payload_early_drop"]
+                        else np.nan
+                    ),
+                    "decoded_payload_early_decode_drop": float(
+                        np.mean(np.array(vals["decoded_payload_early_decode_drop"], dtype=float))
+                    ),
+                    "decoded_payload_mean": float(np.mean(np.array(vals["decoded_payload_early_decode"], dtype=float))),
                     "collision_rate_mean": float(np.mean(np.array(vals["collision_rate"], dtype=float))),
-                    "step_samples": int(len(vals["decoded_payload_mean"])),
+                    "step_samples": int(len(vals["decoded_payload_early_decode"])),
                 }
             )
 
@@ -705,7 +828,18 @@ def run_workflow(
             combined_records = [
                 {
                     "selected_nodes": float(r.get("sent_packets_used", 0.0) or 0.0),
-                    "decoded_payload_mean": float(r.get("decoded_payload_mean", 0.0) or 0.0),
+                    "decoded_payload_base": float(r.get("decoded_payload_base", 0.0) or 0.0),
+                    "decoded_payload_early_decode_drop": float(
+                        r.get(
+                            "decoded_payload_early_decode_drop",
+                            (
+                                float(r.get("decoded_payload_early_decode", r.get("decoded_payload_mean", 0.0)) or 0.0)
+                                + float(r.get("decoded_payload_early_drop", 0.0) or 0.0)
+                            ),
+                        )
+                        or 0.0
+                    ),
+                    "decoded_payload_early_drop": float(r.get("decoded_payload_early_drop", np.nan) or np.nan),
                 }
                 for r in all_records
             ]

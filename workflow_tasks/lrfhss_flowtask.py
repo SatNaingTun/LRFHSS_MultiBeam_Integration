@@ -156,36 +156,79 @@ def plot_country_sent_vs_payload(
         return
 
     fig, ax = plt.subplots(figsize=(10, 8))
+    series_specs = [
+        ("decoded_payload_base", "baseline decoded payload", "#ff7f0e", "o"),
+        ("decoded_payload_early_decode_drop", "early decode + early drop", "#1f77b4", "s"),
+    ]
+    if not any(any(key in row for key, _, _, _ in series_specs) for row in records):
+        series_specs = [
+            ("decoded_payload_mean", "decoded payloads", "#1f77b4", "o"),
+        ]
     if aggregate_by_sent:
-        grouped: dict[int, list[float]] = {}
+        grouped: dict[int, dict[str, list[float]]] = {}
         for row in records:
             sent_packets = int(float(row.get("selected_nodes", 0) or 0))
-            decoded_payload = float(row.get("decoded_payload_mean", 0.0) or 0.0)
             if sent_packets <= 0:
                 continue
-            grouped.setdefault(sent_packets, []).append(decoded_payload)
+            entry = grouped.setdefault(sent_packets, {})
+            for key, _, _, _ in series_specs:
+                if key not in row:
+                    continue
+                entry.setdefault(key, []).append(float(row.get(key, 0.0) or 0.0))
         if not grouped:
             plt.close(fig)
             return
         xs = np.array(sorted(grouped.keys()), dtype=float)
-        ys = np.array([float(np.mean(grouped[int(x)])) for x in xs], dtype=float)
-        ax.plot(xs, ys, color="#1f77b4", linewidth=2, marker="o", label="decoded payloads")
-    else:
-        xs_list = []
-        ys_list = []
-        for row in records:
-            sent_packets = int(float(row.get("selected_nodes", 0) or 0))
-            decoded_payload = float(row.get("decoded_payload_mean", 0.0) or 0.0)
-            if sent_packets <= 0:
+        plotted = 0
+        for key, label, color, marker in series_specs:
+            if not any(key in grouped[int(x)] for x in xs):
                 continue
-            xs_list.append(float(sent_packets))
-            ys_list.append(float(decoded_payload))
-        if not xs_list:
+            ys = np.array(
+                [
+                    float(np.mean(grouped[int(x)].get(key, [np.nan])))
+                    for x in xs
+                ],
+                dtype=float,
+            )
+            if np.all(np.isnan(ys)):
+                continue
+            ax.plot(xs, ys, color=color, linewidth=2, marker=marker, label=label)
+            plotted += 1
+        if plotted <= 0:
             plt.close(fig)
             return
-        xs = np.array(xs_list, dtype=float)
-        ys = np.array(ys_list, dtype=float)
-        ax.scatter(xs, ys, color="#1f77b4", s=18, alpha=0.75, label="country-step samples")
+    else:
+        scatter_series: dict[str, tuple[list[float], list[float], str, str]] = {}
+        for key, label, color, marker in series_specs:
+            scatter_series[key] = ([], [], color, marker)
+        for row in records:
+            sent_packets = int(float(row.get("selected_nodes", 0) or 0))
+            if sent_packets <= 0:
+                continue
+            for key, _, _, _ in series_specs:
+                if key not in row:
+                    continue
+                xs_list, ys_list, _, _ = scatter_series[key]
+                xs_list.append(float(sent_packets))
+                ys_list.append(float(row.get(key, 0.0) or 0.0))
+        if not any(xs for xs, _, _, _ in scatter_series.values()):
+            plt.close(fig)
+            return
+        first_key = next(key for key, (xs_list, _, _, _) in scatter_series.items() if xs_list)
+        xs = np.array(scatter_series[first_key][0], dtype=float)
+        for key, label, color, marker in series_specs:
+            xs_list, ys_list, _, _ = scatter_series[key]
+            if not xs_list:
+                continue
+            ax.scatter(
+                np.array(xs_list, dtype=float),
+                np.array(ys_list, dtype=float),
+                color=color,
+                marker=marker,
+                s=18,
+                alpha=0.75,
+                label=label,
+            )
 
     diag_min = float(max(1.0, np.nanmin(xs))) if xs.size else 1.0
     diag_max = float(max(diag_min * 1.01, np.nanmax(xs))) if xs.size else diag_min * 1.01
@@ -200,4 +243,3 @@ def plot_country_sent_vs_payload(
     out_png.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_png, dpi=220)
     plt.close(fig)
-

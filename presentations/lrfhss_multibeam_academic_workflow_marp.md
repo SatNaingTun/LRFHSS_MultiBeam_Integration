@@ -155,6 +155,7 @@ SNR defines signal quality baseline.
 ![h:320px](../results/lrfhss_communication/sent_packets_vs_decoded_payload_stepwise_aggregate.png)
 
 - Decoded payload rises with load at first, then saturates
+- Baseline and combined early-decode-plus-early-drop curves separate where congestion begins
 - Deviation from the $x=y$ line highlights decoding loss under congestion
 
 <!--

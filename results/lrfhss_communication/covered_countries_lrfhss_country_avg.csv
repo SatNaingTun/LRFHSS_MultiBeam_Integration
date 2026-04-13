@@ -1,2 +1,2 @@
-country,iso3,selected_nodes,decoded_payload_mean,collision_rate_mean,step_samples
-Japan,JPN,508.35714285714283,304.4857142857143,0.153030588391158,14
+country,iso3,selected_nodes,decoded_payload_base,decoded_payload_early_decode,decoded_payload_early_drop,decoded_payload_early_decode_drop,decoded_payload_mean,collision_rate_mean,step_samples
+Japan,JPN,508.35714285714283,199.9714285714286,304.4857142857143,20.16428571428571,324.65,304.4857142857143,0.153030588391158,14
