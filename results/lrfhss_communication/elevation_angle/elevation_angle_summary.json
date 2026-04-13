@@ -3,16 +3,19 @@
   "runtime_multi_beam_root": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\.runtime\\multi_beam",
   "output_dir": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\elevation_angle",
   "seed": 42,
-  "n_user_cap": 5000,
-  "max_steps_per_target": 1,
-  "mode": "rotation_step_based",
+  "n_user_cap": 1000,
+  "max_steps_per_target": 2,
+  "mode": "legacy_fallback",
   "elevation_deg": [
     90,
     55,
     25
   ],
   "footprint_km": [
-    500
+    200,
+    100,
+    50,
+    5
   ],
   "plot": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\elevation_angle\\elevation_angle_ecdf_snr_sinr.png",
   "metrics_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\elevation_angle\\elevation_angle_metrics.csv",

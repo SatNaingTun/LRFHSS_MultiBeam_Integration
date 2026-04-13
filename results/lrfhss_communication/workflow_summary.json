@@ -143,6 +143,13 @@
   "country_csv_files": [
     "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country_csv\\JPN_Japan_lrfhss_stepwise.csv"
   ],
+  "country_result_dir": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country",
+  "country_result_csv_files": [
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country\\JPN_Japan_lrfhss_stepwise.csv"
+  ],
+  "country_plot_files": [
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country\\JPN_Japan_sent_packets_vs_decoded_payload.png"
+  ],
   "country_avg_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\covered_countries_lrfhss_country_avg.csv",
   "combined_plot_file": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\sent_packets_vs_decoded_payload_country_avg.png",
   "stepwise_sent_vs_payload_plot_file": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\sent_packets_vs_decoded_payload_stepwise_aggregate.png",

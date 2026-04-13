@@ -393,7 +393,14 @@ def run_elevation_angle_study(
         xs_snr, ys_snr = _ecdf_xy(snr_all)
         xs_sinr, ys_sinr = _ecdf_xy(sinr_all)
         axes_agg[0].plot(xs_snr, ys_snr, color=angle_colors[elev_deg], linewidth=2.2, label=f"{elev_deg} deg")
-        axes_agg[1].plot(xs_sinr, ys_sinr, color=angle_colors[elev_deg], linewidth=2.2, label=f"{elev_deg} deg")
+        axes_agg[1].plot(
+            xs_sinr,
+            ys_sinr,
+            color=angle_colors[elev_deg],
+            linewidth=2.2,
+            linestyle="--",
+            label=f"{elev_deg} deg",
+        )
         for x, y in zip(xs_snr, ys_snr):
             agg_ecdf_rows.append(
                 {"elevation_deg": int(elev_deg), "metric": "snr_db", "value_db": float(x), "ecdf": float(y)}

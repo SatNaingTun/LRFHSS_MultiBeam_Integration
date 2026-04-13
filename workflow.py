@@ -441,6 +441,8 @@ def run_workflow(
 
     country_csv_dir = output_dir / "country_csv"
     country_csv_dir.mkdir(parents=True, exist_ok=True)
+    country_result_dir = output_dir / "country"
+    country_result_dir.mkdir(parents=True, exist_ok=True)
     aggregate_csv = output_dir / "covered_countries_lrfhss_stepwise_results.csv"
     step_fieldnames = [
         "country",
@@ -467,6 +469,8 @@ def run_workflow(
     all_records: list[dict] = []
     country_records_map: dict[tuple[str, str], list[dict]] = {}
     generated_country_csv: list[str] = []
+    generated_country_result_csv: list[str] = []
+    generated_country_plot_files: list[str] = []
     combined_plot_file: str | None = None
     stepwise_sent_vs_payload_plot_file: str | None = None
     collision_ecdf_plot_file: str | None = None
@@ -642,6 +646,30 @@ def run_workflow(
             w.writeheader()
             w.writerows(rows)
         generated_country_csv.append(str(country_csv.resolve()))
+        country_result_csv = country_result_dir / f"{safe}_lrfhss_stepwise.csv"
+        with country_result_csv.open("w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+            w.writeheader()
+            w.writerows(rows)
+        generated_country_result_csv.append(str(country_result_csv.resolve()))
+        country_plot = country_result_dir / f"{safe}_sent_packets_vs_decoded_payload.png"
+        try:
+            country_plot_records = [
+                {
+                    "selected_nodes": float(r.get("sent_packets_used", 0.0) or 0.0),
+                    "decoded_payload_mean": float(r.get("decoded_payload_mean", 0.0) or 0.0),
+                }
+                for r in rows
+            ]
+            plot_country_sent_vs_payload(
+                records=country_plot_records,
+                out_png=country_plot,
+                title=f"{country_name} stepwise sent packets vs decoded payload",
+                aggregate_by_sent=False,
+            )
+            generated_country_plot_files.append(str(country_plot.resolve()))
+        except ModuleNotFoundError as exc:
+            print(f"[plot skipped] {exc}")
 
     country_avg_csv = output_dir / "covered_countries_lrfhss_country_avg.csv"
     if all_records:
@@ -674,10 +702,18 @@ def run_workflow(
 
         combined_plot = output_dir / "sent_packets_vs_decoded_payload_country_avg.png"
         try:
+            combined_records = [
+                {
+                    "selected_nodes": float(r.get("sent_packets_used", 0.0) or 0.0),
+                    "decoded_payload_mean": float(r.get("decoded_payload_mean", 0.0) or 0.0),
+                }
+                for r in all_records
+            ]
             plot_country_sent_vs_payload(
-                records=country_avg_records,
+                records=combined_records,
                 out_png=combined_plot,
-                title="Country-average decoded payloads across one rotation",
+                title="Country-step decoded payloads across one rotation",
+                aggregate_by_sent=False,
             )
             combined_plot_file = str(combined_plot.resolve())
         except ModuleNotFoundError as exc:
@@ -843,6 +879,9 @@ def run_workflow(
         "covered_countries_count": int(len({(str(r["country"]), str(r["iso3"])) for r in all_records})),
         "reference_csv": str(reference_csv.resolve()),
         "country_csv_files": generated_country_csv,
+        "country_result_dir": str(country_result_dir.resolve()),
+        "country_result_csv_files": generated_country_result_csv,
+        "country_plot_files": generated_country_plot_files,
         "country_avg_csv": country_avg_csv_path,
         "combined_plot_file": combined_plot_file,
         "stepwise_sent_vs_payload_plot_file": stepwise_sent_vs_payload_plot_file,

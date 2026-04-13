@@ -144,28 +144,52 @@ def _stable_country_hash(country: str, iso3: str) -> int:
     return int(sum((idx + 1) * ord(ch) for idx, ch in enumerate(key)))
 
 
-def plot_country_sent_vs_payload(records: list[dict], out_png: Path, title: str) -> None:
+def plot_country_sent_vs_payload(
+    records: list[dict],
+    out_png: Path,
+    title: str,
+    aggregate_by_sent: bool = True,
+) -> None:
     if plt is None:
         raise ModuleNotFoundError("matplotlib is required for plotting. Install with: pip install matplotlib")
     if not records:
         return
 
-    grouped: dict[int, list[float]] = {}
-    for row in records:
-        sent_packets = int(float(row.get("selected_nodes", 0) or 0))
-        decoded_payload = float(row.get("decoded_payload_mean", 0.0) or 0.0)
-        if sent_packets <= 0:
-            continue
-        grouped.setdefault(sent_packets, []).append(decoded_payload)
-    if not grouped:
-        return
-
-    xs = np.array(sorted(grouped.keys()), dtype=float)
-    ys = np.array([float(np.mean(grouped[int(x)])) for x in xs], dtype=float)
-
     fig, ax = plt.subplots(figsize=(10, 8))
-    ax.plot(xs, ys, color="#1f77b4", linewidth=2, marker="o", label="decoded payloads")
-    ax.plot(xs, xs, color="black", linewidth=1.8, label="x=y")
+    if aggregate_by_sent:
+        grouped: dict[int, list[float]] = {}
+        for row in records:
+            sent_packets = int(float(row.get("selected_nodes", 0) or 0))
+            decoded_payload = float(row.get("decoded_payload_mean", 0.0) or 0.0)
+            if sent_packets <= 0:
+                continue
+            grouped.setdefault(sent_packets, []).append(decoded_payload)
+        if not grouped:
+            plt.close(fig)
+            return
+        xs = np.array(sorted(grouped.keys()), dtype=float)
+        ys = np.array([float(np.mean(grouped[int(x)])) for x in xs], dtype=float)
+        ax.plot(xs, ys, color="#1f77b4", linewidth=2, marker="o", label="decoded payloads")
+    else:
+        xs_list = []
+        ys_list = []
+        for row in records:
+            sent_packets = int(float(row.get("selected_nodes", 0) or 0))
+            decoded_payload = float(row.get("decoded_payload_mean", 0.0) or 0.0)
+            if sent_packets <= 0:
+                continue
+            xs_list.append(float(sent_packets))
+            ys_list.append(float(decoded_payload))
+        if not xs_list:
+            plt.close(fig)
+            return
+        xs = np.array(xs_list, dtype=float)
+        ys = np.array(ys_list, dtype=float)
+        ax.scatter(xs, ys, color="#1f77b4", s=18, alpha=0.75, label="country-step samples")
+
+    diag_min = float(max(1.0, np.nanmin(xs))) if xs.size else 1.0
+    diag_max = float(max(diag_min * 1.01, np.nanmax(xs))) if xs.size else diag_min * 1.01
+    ax.plot([diag_min, diag_max], [diag_min, diag_max], color="black", linewidth=1.8, label="x=y")
     ax.set_title(title, fontsize=16)
     ax.set_xlabel("Sent packets", fontsize=14)
     ax.set_ylabel("Number of Decoded Payloads", fontsize=14)
