@@ -1,7 +1,8 @@
 {
   "workflow": [
     "Propagate LEO orbit using two-body Kepler equations",
-    "At each rotation step derive coverage-driven devices/demods from GPW proportion",
+    "At each rotation step derive coverage-driven devices from GPW proportion",
+    "Use fixed onboard demod hardware capacity; busy/idle state varies with load",
     "Use reference-series curves to estimate decoded payload and collision rate",
     "Compute power per step using baseline + idle/busy demodulator formula",
     "Export CSV results and ECDF/stepwise plots",
@@ -46,7 +47,7 @@
       "Vallado, Fundamentals of Astrodynamics and Applications (4th ed.)",
       "Curtis, Orbital Mechanics for Engineering Students (4th ed.)"
     ],
-    "reference_replication_source": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/replicate_paper.py"
+    "reference_replication_source": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\replicate_paper.py"
   },
   "power_model_formula": "P_total = P_baseline + N_idle*P_idle + N_busy*P_busy; N_busy = ceil(sent_packets / demod_tx_capacity_per_step), bounded by allocated demods.",
   "orbit_parameters": {
@@ -58,12 +59,12 @@
   "one_orbit_frames": 579235,
   "one_orbit_track_frames_used": 579235,
   "coverage_trace_steps": 1998,
-  "coverage_step_country_csv": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/csv/coverage_step_country_shares.csv",
+  "coverage_step_country_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\csv\\coverage_step_country_shares.csv",
   "ecdf_scope": "active_steps",
   "coverage_model": {
-    "input_csv": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/Data/adult_population_country_coordinates.csv",
-    "output_csv": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/csv/coverage_population_devices.csv",
-    "trace_csv": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/csv/coverage_track_trace.csv",
+    "input_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\Data\\adult_population_country_coordinates.csv",
+    "output_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\csv\\coverage_population_devices.csv",
+    "trace_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\csv\\coverage_track_trace.csv",
     "coverage_center_latitude": 35.6761919,
     "coverage_center_longitude": 139.6503106,
     "coverage_radius_m": 500000.0,
@@ -79,12 +80,14 @@
     "estimated_devices_total": 85568,
     "estimated_demodulators_total": 347
   },
+  "hardware_demodulators_total": 1000,
   "post_rotation_node_demod_check": {
     "status": "ok",
     "coverage_constraints": {
       "countries_in_coverage": 7,
       "estimated_devices_total": 85568,
-      "estimated_demodulators_total": 347
+      "estimated_demodulators_total": 347,
+      "hardware_demodulators_total": 1000
     },
     "node_count_options": [
       2,
@@ -130,41 +133,65 @@
       50,
       70,
       100,
-      300
+      300,
+      500,
+      700,
+      1000
     ],
-    "demod_count_options_out_of_coverage": [
+    "demod_count_options_out_of_coverage": [],
+    "demod_count_options_reference_compatible": [
+      100,
+      300,
       500,
       700,
       1000
     ]
   },
-  "covered_countries_count": 1,
-  "reference_csv": "/media/sat-naing-tun/Data2/NII_Projects/SNT/lr-fhss_seq-families/headerResults/data-25dc-cr1.csv",
+  "covered_countries_count": 7,
+  "reference_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\lr-fhss_seq-families\\headerResults\\data-25dc-cr1.csv",
   "country_csv_files": [
-    "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/country_csv/JPN_Japan_lrfhss_stepwise.csv"
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country_csv\\AUS_Australia_lrfhss_stepwise.csv",
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country_csv\\CAN_Canada_lrfhss_stepwise.csv",
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country_csv\\GRL_Greenland_lrfhss_stepwise.csv",
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country_csv\\JPN_Japan_lrfhss_stepwise.csv",
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country_csv\\PNG_Papua_New_Guinea_lrfhss_stepwise.csv",
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country_csv\\RUS_Russian_Federation_lrfhss_stepwise.csv",
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country_csv\\SPM_Saint_Pierre_and_Miquelon_lrfhss_stepwise.csv"
   ],
-  "country_result_dir": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/country",
+  "country_result_dir": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country",
   "country_result_csv_files": [
-    "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/country/JPN_Japan_lrfhss_stepwise.csv"
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country\\AUS_Australia_lrfhss_stepwise.csv",
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country\\CAN_Canada_lrfhss_stepwise.csv",
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country\\GRL_Greenland_lrfhss_stepwise.csv",
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country\\JPN_Japan_lrfhss_stepwise.csv",
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country\\PNG_Papua_New_Guinea_lrfhss_stepwise.csv",
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country\\RUS_Russian_Federation_lrfhss_stepwise.csv",
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country\\SPM_Saint_Pierre_and_Miquelon_lrfhss_stepwise.csv"
   ],
   "country_plot_files": [
-    "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/country/JPN_Japan_sent_packets_vs_decoded_payload.png"
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country\\AUS_Australia_sent_packets_vs_decoded_payload.png",
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country\\CAN_Canada_sent_packets_vs_decoded_payload.png",
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country\\GRL_Greenland_sent_packets_vs_decoded_payload.png",
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country\\JPN_Japan_sent_packets_vs_decoded_payload.png",
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country\\PNG_Papua_New_Guinea_sent_packets_vs_decoded_payload.png",
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country\\RUS_Russian_Federation_sent_packets_vs_decoded_payload.png",
+    "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\country\\SPM_Saint_Pierre_and_Miquelon_sent_packets_vs_decoded_payload.png"
   ],
-  "country_avg_csv": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/covered_countries_lrfhss_country_avg.csv",
-  "combined_plot_file": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/sent_packets_vs_decoded_payload_country_avg.png",
-  "stepwise_sent_vs_payload_plot_file": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/sent_packets_vs_decoded_payload_stepwise_aggregate.png",
-  "step_metrics_csv": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/csv/collision_rate_step_metrics.csv",
-  "collision_rate_ecdf_csv": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/csv/collision_rate_ecdf.csv",
-  "collision_rate_ecdf_plot_file": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/plots/collision_rate_ecdf.png",
-  "collision_rate_ecdf_by_elevation_csv": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/csv/collision_rate_ecdf_by_elevation.csv",
-  "collision_rate_ecdf_by_elevation_plot_file": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/plots/collision_rate_ecdf_by_elevation.png",
-  "collision_rate_power_plot_file": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/plots/collision_rate_vs_power_timeseries.png",
-  "nodes_vs_decoded_payload_demod_csv": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/csv/nodes_vs_decoded_payload_demod_states.csv",
-  "nodes_vs_decoded_payload_demod_plot_file": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/plots/nodes_vs_decoded_payload_demod_states.png",
-  "elevation_angle_ecdf_plot_file": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/elevation_angle/elevation_angle_ecdf_snr_sinr.png",
-  "elevation_angle_metrics_csv": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/elevation_angle/elevation_angle_metrics.csv",
-  "elevation_angle_aggregate_csv": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/elevation_angle/elevation_angle_aggregate.csv",
-  "elevation_angle_aggregate_ecdf_plot_file": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/elevation_angle/elevation_angle_ecdf_sinr_snr_aggregate_angles.png",
-  "elevation_angle_aggregate_ecdf_csv": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/elevation_angle/elevation_angle_aggregate_ecdf.csv",
-  "aggregate_csv": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/covered_countries_lrfhss_stepwise_results.csv"
+  "country_avg_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\covered_countries_lrfhss_country_avg.csv",
+  "combined_plot_file": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\sent_packets_vs_decoded_payload_country_avg.png",
+  "stepwise_sent_vs_payload_plot_file": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\sent_packets_vs_decoded_payload_stepwise_aggregate.png",
+  "step_metrics_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\csv\\collision_rate_step_metrics.csv",
+  "collision_rate_ecdf_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\csv\\collision_rate_ecdf.csv",
+  "collision_rate_ecdf_plot_file": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\plots\\collision_rate_ecdf.png",
+  "collision_rate_ecdf_by_elevation_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\csv\\collision_rate_ecdf_by_elevation.csv",
+  "collision_rate_ecdf_by_elevation_plot_file": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\plots\\collision_rate_ecdf_by_elevation.png",
+  "collision_rate_power_plot_file": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\plots\\collision_rate_vs_power_timeseries.png",
+  "nodes_vs_decoded_payload_demod_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\csv\\nodes_vs_decoded_payload_demod_states.csv",
+  "nodes_vs_decoded_payload_demod_plot_file": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\plots\\nodes_vs_decoded_payload_demod_states.png",
+  "elevation_angle_ecdf_plot_file": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\elevation_angle\\elevation_angle_ecdf_snr_sinr.png",
+  "elevation_angle_metrics_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\elevation_angle\\elevation_angle_metrics.csv",
+  "elevation_angle_aggregate_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\elevation_angle\\elevation_angle_aggregate.csv",
+  "elevation_angle_aggregate_ecdf_plot_file": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\elevation_angle\\elevation_angle_ecdf_sinr_snr_aggregate_angles.png",
+  "elevation_angle_aggregate_ecdf_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\elevation_angle\\elevation_angle_aggregate_ecdf.csv",
+  "aggregate_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\covered_countries_lrfhss_stepwise_results.csv"
 }

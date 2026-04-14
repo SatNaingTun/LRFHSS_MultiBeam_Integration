@@ -279,6 +279,24 @@ Power depends on system load.
 
 ---
 
+# Idle Demodulator Relation
+### Resource State by Time Step
+
+$$
+N_{\text{demod,idle}}(t)=N_{\text{demod,tot}}-N_{\text{demod,busy}}(t)
+$$
+
+- $N_{\text{demod,tot}}$: total onboard demodulators  
+- $N_{\text{demod,busy}}(t)$: demodulators actively processing at time $t$  
+- $N_{\text{demod,idle}}(t)$: demodulators not processing at time $t$  
+- In this project, when coverage and offered load increase, busy demods increase and idle demods decrease.
+
+<!--
+This slide isolates the idle/busy demod state relation used by the power model.
+-->
+
+---
+
 # Demodulator Evidence
 ### Resource activation under increasing load
 

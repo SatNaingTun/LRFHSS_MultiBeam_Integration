@@ -1,7 +1,7 @@
 {
-  "multi_beam_root": "/media/sat-naing-tun/Data2/NII_Projects/SNT/Multi-Beam-LEO-Framework",
-  "runtime_multi_beam_root": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/.runtime/multi_beam",
-  "output_dir": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/elevation_angle",
+  "multi_beam_root": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\Multi-Beam-LEO-Framework",
+  "runtime_multi_beam_root": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\.runtime\\multi_beam",
+  "output_dir": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\elevation_angle",
   "seed": 42,
   "n_user_cap": 5000,
   "max_steps_per_target": 1,
@@ -14,8 +14,8 @@
   "footprint_km": [
     500
   ],
-  "plot": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/elevation_angle/elevation_angle_ecdf_snr_sinr.png",
-  "metrics_csv": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/elevation_angle/elevation_angle_metrics.csv",
-  "aggregate_ecdf_plot": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/elevation_angle/elevation_angle_ecdf_sinr_snr_aggregate_angles.png",
-  "aggregate_ecdf_csv": "/media/sat-naing-tun/Data2/NII_Projects/SNT/LRFHSS_MultiBeam_Integration/results/lrfhss_communication/elevation_angle/elevation_angle_aggregate_ecdf.csv"
+  "plot": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\elevation_angle\\elevation_angle_ecdf_snr_sinr.png",
+  "metrics_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\elevation_angle\\elevation_angle_metrics.csv",
+  "aggregate_ecdf_plot": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\elevation_angle\\elevation_angle_ecdf_sinr_snr_aggregate_angles.png",
+  "aggregate_ecdf_csv": "C:\\Users\\satnaingtun.DESKTOP-4FQHRHU\\Documents\\SatNaingTun\\NII_Projects\\SNT\\LRFHSS_MultiBeam_Integration\\results\\lrfhss_communication\\elevation_angle\\elevation_angle_aggregate_ecdf.csv"
 }

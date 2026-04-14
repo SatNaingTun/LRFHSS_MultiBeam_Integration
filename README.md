@@ -21,6 +21,7 @@ Power model notes:
 - Power consumption uses allocated demods and demod utilization.
 - Power plots are grouped by `policy` and `allocated_demods`.
 - Refined equation: `P_total = P_circuit + N_idle*P_idle + N_busy*P_busy`.
+- `--onboard-demods` sets fixed satellite hardware demod capacity; coverage affects load, not total demod hardware.
 - Two policies are compared: `EnergyAware` and `NonEnergyAware`.
 - Monte Carlo statistics use `--runs-per-point` (default `50`) with variance and 95% confidence intervals.
 
@@ -35,6 +36,7 @@ automatically runs `ensure_reference_paths.py` to download/extract or clone them
 ## Sample Commands
 ```powershell
 python run_integration.py --nodes 0 2 7 15 40 90 180 260 400 700 1000 1500 --demods 10 30 50 70 100 300 500 700 1000
+python run_integration.py --onboard-demods 512 --demods 10 30 50 70 100 300 500
 ```
 
 ```powershell

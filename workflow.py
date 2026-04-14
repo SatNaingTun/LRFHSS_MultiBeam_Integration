@@ -403,6 +403,7 @@ def run_workflow(
     node_max: int,
     node_points: int,
     demodulator_options: list[int],
+    onboard_demods: int | None,
     nodes_list: list[int] | None,
     reference_csv: Path,
     scenario_steps: int = 120,
@@ -418,6 +419,9 @@ def run_workflow(
     del lrfhss_root, runs_per_point
     node_loads = _build_node_loads(node_min=node_min, node_max=node_max, node_points=node_points, nodes_list=nodes_list)
     demods = _normalize_demods(demodulator_options)
+    fixed_onboard_demods = int(max(demods)) if onboard_demods is None else int(onboard_demods)
+    if fixed_onboard_demods <= 0:
+        raise ValueError("onboard_demods must be a positive integer.")
     available_reference_demods = list_available_demod_counts(reference_csv=reference_csv, coding_rate=1, family="driver")
     if not available_reference_demods:
         raise ValueError(f"No available demod rows found in reference CSV: {reference_csv}")
@@ -474,11 +478,24 @@ def run_workflow(
         node_loads=node_loads,
         demodulator_options=demods,
         coverage_info=coverage_info,
+        onboard_demods=fixed_onboard_demods,
     )
     filtered_nodes = node_demod_check["node_count_options_in_coverage"]
     filtered_demods = node_demod_check["demod_count_options_in_coverage"]
     if not filtered_nodes or not filtered_demods:
         raise ValueError("No node/demod options remain after coverage filtering.")
+    # Keep only demod options that can map to an available reference-series demod row.
+    # Otherwise countries are silently skipped when _select_available_demod() returns None.
+    filtered_demods = [
+        int(d) for d in filtered_demods if _select_available_demod(int(d), available_reference_demods) is not None
+    ]
+    if not filtered_demods:
+        raise ValueError(
+            "No reference-compatible demod options after filtering. "
+            f"Available reference demods: {available_reference_demods}. "
+            "Provide --demods/--onboard-demods that can map to these values."
+        )
+    node_demod_check["demod_count_options_reference_compatible"] = [int(v) for v in filtered_demods]
     headerdrop_reference_csv = _resolve_headerdrop_reference_csv(reference_csv)
     row_tables: dict[Path, dict[str, np.ndarray]] = {}
 
@@ -565,7 +582,7 @@ def run_workflow(
             step_sat_lon = float(step_row["satellite_longitude"])
             step_countries = step_country_coverage.get(step_idx, [])
             step_devices_total = max(0, int(step_row.get("estimated_devices_total", 0) or 0))
-            step_demods_total = max(0, int(step_row.get("estimated_demodulators_total", 0) or 0))
+            step_demods_total = int(fixed_onboard_demods)
             step_footprint_radius_m = float(step_row.get("footprint_radius_m", 0.0) or 0.0)
             step_footprint_area_km2 = float(step_row.get("footprint_area_km2", 0.0) or 0.0)
             countries_used_in_step = 0
@@ -583,9 +600,10 @@ def run_workflow(
                 share = float(country["population_coverage_share"])
 
                 country_devices_step = max(0, int(round(step_devices_total * share)))
-                country_demods_step = max(0, int(round(step_demods_total * share)))
                 valid_nodes = [n for n in filtered_nodes if n <= country_devices_step]
-                valid_demods = [d for d in filtered_demods if d <= country_demods_step]
+                # Demodulators are satellite hardware resources. For reference-series matching,
+                # bound country-level selection by per-step hardware demod capacity (not share rounding).
+                valid_demods = [d for d in filtered_demods if d <= step_demods_total]
                 if not valid_nodes or not valid_demods:
                     continue
 
@@ -985,7 +1003,8 @@ def run_workflow(
     summary = {
         "workflow": [
             "Propagate LEO orbit using two-body Kepler equations",
-            "At each rotation step derive coverage-driven devices/demods from GPW proportion",
+            "At each rotation step derive coverage-driven devices from GPW proportion",
+            "Use fixed onboard demod hardware capacity; busy/idle state varies with load",
             "Use reference-series curves to estimate decoded payload and collision rate",
             "Compute power per step using baseline + idle/busy demodulator formula",
             "Export CSV results and ECDF/stepwise plots",
@@ -1009,6 +1028,7 @@ def run_workflow(
         "coverage_step_country_csv": str(coverage_step_country_csv_path.resolve()),
         "ecdf_scope": ("active_steps" if any(int(r["sent_packets_sum"]) > 0 for r in step_metric_records) else "all_steps"),
         "coverage_model": coverage_info,
+        "hardware_demodulators_total": int(fixed_onboard_demods),
         "post_rotation_node_demod_check": node_demod_check,
         "covered_countries_count": int(len({(str(r["country"]), str(r["iso3"])) for r in all_records})),
         "reference_csv": str(reference_csv.resolve()),

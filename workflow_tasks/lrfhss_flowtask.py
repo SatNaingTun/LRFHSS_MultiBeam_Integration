@@ -96,21 +96,28 @@ def _check_nodes_and_demods_for_coverage(
     node_loads: list[int],
     demodulator_options: list[int],
     coverage_info: dict,
+    onboard_demods: int | None = None,
 ) -> dict:
     coverage_devices = max(0, int(coverage_info.get("estimated_devices_total", 0)))
-    coverage_demods = max(0, int(coverage_info.get("estimated_demodulators_total", 0)))
+    coverage_demods_estimated = max(0, int(coverage_info.get("estimated_demodulators_total", 0)))
+    hardware_demods = (
+        max(0, int(onboard_demods))
+        if onboard_demods is not None
+        else coverage_demods_estimated
+    )
 
     in_coverage_nodes = [v for v in node_loads if v <= coverage_devices]
     out_of_coverage_nodes = [v for v in node_loads if v > coverage_devices]
-    in_coverage_demods = [v for v in demodulator_options if v <= coverage_demods]
-    out_of_coverage_demods = [v for v in demodulator_options if v > coverage_demods]
+    in_coverage_demods = [v for v in demodulator_options if v <= hardware_demods]
+    out_of_coverage_demods = [v for v in demodulator_options if v > hardware_demods]
 
     check = {
         "status": "ok",
         "coverage_constraints": {
             "countries_in_coverage": int(coverage_info.get("countries_in_coverage", 0)),
             "estimated_devices_total": coverage_devices,
-            "estimated_demodulators_total": coverage_demods,
+            "estimated_demodulators_total": coverage_demods_estimated,
+            "hardware_demodulators_total": hardware_demods,
         },
         "node_count_options": node_loads,
         "node_count_options_in_coverage": in_coverage_nodes,
@@ -192,15 +199,39 @@ def plot_country_sent_vs_payload(
             )
             if np.all(np.isnan(ys)):
                 continue
-            ax.plot(xs, ys, color=color, linewidth=2, marker=marker, label=label)
+            if xs.size == 1:
+                ax.scatter(
+                    xs,
+                    ys,
+                    color=color,
+                    marker=marker,
+                    s=52,
+                    edgecolors="white",
+                    linewidths=0.8,
+                    zorder=4,
+                    label=label,
+                )
+            else:
+                ax.plot(
+                    xs,
+                    ys,
+                    color=color,
+                    linewidth=2,
+                    marker=marker,
+                    markersize=4,
+                    markeredgecolor="white",
+                    markeredgewidth=0.6,
+                    zorder=3,
+                    label=label,
+                )
             plotted += 1
         if plotted <= 0:
             plt.close(fig)
             return
     else:
-        scatter_series: dict[str, tuple[list[float], list[float], str, str]] = {}
+        line_series: dict[str, tuple[list[float], list[float], str, str]] = {}
         for key, label, color, marker in series_specs:
-            scatter_series[key] = ([], [], color, marker)
+            line_series[key] = ([], [], color, marker)
         for row in records:
             sent_packets = int(float(row.get("selected_nodes", 0) or 0))
             if sent_packets <= 0:
@@ -208,31 +239,64 @@ def plot_country_sent_vs_payload(
             for key, _, _, _ in series_specs:
                 if key not in row:
                     continue
-                xs_list, ys_list, _, _ = scatter_series[key]
+                xs_list, ys_list, _, _ = line_series[key]
                 xs_list.append(float(sent_packets))
                 ys_list.append(float(row.get(key, 0.0) or 0.0))
-        if not any(xs for xs, _, _, _ in scatter_series.values()):
+        if not any(xs for xs, _, _, _ in line_series.values()):
             plt.close(fig)
             return
-        first_key = next(key for key, (xs_list, _, _, _) in scatter_series.items() if xs_list)
-        xs = np.array(scatter_series[first_key][0], dtype=float)
+        first_key = next(key for key, (xs_list, _, _, _) in line_series.items() if xs_list)
+        xs = np.array(line_series[first_key][0], dtype=float)
         for key, label, color, marker in series_specs:
-            xs_list, ys_list, _, _ = scatter_series[key]
+            xs_list, ys_list, _, _ = line_series[key]
             if not xs_list:
                 continue
-            ax.scatter(
-                np.array(xs_list, dtype=float),
-                np.array(ys_list, dtype=float),
-                color=color,
-                marker=marker,
-                s=18,
-                alpha=0.75,
-                label=label,
+            grouped_xy: dict[float, list[float]] = {}
+            for x_val, y_val in zip(xs_list, ys_list):
+                grouped_xy.setdefault(float(x_val), []).append(float(y_val))
+            xs_sorted = np.array(sorted(grouped_xy.keys()), dtype=float)
+            ys_mean = np.array(
+                [float(np.mean(np.array(grouped_xy[x_val], dtype=float))) for x_val in xs_sorted],
+                dtype=float,
             )
+            if xs_sorted.size == 1:
+                ax.scatter(
+                    xs_sorted,
+                    ys_mean,
+                    color=color,
+                    marker=marker,
+                    s=52,
+                    edgecolors="white",
+                    linewidths=0.8,
+                    zorder=4,
+                    label=label,
+                )
+            else:
+                ax.plot(
+                    xs_sorted,
+                    ys_mean,
+                    color=color,
+                    linewidth=2,
+                    marker=marker,
+                    markersize=4,
+                    markeredgecolor="white",
+                    markeredgewidth=0.6,
+                    alpha=0.95,
+                    zorder=3,
+                    label=label,
+                )
 
     diag_min = float(max(1.0, np.nanmin(xs))) if xs.size else 1.0
     diag_max = float(max(diag_min * 1.01, np.nanmax(xs))) if xs.size else diag_min * 1.01
-    ax.plot([diag_min, diag_max], [diag_min, diag_max], color="black", linewidth=1.8, label="x=y")
+    ax.plot(
+        [diag_min, diag_max],
+        [diag_min, diag_max],
+        color="black",
+        linewidth=1.6,
+        alpha=0.85,
+        zorder=1,
+        label="x=y",
+    )
     ax.set_title(title, fontsize=16)
     ax.set_xlabel("Sent packets", fontsize=14)
     ax.set_ylabel("Number of Decoded Payloads", fontsize=14)

@@ -33,7 +33,19 @@ def parse_args():
         default=[0, 2, 7, 15, 40, 90, 180, 260, 400, 700, 1000, 1500],
         help="Explicit node list; overrides --node-min/--node-max/--node-points.",
     )
-    parser.add_argument("--demods", type=int, nargs="+", default=[10, 30, 50, 70, 100, 300, 500, 700, 1000])
+    parser.add_argument(
+        "--demods",
+        type=int,
+        nargs="+",
+        default=[10, 30, 50, 70, 100, 300, 500, 700, 1000],
+        help="Candidate demod counts for reference-series matching (must be <= --onboard-demods).",
+    )
+    parser.add_argument(
+        "--onboard-demods",
+        type=int,
+        default=None,
+        help="Fixed hardware demodulator capacity on the satellite. Default: max(--demods).",
+    )
     parser.add_argument("--scenario-steps", type=int, default=120)
     parser.add_argument("--step-seconds", type=float, default=228.0)
     parser.add_argument("--runs-per-point", type=int, default=10)
@@ -84,6 +96,7 @@ def main():
         node_max=args.node_max,
         node_points=args.node_points,
         demodulator_options=args.demods,
+        onboard_demods=args.onboard_demods,
         nodes_list=args.nodes,
         reference_csv=args.reference_csv,
         scenario_steps=args.scenario_steps,
