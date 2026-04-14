@@ -29,11 +29,6 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--multi-beam-root", type=Path, default=snt_root / "Multi-Beam-LEO-Framework")
     parser.add_argument("--lrfhss-root", type=Path, default=snt_root / "lr-fhss_seq-families")
-    parser.add_argument(
-        "--reference-csv",
-        type=Path,
-        default=snt_root / "lr-fhss_seq-families" / "headerResults" / "data-25dc-cr1.csv",
-    )
 
     parser.add_argument("--demods", type=int, default=100)
     parser.add_argument("--coding-rate", type=int, default=1)
@@ -87,8 +82,9 @@ def main() -> None:
         metric = "dec_pckts" if args.packet_only else args.metric
         drop_mode = "hdrdd" if args.drop_mode == "headerdrop" else args.drop_mode
         out_png, out_pdf = run_reference_comparison(
-            reference_csv=args.reference_csv,
+            reference_csv=None,
             output_dir=lrfhss_output_dir,
+            lrfhss_root=args.lrfhss_root,
             demods=args.demods,
             coding_rate=args.coding_rate,
             metric=metric,
@@ -104,6 +100,8 @@ def main() -> None:
             export_pdf=args.export_pdf,
         )
         print(f"[lrfhss] PNG: {out_png.resolve()}")
+        generated_csv = lrfhss_output_dir / f"lrfhss_sim_cr{int(args.coding_rate)}.csv"
+        print(f"[lrfhss] CSV: {generated_csv.resolve()}")
         if args.export_pdf:
             print(f"[lrfhss] PDF: {out_pdf.resolve()}")
 

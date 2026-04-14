@@ -4,9 +4,11 @@ from __future__ import annotations
 import argparse
 import csv
 from dataclasses import dataclass
+import importlib
 from pathlib import Path
+import random
 import re
-import shutil
+import sys
 
 import numpy as np
 
@@ -17,6 +19,11 @@ try:
     import matplotlib.pyplot as plt
 except ModuleNotFoundError:  # pragma: no cover - optional dependency
     plt = None
+
+try:
+    from tqdm import tqdm
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    tqdm = None
 
 
 @dataclass
@@ -31,6 +38,194 @@ class ComparisonSeries:
     demods: int = 100
     coding_rate: int = 1
     metric: str = "dec_payld"
+
+
+def _load_lora_network_class(lrfhss_root: Path):
+    root = str(lrfhss_root.resolve())
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    module = importlib.import_module("src.models.LoRaNetwork")
+    return getattr(module, "LoRaNetwork")
+
+
+def _resolve_sim_nodes(
+    node_min: float | None,
+    node_max: float | None,
+    selected_nodes: list[float] | None,
+    node_points: int,
+) -> list[int]:
+    if selected_nodes:
+        nodes = sorted(set(int(round(float(v))) for v in selected_nodes if float(v) > 0))
+    else:
+        n_min = float(100.0 if node_min is None else node_min)
+        n_max = float(10000.0 if node_max is None else node_max)
+        if n_min <= 0 or n_max <= 0 or n_max < n_min:
+            raise ValueError("Invalid node range for simulation CSV generation.")
+        nodes = [int(round(v)) for v in np.logspace(np.log10(n_min), np.log10(n_max), num=max(2, int(node_points)))]
+        nodes = sorted(set(v for v in nodes if v > 0))
+    if not nodes:
+        raise ValueError("No positive node values available for simulation CSV generation.")
+    return nodes
+
+
+def _metric_from_network(network, metric: str) -> float:
+    if metric == "dec_payld":
+        return float(network.get_decoded_hrd_pld())
+    if metric == "dec_pckts":
+        return float(network.get_decoded_hdr())
+    raise ValueError(f"Unsupported metric: {metric}")
+
+
+def _simulate_curve(
+    LoRaNetwork,
+    nodes: list[int],
+    family: str,
+    coding_rate: int,
+    num_decoders: int,
+    drop_mode: str,
+    metric: str,
+    runs_per_node: int,
+) -> list[float]:
+    # Match paper-style settings:
+    # base   -> early decode ON, early drop OFF, header drop OFF
+    # rlydd  -> early decode ON, early drop ON,  header drop OFF
+    # hdrdd  -> early decode ON, early drop ON,  header drop ON
+    if drop_mode == "base":
+        use_earlydecode = True
+        use_earlydrop = False
+        use_headerdrop = False
+    elif drop_mode == "rlydd":
+        use_earlydecode = True
+        use_earlydrop = True
+        use_headerdrop = False
+    elif drop_mode == "hdrdd":
+        use_earlydecode = True
+        use_earlydrop = True
+        use_headerdrop = True
+    else:
+        raise ValueError(f"Unsupported drop_mode for simulation: {drop_mode}")
+
+    sim_time = 500
+    num_ocw = 1
+    num_obw = 280
+    num_grids = 8
+    time_granularity = 6
+    freq_granularity = 25
+    collision_method = "strict"
+
+    values: list[float] = []
+    node_iter = nodes
+    if tqdm is not None:
+        node_iter = tqdm(
+            nodes,
+            desc=f"[lrfhss] {family} CR{int(coding_rate)} {int(num_decoders)}p {drop_mode}",
+            leave=False,
+            disable=not sys.stderr.isatty(),
+        )
+    for node_count in node_iter:
+        run_vals: list[float] = []
+        network = LoRaNetwork(
+            int(node_count),
+            str(family),
+            int(num_ocw),
+            int(num_obw),
+            int(num_grids),
+            int(coding_rate),
+            int(time_granularity),
+            int(freq_granularity),
+            int(sim_time),
+            int(num_decoders),
+            bool(use_earlydecode),
+            bool(use_earlydrop),
+            bool(use_headerdrop),
+            str(collision_method),
+        )
+        for run_idx in range(max(1, int(runs_per_node))):
+            random.seed(2 * run_idx)
+            # Mirror original simulation loop behavior from source repo.
+            network.get_predecoded_data()
+            network.run(False, False)
+            run_vals.append(_metric_from_network(network, metric=metric))
+            network.restart()
+        values.append(float(np.mean(np.array(run_vals, dtype=float))))
+    return values
+
+
+def generate_reference_csv_from_simulation(
+    lrfhss_root: Path,
+    output_csv: Path,
+    demods: int,
+    coding_rate: int,
+    metric: str,
+    drop_mode: str,
+    include_lifan: bool,
+    include_infp: bool,
+    node_min: float | None,
+    node_max: float | None,
+    selected_nodes: list[float] | None,
+    node_points: int = 40,
+    runs_per_node: int = 10,
+    inf_demods: int = 5000,
+) -> Path:
+    LoRaNetwork = _load_lora_network_class(lrfhss_root=lrfhss_root)
+    nodes = _resolve_sim_nodes(
+        node_min=node_min,
+        node_max=node_max,
+        selected_nodes=selected_nodes,
+        node_points=node_points,
+    )
+
+    families = ["driver"] + (["lifan"] if include_lifan else [])
+    node_values = [float(v) for v in nodes]
+    series_rows: list[tuple[str, list[float]]] = [
+        ("nodes", node_values),
+        ("x_equals_y", node_values),
+    ]
+
+    for family in families:
+        base_vals = _simulate_curve(
+            LoRaNetwork=LoRaNetwork,
+            nodes=nodes,
+            family=family,
+            coding_rate=coding_rate,
+            num_decoders=demods,
+            drop_mode="base",
+            metric=metric,
+            runs_per_node=runs_per_node,
+        )
+        dd_vals = _simulate_curve(
+            LoRaNetwork=LoRaNetwork,
+            nodes=nodes,
+            family=family,
+            coding_rate=coding_rate,
+            num_decoders=demods,
+            drop_mode=drop_mode,
+            metric=metric,
+            runs_per_node=runs_per_node,
+        )
+        series_rows.append((f"{family}-CR{int(coding_rate)}-{int(demods)}p-{metric}-base", base_vals))
+        series_rows.append((f"{family}-CR{int(coding_rate)}-{int(demods)}p-{metric}-{drop_mode}", dd_vals))
+
+        if include_infp:
+            inf_vals = _simulate_curve(
+                LoRaNetwork=LoRaNetwork,
+                nodes=nodes,
+                family=family,
+                coding_rate=coding_rate,
+                num_decoders=max(int(inf_demods), int(demods)),
+                drop_mode=drop_mode,
+                metric=metric,
+                runs_per_node=runs_per_node,
+            )
+            series_rows.append((f"{family}-CR{int(coding_rate)}-infp-{metric}", inf_vals))
+
+    output_csv.parent.mkdir(parents=True, exist_ok=True)
+    with output_csv.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        for key, values in series_rows:
+            writer.writerow([key] + [f"{float(v):.6f}" for v in values])
+
+    return output_csv
 
 
 def load_row_csv(path: Path) -> dict[str, np.ndarray]:
@@ -101,7 +296,7 @@ def build_comparison_series(
     coding_rate: int = 1,
     metric: str = "dec_payld",
     drop_mode: str = "rlydd",
-    include_lifan: bool = True,
+    include_lifan: bool = False,
     include_infp: bool = False,
     node_min: float | None = None,
     node_max: float | None = None,
@@ -188,7 +383,7 @@ def plot_comparison_curves(
     y_max: float | None = None,
     x_min: float | None = None,
     x_max: float | None = None,
-    include_lifan: bool = True,
+    include_lifan: bool = False,
     include_infp: bool = False,
     title: str | None = None,
 ) -> None:
@@ -233,8 +428,14 @@ def plot_comparison_curves(
 
 
 def run_reference_comparison(
-    reference_csv: Path,
+    reference_csv: Path | None,
     output_dir: Path,
+    lrfhss_root: Path | None = None,
+    generate_csv_from_simulation: bool = True,
+    generated_csv: Path | None = None,
+    sim_node_points: int = 40,
+    runs_per_node: int = 10,
+    inf_demods: int = 5000,
     demods: int = 100,
     coding_rate: int = 1,
     metric: str = "dec_payld",
@@ -242,13 +443,38 @@ def run_reference_comparison(
     y_max: float | None = None,
     x_min: float | None = None,
     x_max: float | None = None,
-    include_lifan: bool = True,
+    include_lifan: bool = False,
     include_infp: bool = False,
     node_min: float | None = 100.0,
     node_max: float | None = 10000.0,
     selected_nodes: list[float] | None = None,
     export_pdf: bool = False,
 ) -> tuple[Path, Path]:
+    if generate_csv_from_simulation:
+        if lrfhss_root is None:
+            raise ValueError("lrfhss_root is required when generate_csv_from_simulation=True")
+        sim_csv = generated_csv if generated_csv is not None else output_dir / f"lrfhss_sim_cr{int(coding_rate)}.csv"
+        reference_csv = generate_reference_csv_from_simulation(
+            lrfhss_root=lrfhss_root,
+            output_csv=sim_csv,
+            demods=demods,
+            coding_rate=coding_rate,
+            metric=metric,
+            drop_mode=drop_mode,
+            include_lifan=include_lifan,
+            include_infp=include_infp,
+            node_min=node_min,
+            node_max=node_max,
+            selected_nodes=selected_nodes,
+            node_points=sim_node_points,
+            runs_per_node=runs_per_node,
+            inf_demods=inf_demods,
+        )
+        print(f"[lrfhss] Generated simulation CSV: {reference_csv.resolve()}")
+
+    if reference_csv is None:
+        raise ValueError("reference_csv must be provided when generate_csv_from_simulation=False")
+
     series = build_comparison_series(
         reference_csv=reference_csv,
         demods=demods,
@@ -270,8 +496,8 @@ def run_reference_comparison(
     if drop_mode in {"hdrdd", "headerdrop"}:
         name_parts.append("headerdrop")
     tagged_stem = "_".join(name_parts)
-    out_png = output_dir / f"{base_stem}.png"
-    out_pdf = output_dir / f"{base_stem}.pdf"
+    out_png = output_dir / f"{tagged_stem}.png"
+    out_pdf = output_dir / f"{tagged_stem}.pdf"
     plot_comparison_curves(
         series=series,
         out_png=out_png,
@@ -282,12 +508,6 @@ def run_reference_comparison(
         include_lifan=include_lifan,
         include_infp=include_infp,
     )
-    if tagged_stem != base_stem:
-        tagged_png = output_dir / f"{tagged_stem}.png"
-        shutil.copyfile(out_png, tagged_png)
-        if export_pdf:
-            tagged_pdf = output_dir / f"{tagged_stem}.pdf"
-            shutil.copyfile(out_pdf, tagged_pdf)
     return out_png, out_pdf
 
 
@@ -300,9 +520,35 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--reference-csv",
         type=Path,
-        default=snt_root / "lr-fhss_seq-families" / "headerResults" / "data-25dc-cr1.csv",
+        default=None,
+        help="Existing reference CSV. Used only when --use-existing-csv is set.",
     )
+    parser.add_argument("--lrfhss-root", type=Path, default=snt_root / "lr-fhss_seq-families")
     parser.add_argument("--output-dir", type=Path, default=integration_root / "results" / "lrfhss_compare")
+    parser.add_argument(
+        "--generated-csv",
+        type=Path,
+        default=None,
+        help="Output CSV path for simulation-generated reference data (default: <output-dir>/lrfhss_sim_cr<CR>.csv).",
+    )
+    parser.add_argument(
+        "--use-existing-csv",
+        action="store_true",
+        help="Use --reference-csv directly instead of generating CSV from LR-FHSS simulation.",
+    )
+    parser.add_argument("--sim-node-points", type=int, default=40)
+    parser.add_argument("--runs-per-node", type=int, default=10)
+    parser.add_argument("--inf-demods", type=int, default=5000)
+    parser.add_argument(
+        "--paper-cr1-figure",
+        type=str,
+        choices=["8a", "9a", "both"],
+        default=None,
+        help=(
+            "Paper-style CR1 preset(s): 8a (100 demods, y<=600), "
+            "9a (1000 demods, y<=2600), or both. Runs in lrfhss_communication."
+        ),
+    )
     parser.add_argument("--demods", type=int, default=100)
     parser.add_argument("--coding-rate", type=int, default=1)
     parser.add_argument("--metric", type=str, default="dec_payld")
@@ -337,7 +583,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--list-demods",
         action="store_true",
-        help="Print available demod counts for selected coding rate and exit.",
+        help="Print available demod counts from --reference-csv and exit (requires --use-existing-csv).",
     )
     parser.add_argument(
         "--export-pdf",
@@ -351,6 +597,8 @@ def main() -> None:
     args = parse_args()
 
     if args.list_demods:
+        if not args.use_existing_csv or args.reference_csv is None:
+            raise ValueError("--list-demods requires --use-existing-csv and --reference-csv.")
         available = list_available_demod_counts(args.reference_csv, coding_rate=args.coding_rate, family="driver")
         print(f"Available driver demods for CR{int(args.coding_rate)}: {available}")
         return
@@ -358,9 +606,57 @@ def main() -> None:
     metric = "dec_pckts" if args.packet_only else args.metric
     drop_mode = "hdrdd" if args.drop_mode == "headerdrop" else args.drop_mode
 
+    if args.paper_cr1_figure is not None:
+        preset_targets: list[str]
+        if args.paper_cr1_figure == "both":
+            preset_targets = ["8a", "9a"]
+        else:
+            preset_targets = [str(args.paper_cr1_figure)]
+
+        for fig_id in preset_targets:
+            fig_demods = 100 if fig_id == "8a" else 1000
+            fig_ymax = 600.0 if fig_id == "8a" else 2600.0
+            fig_generated_csv = args.output_dir / f"lrfhss_sim_fig{fig_id}_cr1.csv"
+
+            out_png, out_pdf = run_reference_comparison(
+                reference_csv=args.reference_csv,
+                output_dir=args.output_dir,
+                lrfhss_root=args.lrfhss_root,
+                generate_csv_from_simulation=not args.use_existing_csv,
+                generated_csv=fig_generated_csv,
+                sim_node_points=40,
+                runs_per_node=max(1, int(args.runs_per_node)),
+                inf_demods=args.inf_demods,
+                demods=fig_demods,
+                coding_rate=1,
+                metric="dec_payld",
+                drop_mode="rlydd",
+                y_max=fig_ymax,
+                x_min=100.0,
+                x_max=10000.0,
+                include_lifan=True,
+                include_infp=False,
+                node_min=100.0,
+                node_max=10000.0,
+                selected_nodes=None,
+                export_pdf=args.export_pdf,
+            )
+            print(f"[paper CR1 fig{fig_id}] Saved plot: {out_png.resolve()}")
+            if not args.use_existing_csv:
+                print(f"[paper CR1 fig{fig_id}] Generated CSV: {fig_generated_csv.resolve()}")
+            if args.export_pdf:
+                print(f"[paper CR1 fig{fig_id}] Saved plot: {out_pdf.resolve()}")
+        return
+
     out_png, out_pdf = run_reference_comparison(
         reference_csv=args.reference_csv,
         output_dir=args.output_dir,
+        lrfhss_root=args.lrfhss_root,
+        generate_csv_from_simulation=not args.use_existing_csv,
+        generated_csv=args.generated_csv,
+        sim_node_points=args.sim_node_points,
+        runs_per_node=args.runs_per_node,
+        inf_demods=args.inf_demods,
         demods=args.demods,
         coding_rate=args.coding_rate,
         metric=metric,
@@ -376,6 +672,9 @@ def main() -> None:
         export_pdf=args.export_pdf,
     )
     print(f"Saved plot: {out_png.resolve()}")
+    if not args.use_existing_csv:
+        generated_csv = args.generated_csv if args.generated_csv is not None else args.output_dir / f"lrfhss_sim_cr{int(args.coding_rate)}.csv"
+        print(f"Generated CSV: {generated_csv.resolve()}")
     if args.export_pdf:
         print(f"Saved plot: {out_pdf.resolve()}")
 
