@@ -259,7 +259,7 @@ This plot supports the system-level collision discussion.
 
 ---
 
-# Study on NR to Support NTN (TR 38.811)
+# Power Model
 ### 3GPP
 
 $$
