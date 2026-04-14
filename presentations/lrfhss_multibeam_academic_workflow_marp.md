@@ -43,6 +43,29 @@ Each stage depends on the previous one.
 
 ---
 
+# Satellite Orbit Configuration
+### LEO (Low Earth Orbit) Parameters
+
+| Parameter | Value |
+|-----------|-------|
+| **Altitude** | 600 km |
+| **Eccentricity** | 0.001 (nearly circular) |
+| **Inclination** | 86.4° (near-polar) |
+| **Semi-major Axis** | 6,971 km |
+| **Orbital Period** | ~97 minutes |
+| **Velocity** | 7,560 m/s |
+
+<!--
+Our satellite operates in a Low Earth Orbit at 600 km altitude.
+The nearly circular orbit (e=0.001) with near-polar inclination (86.4°) 
+provides global coverage, which is ideal for LEO IoT networks like LoRaWAN.
+With an orbital period of ~97 minutes, the satellite completes roughly 
+15 passes per day. The velocity of 7,560 m/s is typical for LEO constellations.
+This configuration is based on Keplerian propagation with two-body dynamics.
+-->
+
+---
+
 # Fundamentals of Astrodynamics (Kepler Orbit Propagation)
 ### D. A. Vallado
 
@@ -60,6 +83,10 @@ $$
 
 <!--
 Keplerian orbit propagation defines satellite motion.
+The mean motion $n$ depends on the semi-major axis.
+We solve Kepler's equation using Newton-Raphson iteration to find 
+the eccentric anomaly, then compute satellite position in inertial coordinates.
+This propagation is deterministic and highly accurate for our 600 km LEO orbit.
 -->
 
 ---
@@ -87,22 +114,42 @@ Distance varies with geometry and affects signal strength.
 # Coverage-Weighted Population Mapping
 ### Geometry + UN World Population Prospects 2024
 
+
+1. **Satellite pass:** the beam footprint moves over different countries during each time step.
+2. **People under footprint:** I estimate how many people are inside the covered area using UN population data.
+3. **Active IoT terminals:** a portion of that covered population is mapped to active LR-FHSS nodes in the simulator.
+4. **Uplink burst generation:** those active nodes create packet bursts, which sets the offered load.
+
+---
+# Coverage-Weighted Population Mapping
+5. **Demodulator usage:** higher offered load activates more onboard demods and increases collision risk.
+
+This slide links geography to traffic behavior in our project:  
+**coverage location -> covered population -> active nodes -> burst load -> demod state**.
+
+**Data Source:** UN DESA Population Division, World Population Prospects 2024  
+https://population.un.org/wpp/downloads?folder=Documentation&group=Documentation
+
+<!-- ## Mathematical Model
+
 $$
 \xi_c(t)=\frac{A_{overlap,c}}{A_c}, \quad
 P_{eff}(t)=\sum_c P_c \, \xi_c(t)
 $$
 
-- $\xi_c(t)$: covered fraction of country $c$ at time $t$  
-- $A_{overlap,c}$: overlap area between footprint and country $c$  
+**Key Variables:**
+
+- $A_{overlap,c}$: area where satellite footprint intersects country $c$
 - $A_c$: total area of country $c$  
-- $P_c$: population assigned to country $c$  
-- $P_{eff}(t)$: effective covered population at time $t$  
-- $\sum_c$: sum over covered countries/cells  
-- Population input source: UN DESA Population Division, World Population Prospects 2024  
-- Source: https://population.un.org/wpp/downloads?folder=Documentation&group=Documentation  
+- $P_c$: population living in country $c$ (from UN data)
+- $P_{eff}(t)$: effective covered population — the number of people who *can be reached* at time $t$
+- $\xi_c(t)$: coverage factor (0 to 1) — fraction of country $c$ under the satellite at time $t$ -->
+
 
 <!--
 This slide maps geometric overlap into covered population.
+We multiply the coverage fraction by total population to get reachable users.
+The sum over all countries gives the instantaneous effective coverage.
 -->
 
 ---
