@@ -9,12 +9,16 @@ import re
 import sys
 import numpy as np
 
+
+
+
 _INTEGRATION_ROOT = Path(__file__).resolve().parents[1]
 _DEFAULT_LRFHSS_ROOT = _INTEGRATION_ROOT / "LRFHSS"
 if str(_DEFAULT_LRFHSS_ROOT.resolve()) not in sys.path:
     sys.path.insert(0, str(_DEFAULT_LRFHSS_ROOT.resolve()))
 
-from LRFHSS import LRFHSS_simulator as sim
+import LRFHSS_simulator as sim
+from base.base import CR, runs, numDecoders, use_earlydrop, use_headerdrop
 
 try:
     import matplotlib
@@ -44,6 +48,14 @@ def _ensure_lrfhss_path(lrfhss_root: Path) -> None:
         sys.path.insert(0, root)
 
 
+def _default_drop_mode_from_base() -> str:
+    if bool(use_headerdrop):
+        return "hdrdd"
+    if bool(use_earlydrop):
+        return "rlydd"
+    return "base"
+
+
 def generate_reference_csv_from_simulation(
     lrfhss_root: Path,
     output_csv: Path,
@@ -57,7 +69,7 @@ def generate_reference_csv_from_simulation(
     node_max: float | None,
     selected_nodes: list[float] | None,
     node_points: int = 40,
-    runs_per_node: int = 10,
+    runs_per_node: int = runs,
     inf_demods: int | None = None,
 ) -> Path:
     _ensure_lrfhss_path(lrfhss_root)
@@ -285,8 +297,8 @@ def run_reference_comparison(
     generate_csv_from_simulation: bool = True,
     generated_csv: Path | None = None,
     sim_node_points: int = 40,
-    runs_per_node: int = 10,
-    inf_demods: int = 5000,
+    runs_per_node: int = runs,
+    inf_demods: int | None = None,
     demods: int = 100,
     coding_rate: int = 1,
     metric: str = "dec_payld",
@@ -300,6 +312,7 @@ def run_reference_comparison(
     node_max: float | None = 10000.0,
     selected_nodes: list[float] | None = None,
     export_pdf: bool = False,
+    output_tag: str | None = None,
 ) -> tuple[Path, Path]:
     if generate_csv_from_simulation:
         if lrfhss_root is None:
@@ -321,8 +334,7 @@ def run_reference_comparison(
             runs_per_node=runs_per_node,
             inf_demods=inf_demods,
         )
-        print(f"[lrfhss] Generated simulation CSV: {reference_csv.resolve()}")
-
+    
     if reference_csv is None:
         raise ValueError("reference_csv must be provided when generate_csv_from_simulation=False")
 
@@ -338,7 +350,7 @@ def run_reference_comparison(
         node_max=node_max,
         selected_nodes=selected_nodes,
     )
-    base_stem = f"lrfhss_demod_{int(demods)}"
+    base_stem = f"lrfhss_cr{int(coding_rate)}_{int(demods)}"
     name_parts = [base_stem]
     if metric == "dec_pckts":
         name_parts.append("packet_only")
@@ -346,6 +358,8 @@ def run_reference_comparison(
         name_parts.append("infp")
     if drop_mode in {"hdrdd", "headerdrop"}:
         name_parts.append("headerdrop")
+    if output_tag:
+        name_parts.append(str(output_tag))
     tagged_stem = "_".join(name_parts)
     out_png = output_dir / f"{tagged_stem}.png"
     out_pdf = output_dir / f"{tagged_stem}.pdf"
@@ -387,8 +401,8 @@ def parse_args() -> argparse.Namespace:
         help="Use --reference-csv directly instead of generating CSV from LR-FHSS simulation.",
     )
     parser.add_argument("--sim-node-points", type=int, default=40)
-    parser.add_argument("--runs-per-node", type=int, default=10)
-    parser.add_argument("--inf-demods", type=int, default=0)
+    parser.add_argument("--runs-per-node", type=int, default=runs)
+    parser.add_argument("--inf-demods", type=int, default=None)
     parser.add_argument(
         "--paper-cr1-figure",
         type=str,
@@ -399,13 +413,13 @@ def parse_args() -> argparse.Namespace:
             "9a (1000 demods, y<=2600), or both. Runs in lrfhss_communication."
         ),
     )
-    parser.add_argument("--demods", type=int, default=100)
-    parser.add_argument("--coding-rate", type=int, default=1)
+    parser.add_argument("--demods", type=int, default=numDecoders)
+    parser.add_argument("--coding-rate", type=int, default=CR)
     parser.add_argument("--metric", type=str, default="dec_payld")
     parser.add_argument(
         "--drop-mode",
         type=str,
-        default="rlydd",
+        default=_default_drop_mode_from_base(),
         choices=["rlydd", "headerdrop", "hdrdd"],
         help="Drop-policy curve key to compare against base. headerdrop maps to hdrdd key if available.",
     )
@@ -466,7 +480,7 @@ def main() -> None:
         for fig_id in preset_targets:
             fig_demods = 100 if fig_id == "8a" else 1000
             fig_ymax = 600.0 if fig_id == "8a" else 2600.0
-            fig_generated_csv = args.output_dir / f"lrfhss_sim_fig{fig_id}_cr1.csv"
+            fig_generated_csv = args.output_dir / f"lrfhss_sim_fig{fig_id}_cr1_{fig_demods}.csv"
 
             out_png, out_pdf = run_reference_comparison(
                 reference_csv=args.reference_csv,
@@ -484,18 +498,18 @@ def main() -> None:
                 y_max=fig_ymax,
                 x_min=100.0,
                 x_max=10000.0,
-                include_lifan=True,
+                include_lifan=args.include_lifan,
                 include_infp=False,
                 node_min=100.0,
                 node_max=10000.0,
                 selected_nodes=None,
                 export_pdf=args.export_pdf,
+                output_tag=f"fig{fig_id}",
             )
             print(f"[paper CR1 fig{fig_id}] Saved plot: {out_png.resolve()}")
             if not args.use_existing_csv:
                 print(f"[paper CR1 fig{fig_id}] Generated CSV: {fig_generated_csv.resolve()}")
-            if args.export_pdf:
-                print(f"[paper CR1 fig{fig_id}] Saved plot: {out_pdf.resolve()}")
+           
         return
 
     out_png, out_pdf = run_reference_comparison(
@@ -521,12 +535,6 @@ def main() -> None:
         selected_nodes=args.nodes,
         export_pdf=args.export_pdf,
     )
-    print(f"Saved plot: {out_png.resolve()}")
-    if not args.use_existing_csv:
-        generated_csv = args.generated_csv if args.generated_csv is not None else args.output_dir / f"lrfhss_sim_cr{int(args.coding_rate)}.csv"
-        print(f"Generated CSV: {generated_csv.resolve()}")
-    if args.export_pdf:
-        print(f"Saved plot: {out_pdf.resolve()}")
 
 
 if __name__ == "__main__":

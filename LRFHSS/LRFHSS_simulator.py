@@ -100,7 +100,10 @@ def run_sim(
 
     local_runs = max(1, int(runs if runs_per_node is None else runs_per_node))
     vals: list[float] = []
-    for r in range(local_runs):
+    run_iter = range(local_runs)
+    if tqdm is not None and local_runs > 1:
+        run_iter = tqdm(run_iter, desc=f"Running simulations for {local_runs} runs", leave=False)
+    for r in run_iter:
         random.seed(2 * r)
         network.get_predecoded_data()
         network.run(power, dynamic)
@@ -108,6 +111,12 @@ def run_sim(
         network.restart()
     return float(np.mean(np.array(vals, dtype=float)))
 
+    # vals: list[float] = []
+    # network.get_predecoded_data()
+    # network.run(power, dynamic)
+    # vals.append(_metric_from_network(network, metric=metric))
+    # network.restart()
+    # return float(vals[0])
 
 def runsim2csv(
     num_decoders: int,
@@ -143,7 +152,10 @@ def runsim2csv(
     rows.append(("nodes", node_vals))
     rows.append(("x_equals_y", node_vals))
 
-    for family in families:
+    family_iter = families
+    if tqdm is not None:
+        family_iter = tqdm(families, desc=f"Processing families demods {int(num_decoders)}", leave=False)
+    for family in family_iter:
         base_vals: list[float] = []
         dd_vals: list[float] = []
         inf_vals: list[float] = []
@@ -217,7 +229,5 @@ def runsim2csv(
     with out.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         for key, vals in rows:
-            writer.writerow([key] + [f"{float(v):.6f}" for v in vals])
-    print(f"Saved: {out}")
+            writer.writerow([key] + [f"{float(v if v is not None else 0):.6f}" for v in vals])
     return out
-

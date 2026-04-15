@@ -25,10 +25,10 @@ def parse_args() -> argparse.Namespace:
         help="Replication method to run.",
     )
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--output-root", type=Path, default=integration_root / "results" / "paper_replication")
+    parser.add_argument("--output-root", type=Path, default=integration_root / "results")
 
     parser.add_argument("--multi-beam-root", type=Path, default=snt_root / "Multi-Beam-LEO-Framework")
-    parser.add_argument("--lrfhss-root", type=Path, default=snt_root / "lr-fhss_seq-families")
+    parser.add_argument("--lrfhss-root", type=Path, default=integration_root / "LRFHSS")
 
     parser.add_argument("--demods", type=int, default=100)
     parser.add_argument("--coding-rate", type=int, default=1)
