@@ -1,6 +1,0 @@
-#!/usr/bin/env python3
-from workflow_tasks.lrfhss_communication import main
-
-
-if __name__ == "__main__":
-    main()

@@ -18,7 +18,7 @@ if str(_DEFAULT_LRFHSS_ROOT.resolve()) not in sys.path:
     sys.path.insert(0, str(_DEFAULT_LRFHSS_ROOT.resolve()))
 
 import LRFHSS_simulator as sim
-from base.base import CR, runs, numDecoders, use_earlydrop, use_headerdrop
+from ProjectConfig import CR, runs, numDecoders, use_earlydrop, use_headerdrop, linkBudgetLog
 
 try:
     import matplotlib
@@ -71,6 +71,7 @@ def generate_reference_csv_from_simulation(
     node_points: int = 40,
     runs_per_node: int = runs,
     inf_demods: int | None = None,
+    link_budget_log: bool = linkBudgetLog,
 ) -> Path:
     _ensure_lrfhss_path(lrfhss_root)
 
@@ -88,6 +89,7 @@ def generate_reference_csv_from_simulation(
         selected_nodes=selected_nodes,
         node_points=node_points,
         runs_per_node=runs_per_node,
+        link_budget_log=link_budget_log,
     )
 
 
@@ -290,6 +292,174 @@ def plot_comparison_curves(
     plt.close(fig)
 
 
+def plot_link_budget_aggregate_curves(
+    agg_csv: Path,
+    out_png: Path,
+    coding_rate: int,
+    demods: int,
+    metric_prefix: str,
+    drop_mode: str,
+    family: str = "driver",
+) -> Path | None:
+    if plt is None or not agg_csv.exists():
+        return None
+
+    rows = load_row_csv(agg_csv)
+    nodes = rows.get("nodes")
+    if nodes is None or len(nodes) == 0:
+        return None
+
+    base_prefix = f"{family}-CR{int(coding_rate)}-{int(demods)}p-{metric_prefix}-base-"
+    drop_prefix = f"{family}-CR{int(coding_rate)}-{int(demods)}p-{metric_prefix}-{drop_mode}-"
+
+    metrics = [
+        "snr_db",
+        "sinr_db",
+        "rx_power_dbm",
+        "interference_mw",
+        "attenuation_db",
+        "total_power_mw",
+    ]
+    available = [m for m in metrics if (base_prefix + m) in rows and (drop_prefix + m) in rows]
+    if not available:
+        return None
+
+    fig, axes = plt.subplots(2, 3, figsize=(14, 8), sharex=True)
+    ax_list = axes.ravel()
+    for i, m in enumerate(available):
+        ax = ax_list[i]
+        ax.plot(nodes, rows[base_prefix + m], linestyle="--", linewidth=2, color="#ff7f0e", label="base")
+        ax.plot(nodes, rows[drop_prefix + m], linestyle="-", linewidth=2, color="#1f77b4", label=drop_mode)
+        ax.set_xscale("log")
+        ax.grid(True, which="both", linestyle="-", linewidth=0.5, alpha=0.35)
+        ax.set_title(m)
+        if i % 3 == 0:
+            ax.set_ylabel("Value")
+        if i >= 3:
+            ax.set_xlabel("Sent packets")
+        ax.legend(fontsize=9)
+
+    for j in range(len(available), len(ax_list)):
+        ax_list[j].axis("off")
+
+    fig.suptitle(f"LR-FHSS Link Budget (CR{int(coding_rate)}, {int(demods)} demods, {family})", fontsize=14)
+    fig.tight_layout()
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_png, dpi=220)
+    plt.close(fig)
+    return out_png
+
+
+def plot_link_budget_mode_curves(
+    agg_csv: Path,
+    out_png: Path,
+    coding_rate: int,
+    demods: int,
+    metric_prefix: str,
+    mode: str,
+    family: str = "driver",
+) -> Path | None:
+    if plt is None or not agg_csv.exists():
+        return None
+
+    rows = load_row_csv(agg_csv)
+    nodes = rows.get("nodes")
+    if nodes is None or len(nodes) == 0:
+        return None
+
+    prefix = f"{family}-CR{int(coding_rate)}-{int(demods)}p-{metric_prefix}-{mode}-"
+    metrics = [
+        "snr_db",
+        "sinr_db",
+        "rx_power_dbm",
+        "interference_mw",
+        "attenuation_db",
+        "total_power_mw",
+    ]
+    available = [m for m in metrics if (prefix + m) in rows]
+    if not available:
+        return None
+
+    fig, axes = plt.subplots(2, 3, figsize=(14, 8), sharex=True)
+    ax_list = axes.ravel()
+    for i, m in enumerate(available):
+        ax = ax_list[i]
+        ax.plot(nodes, rows[prefix + m], linestyle="-", linewidth=2, color="#1f77b4", label=mode)
+        ax.set_xscale("log")
+        ax.grid(True, which="both", linestyle="-", linewidth=0.5, alpha=0.35)
+        ax.set_title(m)
+        if i % 3 == 0:
+            ax.set_ylabel("Value")
+        if i >= 3:
+            ax.set_xlabel("Sent packets")
+        ax.legend(fontsize=9)
+
+    for j in range(len(available), len(ax_list)):
+        ax_list[j].axis("off")
+
+    fig.suptitle(f"LR-FHSS Link Budget {mode} (CR{int(coding_rate)}, {int(demods)} demods, {family})", fontsize=14)
+    fig.tight_layout()
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_png, dpi=220)
+    plt.close(fig)
+    return out_png
+
+
+def plot_link_budget_snr_sinr_compare(
+    agg_csv: Path,
+    out_png: Path,
+    coding_rate: int,
+    demods: int,
+    metric_prefix: str,
+    drop_mode: str,
+    family: str = "driver",
+) -> Path | None:
+    if plt is None or not agg_csv.exists():
+        return None
+
+    rows = load_row_csv(agg_csv)
+    nodes = rows.get("nodes")
+    if nodes is None or len(nodes) == 0:
+        return None
+
+    base_prefix = f"{family}-CR{int(coding_rate)}-{int(demods)}p-{metric_prefix}-base-"
+    drop_prefix = f"{family}-CR{int(coding_rate)}-{int(demods)}p-{metric_prefix}-{drop_mode}-"
+    required = [
+        base_prefix + "snr_db",
+        base_prefix + "sinr_db",
+        drop_prefix + "snr_db",
+        drop_prefix + "sinr_db",
+    ]
+    if any(k not in rows for k in required):
+        return None
+
+    mode_label = "earlydd" if drop_mode == "rlydd" else drop_mode
+    fig, ax = plt.subplots(figsize=(10, 7))
+    ax.plot(nodes, rows[base_prefix + "snr_db"], color="#ff7f0e", linewidth=2, linestyle="-", label="base SNR")
+    ax.plot(nodes, rows[base_prefix + "sinr_db"], color="#ff7f0e", linewidth=2, linestyle="--", label="base SINR")
+    ax.plot(nodes, rows[drop_prefix + "snr_db"], color="#1f77b4", linewidth=2, linestyle="-", label=f"{mode_label} SNR")
+    ax.plot(
+        nodes,
+        rows[drop_prefix + "sinr_db"],
+        color="#1f77b4",
+        linewidth=2,
+        linestyle="--",
+        label=f"{mode_label} SINR",
+    )
+    ax.set_xscale("log")
+    ax.set_xlabel("Sent packets")
+    ax.set_ylabel("dB")
+    ax.set_title(f"SNR/SINR comparison (CR{int(coding_rate)}, {int(demods)} demods, {family})")
+    ax.grid(True, which="both", linestyle="-", linewidth=0.5, alpha=0.35)
+    ax.legend()
+    fig.tight_layout()
+
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_png, dpi=220)
+    plt.close(fig)
+    return out_png
+
+
 def run_reference_comparison(
     reference_csv: Path | None,
     output_dir: Path,
@@ -313,6 +483,7 @@ def run_reference_comparison(
     selected_nodes: list[float] | None = None,
     export_pdf: bool = False,
     output_tag: str | None = None,
+    link_budget_log: bool = linkBudgetLog,
 ) -> tuple[Path, Path]:
     if generate_csv_from_simulation:
         if lrfhss_root is None:
@@ -333,6 +504,7 @@ def run_reference_comparison(
             node_points=sim_node_points,
             runs_per_node=runs_per_node,
             inf_demods=inf_demods,
+            link_budget_log=link_budget_log,
         )
     
     if reference_csv is None:
@@ -373,6 +545,56 @@ def run_reference_comparison(
         include_lifan=include_lifan,
         include_infp=include_infp,
     )
+    if link_budget_log:
+        agg_csv = reference_csv.with_name(f"{reference_csv.stem}_link_budget_agg.csv")
+        lb_png = output_dir / f"{tagged_stem}_link_budget.png"
+        saved = plot_link_budget_aggregate_curves(
+            agg_csv=agg_csv,
+            out_png=lb_png,
+            coding_rate=coding_rate,
+            demods=demods,
+            metric_prefix=metric,
+            drop_mode=drop_mode,
+            family="driver",
+        )
+        if saved is not None:
+            print(f"[lrfhss] Saved link-budget plot: {saved.resolve()}")
+        lb_base_png = output_dir / f"{tagged_stem}_link_budget_base.png"
+        saved_base = plot_link_budget_mode_curves(
+            agg_csv=agg_csv,
+            out_png=lb_base_png,
+            coding_rate=coding_rate,
+            demods=demods,
+            metric_prefix=metric,
+            mode="base",
+            family="driver",
+        )
+        if saved_base is not None:
+            print(f"[lrfhss] Saved link-budget plot: {saved_base.resolve()}")
+        lb_mode_png = output_dir / f"{tagged_stem}_link_budget_{drop_mode}.png"
+        saved_mode = plot_link_budget_mode_curves(
+            agg_csv=agg_csv,
+            out_png=lb_mode_png,
+            coding_rate=coding_rate,
+            demods=demods,
+            metric_prefix=metric,
+            mode=drop_mode,
+            family="driver",
+        )
+        if saved_mode is not None:
+            print(f"[lrfhss] Saved link-budget plot: {saved_mode.resolve()}")
+        lb_snr_sinr_png = output_dir / f"{tagged_stem}_snr_sinr.png"
+        saved_snr_sinr = plot_link_budget_snr_sinr_compare(
+            agg_csv=agg_csv,
+            out_png=lb_snr_sinr_png,
+            coding_rate=coding_rate,
+            demods=demods,
+            metric_prefix=metric,
+            drop_mode=drop_mode,
+            family="driver",
+        )
+        if saved_snr_sinr is not None:
+            print(f"[lrfhss] Saved link-budget plot: {saved_snr_sinr.resolve()}")
     return out_png, out_pdf
 
 
@@ -454,6 +676,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Also export PDF (default is PNG only).",
     )
+    parser.add_argument(
+        "--link-budget-log",
+        action=argparse.BooleanOptionalAction,
+        default=bool(linkBudgetLog),
+        help="Enable/disable link-budget log CSV (default from base.py: linkBudgetLog).",
+    )
     return parser.parse_args()
 
 
@@ -505,6 +733,7 @@ def main() -> None:
                 selected_nodes=None,
                 export_pdf=args.export_pdf,
                 output_tag=f"fig{fig_id}",
+                link_budget_log=args.link_budget_log,
             )
             print(f"[paper CR1 fig{fig_id}] Saved plot: {out_png.resolve()}")
             if not args.use_existing_csv:
@@ -534,6 +763,7 @@ def main() -> None:
         node_max=args.node_max,
         selected_nodes=args.nodes,
         export_pdf=args.export_pdf,
+        link_budget_log=args.link_budget_log,
     )
 
 

@@ -5,9 +5,14 @@ from pathlib import Path
 import numpy as np
 
 from LoRaNetwork import LoRaNetwork
+from base.RadioLinkBudget import RadioLinkBudget
+from base.RadioSignalQuality import RadioSignalQuality
 from base.base import (
     CR,
+    OBW_BW,
+    OCW_FC,
     freqGranularity,
+    linkBudgetLog,
     numGrids,
     numOBW,
     numOCW,
@@ -20,6 +25,16 @@ try:
     from tqdm import tqdm
 except ModuleNotFoundError:  # pragma: no cover
     tqdm = None
+
+
+def _format_link_budget_value(value: float) -> str:
+    x = float(value)
+    if np.isnan(x) or np.isinf(x):
+        return str(x)
+    ax = abs(x)
+    if ax != 0.0 and ax < 1e-3:
+        return f"{x:.6e}"
+    return f"{x:.6f}"
 
 
 def _drop_mode_flags(drop_mode: str) -> tuple[bool, bool, bool]:
@@ -61,6 +76,159 @@ def _metric_from_network(network, metric: str) -> float:
     raise ValueError(f"Unsupported metric: {metric}")
 
 
+def _write_link_budget_rows(
+    network: LoRaNetwork,
+    run_index: int,
+    nodes: int,
+    familyname: str,
+    drop_mode: str,
+    out_csv: Path,
+) -> None:
+    out_csv.parent.mkdir(parents=True, exist_ok=True)
+    power_matrix = network.get_rcvM(network.TXset, power=True, dynamic=False)
+    noise_mw = RadioSignalQuality.noise_power_mw()
+
+    file_exists = out_csv.exists() and out_csv.stat().st_size > 0
+    with out_csv.open("a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        if not file_exists:
+            writer.writerow(
+                [
+                    "run",
+                    "nodes",
+                    "family",
+                    "drop_mode",
+                    "tx_id",
+                    "node_id",
+                    "ocw",
+                    "start_slot",
+                    "distance_m",
+                    "tx_power_dbm",
+                    "tx_power_mw",
+                    "carrier_hz",
+                    "attenuation_linear",
+                    "attenuation_db",
+                    "rx_power_mw",
+                    "rx_power_dbm",
+                    "noise_power_mw",
+                    "total_power_mw",
+                    "interference_mw",
+                    "snr_db",
+                    "sinr_db",
+                ]
+            )
+
+        for tx in network.TXset:
+            doppler_shift = round(tx.dopplerShift[0] / network.freqPerSlot)
+            start_freq = network.baseFreq + tx.sequence[0] * network.freqGranularity + doppler_shift
+            end_freq = start_freq + network.freqGranularity
+            end_time = tx.startSlot + network.headerSlots
+            carrier_hz = OCW_FC + start_freq * (OBW_BW / network.freqGranularity)
+
+            tx_power_mw = RadioLinkBudget.transmitted_power_mw(tx.power)
+            attenuation_linear = RadioLinkBudget.attenuation_linear(tx.distance, carrier_hz)
+            attenuation_db = RadioLinkBudget.attenuation_db(tx.distance, carrier_hz)
+            rx_power_mw = RadioLinkBudget.received_power_mw(tx.power, tx.distance, carrier_hz)
+            rx_power_dbm = RadioLinkBudget.received_power_dbm(tx.power, tx.distance, carrier_hz)
+
+            block = power_matrix[tx.ocw, start_freq:end_freq, tx.startSlot:end_time]
+            total_power_mw = float(np.mean(block)) if block.size > 0 else rx_power_mw
+            interference_mw = RadioSignalQuality.interference_power_mw(total_power_mw, rx_power_mw)
+            snr_db = RadioSignalQuality.snr_db(rx_power_mw, noise_mw)
+            sinr_db = RadioSignalQuality.sinr_db(rx_power_mw, interference_mw, noise_mw)
+
+            writer.writerow(
+                [
+                    int(run_index),
+                    int(nodes),
+                    str(familyname),
+                    str(drop_mode),
+                    int(tx.id),
+                    int(tx.node_id),
+                    int(tx.ocw),
+                    int(tx.startSlot),
+                    float(tx.distance),
+                    float(tx.power),
+                    float(tx_power_mw),
+                    float(carrier_hz),
+                    float(attenuation_linear),
+                    float(attenuation_db),
+                    float(rx_power_mw),
+                    float(rx_power_dbm),
+                    float(noise_mw),
+                    float(total_power_mw),
+                    float(interference_mw),
+                    float(snr_db),
+                    float(sinr_db),
+                ]
+            )
+
+def _aggregate_link_budget_for_network(network: LoRaNetwork) -> dict[str, float]:
+    power_matrix = network.get_rcvM(network.TXset, power=True, dynamic=False)
+    count_matrix = network.get_rcvM(network.TXset, power=False, dynamic=False)
+    noise_samples = power_matrix[count_matrix == 0]
+    if noise_samples.size > 0:
+        noise_mw = float(np.mean(noise_samples))
+    else:
+        noise_mw = RadioSignalQuality.noise_power_mw()
+
+    tx_power_mw_vals: list[float] = []
+    attenuation_linear_vals: list[float] = []
+    attenuation_db_vals: list[float] = []
+    rx_power_mw_vals: list[float] = []
+    rx_power_dbm_vals: list[float] = []
+    total_power_mw_vals: list[float] = []
+    interference_mw_vals: list[float] = []
+    snr_db_vals: list[float] = []
+    sinr_db_vals: list[float] = []
+
+    for tx in network.TXset:
+        doppler_shift = round(tx.dopplerShift[0] / network.freqPerSlot)
+        start_freq = network.baseFreq + tx.sequence[0] * network.freqGranularity + doppler_shift
+        end_freq = start_freq + network.freqGranularity
+        end_time = tx.startSlot + network.headerSlots
+        carrier_hz = OCW_FC + start_freq * (OBW_BW / network.freqGranularity)
+
+        tx_power_mw = RadioLinkBudget.transmitted_power_mw(tx.power)
+        attenuation_linear = RadioLinkBudget.attenuation_linear(tx.distance, carrier_hz)
+        attenuation_db = RadioLinkBudget.attenuation_db(tx.distance, carrier_hz)
+        rx_power_mw = RadioLinkBudget.received_power_mw(tx.power, tx.distance, carrier_hz)
+        rx_power_dbm = RadioLinkBudget.received_power_dbm(tx.power, tx.distance, carrier_hz)
+
+        block = power_matrix[tx.ocw, start_freq:end_freq, tx.startSlot:end_time]
+        total_power_mw = float(np.mean(block)) if block.size > 0 else rx_power_mw
+        # Interference from co-channel users only (exclude desired signal and noise).
+        interference_mw = float(max(total_power_mw - rx_power_mw - noise_mw, 0.0))
+        snr_db = RadioSignalQuality.snr_db(rx_power_mw, noise_mw)
+        sinr_db = RadioSignalQuality.sinr_db(rx_power_mw, interference_mw, noise_mw)
+
+        tx_power_mw_vals.append(float(tx_power_mw))
+        attenuation_linear_vals.append(float(attenuation_linear))
+        attenuation_db_vals.append(float(attenuation_db))
+        rx_power_mw_vals.append(float(rx_power_mw))
+        rx_power_dbm_vals.append(float(rx_power_dbm))
+        total_power_mw_vals.append(float(total_power_mw))
+        interference_mw_vals.append(float(interference_mw))
+        snr_db_vals.append(float(snr_db))
+        sinr_db_vals.append(float(sinr_db))
+
+    def _mean(vals: list[float]) -> float:
+        return float(np.mean(np.array(vals, dtype=float))) if vals else float("nan")
+
+    return {
+        "tx_power_mw": _mean(tx_power_mw_vals),
+        "attenuation_linear": _mean(attenuation_linear_vals),
+        "attenuation_db": _mean(attenuation_db_vals),
+        "rx_power_mw": _mean(rx_power_mw_vals),
+        "rx_power_dbm": _mean(rx_power_dbm_vals),
+        "noise_power_mw": float(noise_mw),
+        "total_power_mw": _mean(total_power_mw_vals),
+        "interference_mw": _mean(interference_mw_vals),
+        "snr_db": _mean(snr_db_vals),
+        "sinr_db": _mean(sinr_db_vals),
+    }
+
+
 def run_sim(
     nodes: int,
     num_decoders: int,
@@ -75,7 +243,10 @@ def run_sim(
     num_grids: int = numGrids,
     time_granularity: int = timeGranularity,
     freq_granularity: int = freqGranularity,
-) -> float:
+    link_budget_log: bool = linkBudgetLog,
+    return_link_budget_summary: bool = False,
+    control: bool | None = None,
+) -> float | tuple[float, dict[str, float]]:
     use_earlydecode, use_earlydrop, use_headerdrop = _drop_mode_flags(drop_mode)
     power = False
     dynamic = False
@@ -98,18 +269,47 @@ def run_sim(
         collision_method,
     )
 
+    if control is not None:
+        link_budget_log = bool(control)
+
     local_runs = max(1, int(runs if runs_per_node is None else runs_per_node))
     vals: list[float] = []
+    run_link_summaries: list[dict[str, float]] = []
     run_iter = range(local_runs)
     if tqdm is not None and local_runs > 1:
         run_iter = tqdm(run_iter, desc=f"Running simulations for {local_runs} runs", leave=False)
     for r in run_iter:
         random.seed(2 * r)
+        if bool(link_budget_log) or bool(return_link_budget_summary):
+            current_summary = _aggregate_link_budget_for_network(network)
+            if bool(return_link_budget_summary):
+                run_link_summaries.append(current_summary)
         network.get_predecoded_data()
         network.run(power, dynamic)
         vals.append(_metric_from_network(network, metric=metric))
         network.restart()
-    return float(np.mean(np.array(vals, dtype=float)))
+    metric_value = float(np.mean(np.array(vals, dtype=float)))
+    if not bool(return_link_budget_summary):
+        return metric_value
+
+    keys = [
+        "tx_power_mw",
+        "attenuation_linear",
+        "attenuation_db",
+        "rx_power_mw",
+        "rx_power_dbm",
+        "noise_power_mw",
+        "total_power_mw",
+        "interference_mw",
+        "snr_db",
+        "sinr_db",
+    ]
+    final_summary: dict[str, float] = {}
+    for k in keys:
+        final_summary[k] = float(
+            np.mean(np.array([float(d.get(k, float("nan"))) for d in run_link_summaries], dtype=float))
+        )
+    return metric_value, final_summary
 
     # vals: list[float] = []
     # network.get_predecoded_data()
@@ -138,7 +338,12 @@ def runsim2csv(
     num_grids: int = numGrids,
     time_granularity: int = timeGranularity,
     freq_granularity: int = freqGranularity,
+    link_budget_log: bool = linkBudgetLog,
+    
 ) -> Path:
+    if link_budget_log is not None:
+        link_budget_log = bool(link_budget_log)
+
     nodes = _resolve_nodes(
         node_min=node_min,
         node_max=node_max,
@@ -146,11 +351,16 @@ def runsim2csv(
         node_points=node_points,
     )
     families = ["driver"] + (["lifan"] if include_lifan else [])
+    link_budget_agg_csv = Path(filename).with_name(f"{Path(filename).stem}_link_budget_agg.csv")
+    if bool(link_budget_log):
+        link_budget_agg_csv.parent.mkdir(parents=True, exist_ok=True)
+        link_budget_agg_csv.write_text("", encoding="utf-8")
 
     rows: list[tuple[str, list[float]]] = []
     node_vals = [float(v) for v in nodes]
     rows.append(("nodes", node_vals))
     rows.append(("x_equals_y", node_vals))
+    agg_rows: dict[str, list[float]] = {}
 
     family_iter = families
     if tqdm is not None:
@@ -165,8 +375,7 @@ def runsim2csv(
             iterator = tqdm(nodes, desc=f"{family} CR{int(coding_rate)} {drop_mode}", leave=False)
 
         for n in iterator:
-            base_vals.append(
-                run_sim(
+            base_result = run_sim(
                     nodes=n,
                     num_decoders=num_decoders,
                     drop_mode="base",
@@ -180,10 +389,18 @@ def runsim2csv(
                     num_grids=num_grids,
                     time_granularity=time_granularity,
                     freq_granularity=freq_granularity,
+                    link_budget_log=link_budget_log,
+                    return_link_budget_summary=link_budget_log,
                 )
-            )
-            dd_vals.append(
-                run_sim(
+            base_summary: dict[str, float] | None = None
+            base_metric_val: float
+            if bool(link_budget_log):
+                base_metric_val, base_summary = base_result  # type: ignore[misc]
+            else:
+                base_metric_val = float(base_result)  # type: ignore[arg-type]
+            base_vals.append(base_metric_val)
+
+            dd_result = run_sim(
                     nodes=n,
                     num_decoders=num_decoders,
                     drop_mode=drop_mode,
@@ -197,8 +414,25 @@ def runsim2csv(
                     num_grids=num_grids,
                     time_granularity=time_granularity,
                     freq_granularity=freq_granularity,
+                    link_budget_log=link_budget_log,
+                    return_link_budget_summary=link_budget_log,
                 )
-            )
+            dd_summary: dict[str, float] | None = None
+            dd_metric_val: float
+            if bool(link_budget_log):
+                dd_metric_val, dd_summary = dd_result  # type: ignore[misc]
+            else:
+                dd_metric_val = float(dd_result)  # type: ignore[arg-type]
+            dd_vals.append(dd_metric_val)
+
+            if bool(link_budget_log) and base_summary is not None and dd_summary is not None:
+                base_key = f"{family}-CR{int(coding_rate)}-{int(num_decoders)}p-{metric}-base"
+                dd_key = f"{family}-CR{int(coding_rate)}-{int(num_decoders)}p-{metric}-{drop_mode}"
+                for mkey, mval in base_summary.items():
+                    agg_rows.setdefault(f"{base_key}-{mkey}", []).append(float(mval))
+                for mkey, mval in dd_summary.items():
+                    agg_rows.setdefault(f"{dd_key}-{mkey}", []).append(float(mval))
+
             if include_infp:
                 inf_count = int(num_decoders) if inf_demods is None else max(int(num_decoders), int(inf_demods))
                 inf_vals.append(
@@ -216,6 +450,7 @@ def runsim2csv(
                         num_grids=num_grids,
                         time_granularity=time_granularity,
                         freq_granularity=freq_granularity,
+                        link_budget_log=link_budget_log,
                     )
                 )
 
@@ -230,4 +465,11 @@ def runsim2csv(
         writer = csv.writer(f)
         for key, vals in rows:
             writer.writerow([key] + [f"{float(v if v is not None else 0):.6f}" for v in vals])
+    if bool(link_budget_log):
+        with link_budget_agg_csv.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["nodes"] + [f"{float(v):.6f}" for v in node_vals])
+            for key, vals in agg_rows.items():
+                writer.writerow([key] + [_format_link_budget_value(float(v)) for v in vals])
+        print(f"[lrfhss] Link-budget aggregate CSV: {link_budget_agg_csv.resolve()}")
     return out

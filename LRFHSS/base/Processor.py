@@ -1,6 +1,7 @@
 import numpy as np
 from base.base import *
 from base.LRFHSSTransmission import LRFHSSTransmission
+from base.RadioSignalQuality import RadioSignalQuality
 
 class Processor():
     """
@@ -110,14 +111,19 @@ class Processor():
         estSignalPower = args[0]
         interferenceBlock = args[1]
         isHdr = args[2]
+        noise_power = RadioSignalQuality.noise_power_mw()
 
         collidedslots = 0
         timeslots = self.headerSlots if isHdr else self.timeGranularity
 
         for t in range(timeslots):
-            SNIRt_dB = mW2dBm(estSignalPower / max(dBm2mW(AWGN_VAR_DB), interferenceBlock[t]))
+            SINRt_dB = RadioSignalQuality.sinr_db(
+                signal_power_mw=estSignalPower,
+                interference_power_mw=interferenceBlock[t],
+                noise_power_mw=noise_power,
+            )
             
-            if SNIRt_dB < self.th2:
+            if SINRt_dB < self.th2:
                 if t==0: return True
                 collidedslots += 1
 
@@ -287,22 +293,5 @@ class Processor():
             
             time = endTime
 
-        # mean over frequency dimension
-        avgHeaders = np.mean(headers, axis=1)     # (numHeaders, 1, headerSlots)
-        avgFragments = np.mean(fragments, axis=1) # (numFragments, 1, timeGranularity)
-
-        # filter out interferred symbols, threshold 1 is mean over all frame
-        th1 = np.median(np.concatenate((np.ravel(avgHeaders), np.ravel(avgFragments))))
-        
-        filteredHdr = avgHeaders[avgHeaders < th1]
-        filteredFrg = avgFragments[avgFragments < th1]
-
-        # estimate power over un-interferred symbols based on threshold 1
-        estSignalPower = np.mean(np.concatenate((np.ravel(filteredHdr), np.ravel(filteredFrg))))
-
-        # estimate interference power
-        headersPi = avgHeaders - estSignalPower
-        fragmentsPi = avgFragments - estSignalPower
-
-        return estSignalPower, headersPi, fragmentsPi
+        return RadioSignalQuality.estimate_signal_and_interference(headers, fragments)
     

@@ -1,42 +1,81 @@
 import random
 import numpy as np
+from pathlib import Path
+import sys
 
-EARTRH_G    = 9.80665      # earth gravitational constant in m/s2
-EARTRH_R    = 6371000      # earth radius in meters
-SAT_H       = 600000       # satellite altitude in meters
-SAT_RANGE   = 1500000      # satellite comm max range in meters
-HDR_TIME    = 0.233472     # header time in seconds
-FRG_TIME    = 0.1024       # fragment time in seconds
-OBW_BW      = 488.28125    # OBW bandwidth in Hz
-OCW_RX_BW   = 200000       # OCW receiver bandwidth in Hz
-OCW_FC      = 868100000    # OCW channel carrier freq
-GAIN_TX     = 2.5          # transmitter antenna gain in db
-GAIN_RX     = 22.6         # receiver antenna gain in db
-TX_PWR_DB   = 30           # transmission power in dbm
-
-TH2         = 0            # SINR collision determination threshold in dB
-SYM_THRESH  = 0.2          # symbol collision threshold per hdr/frg in %
-
-MIN_FRGS    = 8            # minimum number of payload fragments
-MAX_FRGS    = 31           # maximum number of payload fragments
-MAX_HDRS    = 3            # maximum number of headers
-
-AWGN_VAR_DB = -174 + 6 + 10*np.log10(OBW_BW)          # AWGN variance in db
-MAX_FRM_TM  =  MAX_HDRS*HDR_TIME + MAX_FRGS*FRG_TIME  # maximum lr-fhss frame time in sec
-
-# Simulation Parameters
-runs                = 10                   # number of repetitions
-simTime             = 912                  # simulation time in timeslots
-numOCW              = 7                    # number of OCW channels
-numOBW              = 280                  # number of OBW channels
-numGrids            = 8                    # number of grids
-timeGranularity     = 6                    # number of timeslots per LRFHSS fragment 
-freqGranularity     = 25                   # number of frequency slots per OBW channel
-numDecoders         = 100                  # number of decoders available at gateway
-CR                  = 1                    # coding rate, CR=1 for 1/3 and CR=2 for 2/3
-use_earlydecode     = True                 # early decode mechanisms flag
-use_earlydrop       = True                 # early drop mechanisms flag
-use_headerdrop      = False                # drop frame after unsucceful header reception flag
+try:
+    from ProjectConfig import (
+        AWGN_VAR_DB,
+        CR,
+        EARTRH_G,
+        EARTRH_R,
+        FRG_TIME,
+        GAIN_RX,
+        GAIN_TX,
+        HDR_TIME,
+        MAX_FRGS,
+        MAX_FRM_TM,
+        MAX_HDRS,
+        MIN_FRGS,
+        OBW_BW,
+        OCW_FC,
+        OCW_RX_BW,
+        SAT_H,
+        SAT_RANGE,
+        SYM_THRESH,
+        TH2,
+        TX_PWR_DB,
+        freqGranularity,
+        linkBudgetLog,
+        numDecoders,
+        numGrids,
+        numOBW,
+        numOCW,
+        runs,
+        simTime,
+        timeGranularity,
+        use_earlydecode,
+        use_earlydrop,
+        use_headerdrop,
+    )
+except ModuleNotFoundError:
+    repo_root = Path(__file__).resolve().parents[2]
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+    from ProjectConfig import (
+        AWGN_VAR_DB,
+        CR,
+        EARTRH_G,
+        EARTRH_R,
+        FRG_TIME,
+        GAIN_RX,
+        GAIN_TX,
+        HDR_TIME,
+        MAX_FRGS,
+        MAX_FRM_TM,
+        MAX_HDRS,
+        MIN_FRGS,
+        OBW_BW,
+        OCW_FC,
+        OCW_RX_BW,
+        SAT_H,
+        SAT_RANGE,
+        SYM_THRESH,
+        TH2,
+        TX_PWR_DB,
+        freqGranularity,
+        linkBudgetLog,
+        numDecoders,
+        numGrids,
+        numOBW,
+        numOCW,
+        runs,
+        simTime,
+        timeGranularity,
+        use_earlydecode,
+        use_earlydrop,
+        use_headerdrop,
+    )
 
 
 # Obtain minimal gap between adyacent values for sequence X

@@ -10,6 +10,7 @@ from families.LiFanMethod import LiFanFamily
 from families.LR_FHSS_DriverMethod import LR_FHSS_DriverFamily
 from families.LempelGreenbergMethod import LempelGreenbergFamily
 from base.FHSLocator import FHSLocator
+from base.RadioLinkBudget import RadioLinkBudget
 
 try:
     import galois
@@ -162,8 +163,13 @@ class LoRaNetwork():
                 # power based received matrix
                 if power:
                     carrier = OCW_FC + startFreq * self.freqPerSlot
-                    RXpower = dBm2mW(GAIN_TX) * dBm2mW(GAIN_RX) * dBm2mW(tx.power) \
-                            * get_FS_pathloss(tx.distance, carrier)
+                    RXpower = RadioLinkBudget.received_power_mw(
+                        tx_power_dbm=tx.power,
+                        distance_m=tx.distance,
+                        carrier_hz=carrier,
+                        tx_gain_db=GAIN_TX,
+                        rx_gain_db=GAIN_RX,
+                    )
 
                 # write header
                 if fh < tx.numHeaders:

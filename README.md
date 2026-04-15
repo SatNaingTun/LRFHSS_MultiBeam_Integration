@@ -84,7 +84,7 @@ python workflow_tasks/lrfhss_communication.py --paper-cr1-figure both
 
 Notes:
 - Simulation CSV generation now uses local `LRFHSS/LRFHSS_simulator.py` (no external repo copy needed).
-- Default simulator values are read from `LRFHSS/base/base.py`.
+- Default simulator values are read from `ProjectConfig.py`.
 
 ## Paper Replication (Two Methods)
 Use `replicate_paper.py` to run either or both replication methods:

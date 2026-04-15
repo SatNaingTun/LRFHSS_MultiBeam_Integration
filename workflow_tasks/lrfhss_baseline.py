@@ -1,6 +1,15 @@
 import math
 
 import numpy as np
+from pathlib import Path
+import sys
+
+_INTEGRATION_ROOT = Path(__file__).resolve().parents[1]
+_DEFAULT_LRFHSS_ROOT = _INTEGRATION_ROOT / "LRFHSS"
+if str(_DEFAULT_LRFHSS_ROOT.resolve()) not in sys.path:
+    sys.path.insert(0, str(_DEFAULT_LRFHSS_ROOT.resolve()))
+
+from base.base import CR, freqGranularity, numGrids, numOBW, numOCW, simTime, timeGranularity, use_headerdrop
 
 
 def generate_iot_nodes(node_count: int):
@@ -32,17 +41,17 @@ def baseline_packet_decoding(LoRaNetwork, node_count: int, demods: int, use_earl
     network = LoRaNetwork(
         numNodes=node_count,
         familyname="driver",
-        numOCW=7,
-        numOBW=280,
-        numGrids=8,
-        CR=1,
-        timeGranularity=6,
-        freqGranularity=25,
-        simTime=228,
+        numOCW=int(numOCW),
+        numOBW=int(numOBW),
+        numGrids=int(numGrids),
+        CR=int(CR),
+        timeGranularity=int(timeGranularity),
+        freqGranularity=int(freqGranularity),
+        simTime=int(simTime),
         numDecoders=demods,
         use_earlydecode=use_earlydecode,
         use_earlydrop=use_earlydrop,
-        use_headerdrop=False,
+        use_headerdrop=bool(use_headerdrop),
         collision_method="strict",
     )
     network.run(False, False)
