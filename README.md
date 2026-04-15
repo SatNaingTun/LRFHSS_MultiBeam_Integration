@@ -27,24 +27,24 @@ Power model notes:
 
 ## Run
 ```powershell
-python run_integration.py
+python main.py
 ```
 
-If `Multi-Beam-LEO-Framework` or `lr-fhss_seq-families` does not exist in the SNT parent folder, `run_integration.py`
+If `Multi-Beam-LEO-Framework` or `lr-fhss_seq-families` does not exist in the SNT parent folder, `main.py`
 automatically runs `ensure_reference_paths.py` to download/extract or clone them.
 
 ## Sample Commands
 ```powershell
-python run_integration.py --nodes 0 2 7 15 40 90 180 260 400 700 1000 1500 --demods 10 30 50 70 100 300 500 700 1000
-python run_integration.py --onboard-demods 512 --demods 10 30 50 70 100 300 500
+python main.py --nodes 0 2 7 15 40 90 180 260 400 700 1000 1500 --demods 10 30 50 70 100 300 500 700 1000
+python main.py --onboard-demods 512 --demods 10 30 50 70 100 300 500
 ```
 
 ```powershell
-python run_integration.py --runs-per-point 50 --scenario-steps 120
+python main.py --runs-per-point 50 --scenario-steps 120
 ```
 
 ```powershell
-python run_integration.py --help
+python main.py --help
 ```
 
 ## Outputs
@@ -77,7 +77,14 @@ python workflow_tasks/lrfhss_communication.py --demods 100 --x-min 100 --x-max 1
 python workflow_tasks/lrfhss_communication.py --demods 1000 --include-infp
 python workflow_tasks/lrfhss_communication.py --demods 100 --packet-only
 python workflow_tasks/lrfhss_communication.py --demods 100 --drop-mode headerdrop
+python workflow_tasks/lrfhss_communication.py --paper-cr1-figure 8a
+python workflow_tasks/lrfhss_communication.py --paper-cr1-figure 9a
+python workflow_tasks/lrfhss_communication.py --paper-cr1-figure both
 ```
+
+Notes:
+- Simulation CSV generation now uses local `LRFHSS/LRFHSS_simulator.py` (no external repo copy needed).
+- Default simulator values are read from `LRFHSS/base/base.py`.
 
 ## Paper Replication (Two Methods)
 Use `replicate_paper.py` to run either or both replication methods:

@@ -4,13 +4,17 @@ from __future__ import annotations
 import argparse
 import csv
 from dataclasses import dataclass
-import importlib
 from pathlib import Path
-import random
 import re
 import sys
-
 import numpy as np
+
+_INTEGRATION_ROOT = Path(__file__).resolve().parents[1]
+_DEFAULT_LRFHSS_ROOT = _INTEGRATION_ROOT / "LRFHSS"
+if str(_DEFAULT_LRFHSS_ROOT.resolve()) not in sys.path:
+    sys.path.insert(0, str(_DEFAULT_LRFHSS_ROOT.resolve()))
+
+from LRFHSS import LRFHSS_simulator as sim
 
 try:
     import matplotlib
@@ -19,12 +23,6 @@ try:
     import matplotlib.pyplot as plt
 except ModuleNotFoundError:  # pragma: no cover - optional dependency
     plt = None
-
-try:
-    from tqdm import tqdm
-except ModuleNotFoundError:  # pragma: no cover - optional dependency
-    tqdm = None
-
 
 @dataclass
 class ComparisonSeries:
@@ -40,115 +38,10 @@ class ComparisonSeries:
     metric: str = "dec_payld"
 
 
-def _load_lora_network_class(lrfhss_root: Path):
+def _ensure_lrfhss_path(lrfhss_root: Path) -> None:
     root = str(lrfhss_root.resolve())
     if root not in sys.path:
         sys.path.insert(0, root)
-    module = importlib.import_module("src.models.LoRaNetwork")
-    return getattr(module, "LoRaNetwork")
-
-
-def _resolve_sim_nodes(
-    node_min: float | None,
-    node_max: float | None,
-    selected_nodes: list[float] | None,
-    node_points: int,
-) -> list[int]:
-    if selected_nodes:
-        nodes = sorted(set(int(round(float(v))) for v in selected_nodes if float(v) > 0))
-    else:
-        n_min = float(100.0 if node_min is None else node_min)
-        n_max = float(10000.0 if node_max is None else node_max)
-        if n_min <= 0 or n_max <= 0 or n_max < n_min:
-            raise ValueError("Invalid node range for simulation CSV generation.")
-        nodes = [int(round(v)) for v in np.logspace(np.log10(n_min), np.log10(n_max), num=max(2, int(node_points)))]
-        nodes = sorted(set(v for v in nodes if v > 0))
-    if not nodes:
-        raise ValueError("No positive node values available for simulation CSV generation.")
-    return nodes
-
-
-def _metric_from_network(network, metric: str) -> float:
-    if metric == "dec_payld":
-        return float(network.get_decoded_hrd_pld())
-    if metric == "dec_pckts":
-        return float(network.get_decoded_hdr())
-    raise ValueError(f"Unsupported metric: {metric}")
-
-
-def _simulate_curve(
-    LoRaNetwork,
-    nodes: list[int],
-    family: str,
-    coding_rate: int,
-    num_decoders: int,
-    drop_mode: str,
-    metric: str,
-    runs_per_node: int,
-) -> list[float]:
-    # Match paper-style settings:
-    # base   -> early decode ON, early drop OFF, header drop OFF
-    # rlydd  -> early decode ON, early drop ON,  header drop OFF
-    # hdrdd  -> early decode ON, early drop ON,  header drop ON
-    if drop_mode == "base":
-        use_earlydecode = True
-        use_earlydrop = False
-        use_headerdrop = False
-    elif drop_mode == "rlydd":
-        use_earlydecode = True
-        use_earlydrop = True
-        use_headerdrop = False
-    elif drop_mode == "hdrdd":
-        use_earlydecode = True
-        use_earlydrop = True
-        use_headerdrop = True
-    else:
-        raise ValueError(f"Unsupported drop_mode for simulation: {drop_mode}")
-
-    sim_time = 500
-    num_ocw = 1
-    num_obw = 280
-    num_grids = 8
-    time_granularity = 6
-    freq_granularity = 25
-    collision_method = "strict"
-
-    values: list[float] = []
-    node_iter = nodes
-    if tqdm is not None:
-        node_iter = tqdm(
-            nodes,
-            desc=f"[lrfhss] {family} CR{int(coding_rate)} {int(num_decoders)}p {drop_mode}",
-            leave=False,
-            disable=not sys.stderr.isatty(),
-        )
-    for node_count in node_iter:
-        run_vals: list[float] = []
-        network = LoRaNetwork(
-            int(node_count),
-            str(family),
-            int(num_ocw),
-            int(num_obw),
-            int(num_grids),
-            int(coding_rate),
-            int(time_granularity),
-            int(freq_granularity),
-            int(sim_time),
-            int(num_decoders),
-            bool(use_earlydecode),
-            bool(use_earlydrop),
-            bool(use_headerdrop),
-            str(collision_method),
-        )
-        for run_idx in range(max(1, int(runs_per_node))):
-            random.seed(2 * run_idx)
-            # Mirror original simulation loop behavior from source repo.
-            network.get_predecoded_data()
-            network.run(False, False)
-            run_vals.append(_metric_from_network(network, metric=metric))
-            network.restart()
-        values.append(float(np.mean(np.array(run_vals, dtype=float))))
-    return values
 
 
 def generate_reference_csv_from_simulation(
@@ -165,67 +58,25 @@ def generate_reference_csv_from_simulation(
     selected_nodes: list[float] | None,
     node_points: int = 40,
     runs_per_node: int = 10,
-    inf_demods: int = 5000,
+    inf_demods: int | None = None,
 ) -> Path:
-    LoRaNetwork = _load_lora_network_class(lrfhss_root=lrfhss_root)
-    nodes = _resolve_sim_nodes(
+    _ensure_lrfhss_path(lrfhss_root)
+
+    return sim.runsim2csv(
+        num_decoders=demods,
+        drop_mode=drop_mode,
+        filename=output_csv,
+        coding_rate=coding_rate,
+        metric=metric,
+        include_lifan=include_lifan,
+        include_infp=include_infp,
+        inf_demods=inf_demods,
         node_min=node_min,
         node_max=node_max,
         selected_nodes=selected_nodes,
         node_points=node_points,
+        runs_per_node=runs_per_node,
     )
-
-    families = ["driver"] + (["lifan"] if include_lifan else [])
-    node_values = [float(v) for v in nodes]
-    series_rows: list[tuple[str, list[float]]] = [
-        ("nodes", node_values),
-        ("x_equals_y", node_values),
-    ]
-
-    for family in families:
-        base_vals = _simulate_curve(
-            LoRaNetwork=LoRaNetwork,
-            nodes=nodes,
-            family=family,
-            coding_rate=coding_rate,
-            num_decoders=demods,
-            drop_mode="base",
-            metric=metric,
-            runs_per_node=runs_per_node,
-        )
-        dd_vals = _simulate_curve(
-            LoRaNetwork=LoRaNetwork,
-            nodes=nodes,
-            family=family,
-            coding_rate=coding_rate,
-            num_decoders=demods,
-            drop_mode=drop_mode,
-            metric=metric,
-            runs_per_node=runs_per_node,
-        )
-        series_rows.append((f"{family}-CR{int(coding_rate)}-{int(demods)}p-{metric}-base", base_vals))
-        series_rows.append((f"{family}-CR{int(coding_rate)}-{int(demods)}p-{metric}-{drop_mode}", dd_vals))
-
-        if include_infp:
-            inf_vals = _simulate_curve(
-                LoRaNetwork=LoRaNetwork,
-                nodes=nodes,
-                family=family,
-                coding_rate=coding_rate,
-                num_decoders=max(int(inf_demods), int(demods)),
-                drop_mode=drop_mode,
-                metric=metric,
-                runs_per_node=runs_per_node,
-            )
-            series_rows.append((f"{family}-CR{int(coding_rate)}-infp-{metric}", inf_vals))
-
-    output_csv.parent.mkdir(parents=True, exist_ok=True)
-    with output_csv.open("w", encoding="utf-8", newline="") as f:
-        writer = csv.writer(f)
-        for key, values in series_rows:
-            writer.writerow([key] + [f"{float(v):.6f}" for v in values])
-
-    return output_csv
 
 
 def load_row_csv(path: Path) -> dict[str, np.ndarray]:
@@ -513,7 +364,6 @@ def run_reference_comparison(
 
 def parse_args() -> argparse.Namespace:
     integration_root = Path(__file__).resolve().parents[1]
-    snt_root = integration_root.parent
     parser = argparse.ArgumentParser(
         description="Reusable LR-FHSS communication replication with configurable demods and node range."
     )
@@ -523,7 +373,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Existing reference CSV. Used only when --use-existing-csv is set.",
     )
-    parser.add_argument("--lrfhss-root", type=Path, default=snt_root / "lr-fhss_seq-families")
+    parser.add_argument("--lrfhss-root", type=Path, default=integration_root / "LRFHSS")
     parser.add_argument("--output-dir", type=Path, default=integration_root / "results" / "lrfhss_compare")
     parser.add_argument(
         "--generated-csv",
@@ -538,7 +388,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--sim-node-points", type=int, default=40)
     parser.add_argument("--runs-per-node", type=int, default=10)
-    parser.add_argument("--inf-demods", type=int, default=5000)
+    parser.add_argument("--inf-demods", type=int, default=0)
     parser.add_argument(
         "--paper-cr1-figure",
         type=str,
