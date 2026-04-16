@@ -84,8 +84,8 @@ class LoRaNode():
         """
 
         ocw = random.randrange(0, self.numOCW)
-        #startSlot = random.randrange(0, self.startLimit)
-        startSlot = 0
+        startSlot = random.randrange(0, self.startLimit)
+        # startSlot = 0
 
         if self.CR == 1:
             payload_size = random.randrange(13, 58)  # [8-31[ fragments
