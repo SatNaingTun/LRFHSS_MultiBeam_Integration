@@ -299,7 +299,7 @@ class SatelliteStepper:
                 covered_ocean_points += 1
                 covered_ocean_labels.append(self._format_place_label(p))
 
-        calculated_nodes = int(round(float(covered_population_total) * self.node_penetration_ratio))
+        calculated_nodes = int(round(float(covered_population_total) * self.node_population_ratio))
         calculated_demodulators = int(math.ceil(calculated_nodes / self.nodes_per_demodulator)) if calculated_nodes > 0 else 0
 
         return {

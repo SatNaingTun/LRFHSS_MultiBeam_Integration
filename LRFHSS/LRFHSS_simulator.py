@@ -26,6 +26,14 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     tqdm = None
 
+try:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+except ModuleNotFoundError:  # pragma: no cover
+    plt = None
+
 
 def _format_link_budget_value(value: float) -> str:
     x = float(value)
@@ -473,3 +481,172 @@ def runsim2csv(
                 writer.writerow([key] + [_format_link_budget_value(float(v)) for v in vals])
         print(f"[lrfhss] Link-budget aggregate CSV: {link_budget_agg_csv.resolve()}")
     return out
+
+
+def _load_runsim_csv_rows(path: Path) -> dict[str, np.ndarray]:
+    rows: dict[str, np.ndarray] = {}
+    with path.open("r", newline="", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if not row:
+                continue
+            key = str(row[0]).strip()
+            vals: list[float] = []
+            for tok in row[1:]:
+                text = str(tok).strip()
+                if not text:
+                    continue
+                vals.append(float(text))
+            rows[key] = np.array(vals, dtype=float)
+    return rows
+
+
+def _plot_runsim_rows(
+    rows: dict[str, np.ndarray],
+    out_png: Path,
+    num_decoders: int,
+    coding_rate: int,
+    metric: str,
+    drop_mode: str,
+    include_lifan: bool,
+    include_infp: bool,
+    x_min: float | None = None,
+    x_max: float | None = None,
+    y_min: float | None = None,
+    y_max: float | None = None,
+    title: str | None = None,
+) -> Path:
+    if plt is None:
+        raise ModuleNotFoundError("matplotlib is required for plotting. Install with: pip install matplotlib")
+
+    nodes = rows.get("nodes")
+    if nodes is None or len(nodes) <= 0:
+        raise ValueError("CSV rows do not contain 'nodes' for plotting.")
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    suffix_base = f"CR{int(coding_rate)}-{int(num_decoders)}p-{metric}-base"
+    suffix_drop = f"CR{int(coding_rate)}-{int(num_decoders)}p-{metric}-{drop_mode}"
+
+    if include_lifan:
+        lifan_base = rows.get(f"lifan-{suffix_base}")
+        lifan_drop = rows.get(f"lifan-{suffix_drop}")
+        if lifan_base is not None and lifan_drop is not None:
+            ax.plot(nodes, lifan_base, color="#ff7f0e", linewidth=2, label="li-fan base")
+            ax.plot(nodes, lifan_drop, color="#1f77b4", linewidth=2, label="li-fan earlydd")
+
+    driver_base = rows.get(f"driver-{suffix_base}")
+    driver_drop = rows.get(f"driver-{suffix_drop}")
+    if driver_base is None or driver_drop is None:
+        raise KeyError(
+            f"Missing driver rows for plotting: "
+            f"driver-{suffix_base} and/or driver-{suffix_drop}"
+        )
+    ax.plot(nodes, driver_base, color="#ff7f0e", linewidth=2, linestyle="--", label="driver base")
+    ax.plot(nodes, driver_drop, color="#1f77b4", linewidth=2, linestyle="--", label="driver earlydd")
+
+    if include_infp:
+        driver_infp = rows.get(f"driver-CR{int(coding_rate)}-infp-{metric}")
+        if driver_infp is not None:
+            ax.plot(nodes, driver_infp, color="#d62728", linewidth=2, linestyle="--", label="driver infp")
+        if include_lifan:
+            lifan_infp = rows.get(f"lifan-CR{int(coding_rate)}-infp-{metric}")
+            if lifan_infp is not None:
+                ax.plot(nodes, lifan_infp, color="#d62728", linewidth=2, label="li-fan infp")
+
+    ax.plot(nodes, nodes, color="black", linewidth=2, label="x=y")
+    if title is None:
+        title = f"Total decoded payloads with CR{int(coding_rate)} and {int(num_decoders)} demodulators"
+    ax.set_title(title, fontsize=22)
+    ax.set_xlabel("Sent packets", fontsize=22)
+    ax.set_ylabel("Number of Decoded Payloads", fontsize=22)
+    ax.set_xscale("log")
+    if x_min is not None and x_max is not None:
+        ax.set_xlim(float(x_min), float(x_max))
+    if y_min is not None or y_max is not None:
+        y0 = float(y_min) if y_min is not None else None
+        y1 = float(y_max) if y_max is not None else None
+        ax.set_ylim(y0, y1)
+    ax.grid(True, which="both", linestyle="-", linewidth=0.5, alpha=0.4)
+    ax.tick_params(labelsize=18)
+    ax.legend(fontsize=16, loc="best")
+    fig.tight_layout()
+
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_png, dpi=220)
+    plt.close(fig)
+    return out_png
+
+
+def runsim2plot(
+    num_decoders: int,
+    drop_mode: str,
+    filename: str | Path,
+    coding_rate: int = CR,
+    metric: str = "dec_payld",
+    include_lifan: bool = False,
+    include_infp: bool = False,
+    inf_demods: int | None = None,
+    node_min: float | None = None,
+    node_max: float | None = None,
+    selected_nodes: list[float] | None = None,
+    node_points: int = 40,
+    runs_per_node: int | None = None,
+    sim_time: int = simTime,
+    num_ocw: int = numOCW,
+    num_obw: int = numOBW,
+    num_grids: int = numGrids,
+    time_granularity: int = timeGranularity,
+    freq_granularity: int = freqGranularity,
+    link_budget_log: bool = linkBudgetLog,
+    plot_enabled: bool = True,
+    plot_filename: str | Path | None = None,
+    x_min: float | None = None,
+    x_max: float | None = None,
+    y_min: float | None = None,
+    y_max: float | None = None,
+    title: str | None = None,
+) -> tuple[Path, Path | None]:
+    out_csv = runsim2csv(
+        num_decoders=num_decoders,
+        drop_mode=drop_mode,
+        filename=filename,
+        coding_rate=coding_rate,
+        metric=metric,
+        include_lifan=include_lifan,
+        include_infp=include_infp,
+        inf_demods=inf_demods,
+        node_min=node_min,
+        node_max=node_max,
+        selected_nodes=selected_nodes,
+        node_points=node_points,
+        runs_per_node=runs_per_node,
+        sim_time=sim_time,
+        num_ocw=num_ocw,
+        num_obw=num_obw,
+        num_grids=num_grids,
+        time_granularity=time_granularity,
+        freq_granularity=freq_granularity,
+        link_budget_log=link_budget_log,
+    )
+
+    if not bool(plot_enabled):
+        return out_csv, None
+
+    out_png = Path(plot_filename) if plot_filename is not None else out_csv.with_suffix(".png")
+    rows = _load_runsim_csv_rows(out_csv)
+    _plot_runsim_rows(
+        rows=rows,
+        out_png=out_png,
+        num_decoders=num_decoders,
+        coding_rate=coding_rate,
+        metric=metric,
+        drop_mode=drop_mode,
+        include_lifan=include_lifan,
+        include_infp=include_infp,
+        x_min=x_min,
+        x_max=x_max,
+        y_min=y_min,
+        y_max=y_max,
+        title=title,
+    )
+    return out_csv, out_png
