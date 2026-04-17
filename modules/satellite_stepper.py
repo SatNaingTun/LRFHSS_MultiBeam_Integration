@@ -7,6 +7,7 @@ import math
 from pathlib import Path
 import sys
 from typing import Any
+from ProjectConfig import node_population_ratio
 
 import numpy as np
 
@@ -63,7 +64,7 @@ class SatelliteStepper:
         population_csv_path: str | Path = "Data/csv/population_data.csv",
         ocean_csv_path: str | Path = "Data/csv/ocean_data.csv",
         current_pos_json_path: str | Path | None = None,
-        node_penetration_ratio: float = 0.001,
+        node_population_ratio: float = 0.0001,
         nodes_per_demodulator: int = 250,
         minimum_frames: int = 720,
     ) -> None:
@@ -74,7 +75,7 @@ class SatelliteStepper:
             self.current_pos_json_path = self.output_csv_path.with_name(f"{self.output_csv_path.stem}_current_pos.json")
         else:
             self.current_pos_json_path = Path(current_pos_json_path)
-        self.node_penetration_ratio = max(0.0, min(1.0, float(node_penetration_ratio)))
+        self.node_population_ratio = max(0.0, min(1.0, float(node_population_ratio)))
         self.nodes_per_demodulator = max(1, int(nodes_per_demodulator))
         self.minimum_frames = max(8, int(minimum_frames))
 
@@ -340,6 +341,39 @@ class SatelliteStepper:
             "calculated_demodulators": int(coverage["calculated_demodulators"]),
         }
 
+    def estimate_row_for_lat_lon(self, sat_lat_deg: float, sat_lon_deg: float) -> dict[str, Any]:
+        pos = self.get_pos()
+        footprint = self.get_footprint()
+        coverage = self._compute_coverage(
+            sat_lat_deg=float(sat_lat_deg),
+            sat_lon_deg=float(sat_lon_deg),
+            footprint_radius_m=float(footprint["footprint_radius_m"]),
+        )
+        return {
+            "step": int(self._step_count),
+            "orbit_index": int(pos["orbit_index"]),
+            "timestamp_s": float(pos["timestamp_s"]),
+            "sat_x_m": float(pos["x_m"]),
+            "sat_y_m": float(pos["y_m"]),
+            "sat_z_m": float(pos["z_m"]),
+            "sat_lat_deg": float(sat_lat_deg),
+            "sat_lon_deg": float(sat_lon_deg),
+            "sat_radius_m": float(pos["sat_radius_m"]),
+            "footprint_radius_m": float(footprint["footprint_radius_m"]),
+            "footprint_area_km2": float(footprint["footprint_area_km2"]),
+            "covered_population_total": int(coverage["covered_population_total"]),
+            "covered_population_points": int(coverage["covered_population_points"]),
+            "covered_ocean_points": int(coverage["covered_ocean_points"]),
+            "covered_population_places": str(coverage["covered_population_places"]),
+            "covered_ocean_places": str(coverage["covered_ocean_places"]),
+            "calculated_nodes": int(coverage["calculated_nodes"]),
+            "calculated_demodulators": int(coverage["calculated_demodulators"]),
+        }
+
+    def get_nodes_demods_for_lat_lon(self, sat_lat_deg: float, sat_lon_deg: float) -> tuple[int, int]:
+        row = self.estimate_row_for_lat_lon(sat_lat_deg=sat_lat_deg, sat_lon_deg=sat_lon_deg)
+        return int(row["calculated_nodes"]), int(row["calculated_demodulators"])
+
     def _read_latest_csv_row(self) -> dict[str, str] | None:
         if not self.output_csv_path.exists():
             return None
@@ -376,6 +410,11 @@ class SatelliteStepper:
         self._rows_in_cycle += 1
         self._save_current_pos_json(row)
         return row
+    
+    def current(self) -> dict[str, Any]:
+        row = self._build_current_row()
+        self._save_current_pos_json(row)
+        return row
 
     def next(self) -> dict[str, Any]:
         self._index = int((self._index + self._index_stride) % self._orbit_len)
@@ -404,7 +443,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("results/satellite_stepper/satellite_steps.csv"),
+        default=Path("results/one_pos_satellite/satellite_steps.csv"),
         help="Output CSV file path.",
     )
     parser.add_argument(
@@ -432,9 +471,9 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         help="Current-position JSON file path (default: beside output CSV).",
     )
     parser.add_argument(
-        "--node-penetration-ratio",
+        "--node-population-ratio",
         type=float,
-        default=0.001,
+        default=node_population_ratio,
         help="Estimated node ratio from covered population.",
     )
     parser.add_argument(
@@ -491,3 +530,6 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+

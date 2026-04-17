@@ -61,3 +61,5 @@ use_earlydecode = True
 use_earlydrop = True
 use_headerdrop = False
 linkBudgetLog = True
+
+node_population_ratio = 0.000001
