@@ -28,7 +28,7 @@ from ProjectConfig import (
 )
 
 
-class SatelliteKeplerStepper:
+class SatelliteStepper:
     """
     Step-wise satellite tracker with Kepler-aligned orbit propagation.
 
@@ -340,6 +340,34 @@ class SatelliteKeplerStepper:
             "calculated_demodulators": int(coverage["calculated_demodulators"]),
         }
 
+    def _read_latest_csv_row(self) -> dict[str, str] | None:
+        if not self.output_csv_path.exists():
+            return None
+        last_row: dict[str, str] | None = None
+        with self.output_csv_path.open("r", encoding="utf-8", newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                last_row = row
+        return last_row
+
+    def get_current_nodes(self) -> int:
+        row = self._read_latest_csv_row()
+        if row is None:
+            return 0
+        try:
+            return int(float(row.get("calculated_nodes", 0) or 0))
+        except (TypeError, ValueError):
+            return 0
+
+    def get_current_demodulators(self) -> int:
+        row = self._read_latest_csv_row()
+        if row is None:
+            return 0
+        try:
+            return int(float(row.get("calculated_demodulators", 0) or 0))
+        except (TypeError, ValueError):
+            return 0
+
     def _append_current_row(self) -> dict[str, Any]:
         row = self._build_current_row()
         with self.output_csv_path.open("a", encoding="utf-8", newline="") as f:
@@ -429,7 +457,7 @@ def main() -> int:
     args = parser.parse_args()
 
     steps = max(0, int(args.steps))
-    stepper = SatelliteKeplerStepper(
+    stepper = SatelliteStepper(
         output_csv_path=args.output,
         population_csv_path=args.population_csv,
         ocean_csv_path=args.ocean_csv,
