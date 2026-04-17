@@ -6,6 +6,9 @@ from typing import Any, Mapping
 
 import numpy as np
 from orbit_formula import (
+    compute_mean_anomaly_rad,
+    compute_perifocal_state_vectors,
+    compute_pqw_to_eci_dcm,
     compute_horizon_visibility_span_seconds,
     compute_mean_motion_rad_s,
     compute_orbital_period_s,
@@ -13,8 +16,6 @@ from orbit_formula import (
     solve_kepler_equation,
     safe_float,
     normalize_columns,
-    rotation_matrix_r1,
-    rotation_matrix_r3,
     wrap_longitude_deg,
 )
 
@@ -145,27 +146,26 @@ def propagate_kepler_orbit_with_rotation(
     m0 = math.radians(orbit_cfg.mean_anomaly_epoch_deg)
 
     mean_motion = orbit_cfg.mean_motion_rad_s
-    mean_anomaly = m0 + mean_motion * timestamps_s
+    mean_anomaly = compute_mean_anomaly_rad(
+        m0_rad=m0,
+        mean_motion_rad_s=mean_motion,
+        timestamps_s=timestamps_s,
+    )
     ecc_anomaly = solve_kepler_equation(mean_anomaly, e)
 
-    sin_e = np.sin(ecc_anomaly)
-    cos_e = np.cos(ecc_anomaly)
-    radius = a * (1.0 - e * cos_e)
+    # Perifocal state vectors (Curtis/Vallado) from centralized Kepler formulas.
+    r_pqw, v_pqw = compute_perifocal_state_vectors(
+        semi_major_axis_m=a,
+        eccentricity=e,
+        earth_mu_m3_s2=mu,
+        eccentric_anomaly_rad=ecc_anomaly,
+    )
 
-    beta = math.sqrt(max(1.0 - e * e, 1e-15))
-    true_anomaly = np.arctan2(beta * sin_e, cos_e - e)
-    p = a * (1.0 - e * e)
-
-    # Perifocal state vectors (Curtis/Vallado).
-    r_pqw = np.vstack((radius * np.cos(true_anomaly), radius * np.sin(true_anomaly), np.zeros_like(radius)))
-    vel_scale = math.sqrt(mu / max(p, 1e-15))
-    v_pqw = np.vstack((
-        -vel_scale * np.sin(true_anomaly),
-        vel_scale * (e + np.cos(true_anomaly)),
-        np.zeros_like(radius),
-    ))
-
-    q_pqw_to_eci = rotation_matrix_r3(raan) @ rotation_matrix_r1(inc) @ rotation_matrix_r3(argp)
+    q_pqw_to_eci = compute_pqw_to_eci_dcm(
+        raan_rad=raan,
+        inclination_rad=inc,
+        arg_perigee_rad=argp,
+    )
     r_eci = q_pqw_to_eci @ r_pqw
     v_eci = q_pqw_to_eci @ v_pqw
 

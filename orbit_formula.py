@@ -118,6 +118,94 @@ def solve_kepler_equation(
     return ecc_anomaly
 
 
+def compute_mean_anomaly_rad(m0_rad: float, mean_motion_rad_s: float, timestamps_s: np.ndarray) -> np.ndarray:
+    """
+    Compute mean anomaly series from M(t) = M0 + n*t.
+
+    Citable: two-body Keplerian propagation (Vallado/Curtis).
+    """
+    return float(m0_rad) + float(mean_motion_rad_s) * np.asarray(timestamps_s, dtype=float)
+
+
+def compute_radius_from_eccentric_anomaly_m(
+    semi_major_axis_m: float,
+    eccentricity: float,
+    eccentric_anomaly_rad: np.ndarray,
+) -> np.ndarray:
+    """
+    Orbital radius from eccentric anomaly:
+    r = a * (1 - e*cos(E)).
+    """
+    a = float(semi_major_axis_m)
+    e = float(eccentricity)
+    e_anom = np.asarray(eccentric_anomaly_rad, dtype=float)
+    return a * (1.0 - e * np.cos(e_anom))
+
+
+def compute_true_anomaly_rad(eccentric_anomaly_rad: np.ndarray, eccentricity: float) -> np.ndarray:
+    """
+    True anomaly from eccentric anomaly:
+    nu = atan2(sqrt(1-e^2)*sin(E), cos(E)-e).
+    """
+    e = float(eccentricity)
+    e_anom = np.asarray(eccentric_anomaly_rad, dtype=float)
+    sin_e = np.sin(e_anom)
+    cos_e = np.cos(e_anom)
+    beta = math.sqrt(max(1.0 - e * e, 1e-15))
+    return np.arctan2(beta * sin_e, cos_e - e)
+
+
+def compute_semi_latus_rectum_m(semi_major_axis_m: float, eccentricity: float) -> float:
+    """Semi-latus rectum: p = a*(1-e^2)."""
+    a = float(semi_major_axis_m)
+    e = float(eccentricity)
+    return float(a * (1.0 - e * e))
+
+
+def compute_perifocal_state_vectors(
+    semi_major_axis_m: float,
+    eccentricity: float,
+    earth_mu_m3_s2: float,
+    eccentric_anomaly_rad: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Perifocal state vectors (PQW) from Keplerian elements.
+
+    Uses:
+    - r = a*(1 - e*cos(E))
+    - nu = atan2(sqrt(1-e^2)*sin(E), cos(E)-e)
+    - r_pqw = [r*cos(nu), r*sin(nu), 0]
+    - v_pqw = sqrt(mu/p)*[-sin(nu), e+cos(nu), 0]
+    """
+    a = float(semi_major_axis_m)
+    e = float(eccentricity)
+    mu = float(earth_mu_m3_s2)
+    radius = compute_radius_from_eccentric_anomaly_m(
+        semi_major_axis_m=a,
+        eccentricity=e,
+        eccentric_anomaly_rad=eccentric_anomaly_rad,
+    )
+    true_anomaly = compute_true_anomaly_rad(eccentric_anomaly_rad=eccentric_anomaly_rad, eccentricity=e)
+    p = compute_semi_latus_rectum_m(semi_major_axis_m=a, eccentricity=e)
+
+    r_pqw = np.vstack((radius * np.cos(true_anomaly), radius * np.sin(true_anomaly), np.zeros_like(radius)))
+    vel_scale = math.sqrt(mu / max(p, 1e-15))
+    v_pqw = np.vstack((
+        -vel_scale * np.sin(true_anomaly),
+        vel_scale * (e + np.cos(true_anomaly)),
+        np.zeros_like(radius),
+    ))
+    return r_pqw, v_pqw
+
+
+def compute_pqw_to_eci_dcm(raan_rad: float, inclination_rad: float, arg_perigee_rad: float) -> np.ndarray:
+    """
+    Direction cosine matrix from PQW to ECI:
+    Q = R3(RAAN) * R1(i) * R3(arg_perigee).
+    """
+    return rotation_matrix_r3(float(raan_rad)) @ rotation_matrix_r1(float(inclination_rad)) @ rotation_matrix_r3(float(arg_perigee_rad))
+
+
 def compute_free_space_path_loss_db(center_frequency_hz: float, slant_range_km: float) -> float:
     f_ghz = float(center_frequency_hz) / 1e9
     d_km = float(slant_range_km)
