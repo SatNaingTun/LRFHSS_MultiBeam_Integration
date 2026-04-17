@@ -39,6 +39,13 @@ MAX_HDRS = 3
 AWGN_VAR_DB = -174 + 6 + 10 * np.log10(OBW_BW)
 MAX_FRM_TM = MAX_HDRS * HDR_TIME + MAX_FRGS * FRG_TIME
 
+# Atmospheric parameters for ITU model
+p = 0.5  # Precipitation probability (%)
+D = 1.0  # Rain drop diameter (mm)
+
+# Channel fading parameters
+rician_k = 10.0  # Rician K-factor for satellite channel fading
+
 # Simulation parameters
 runs = 1
 simTime = 912

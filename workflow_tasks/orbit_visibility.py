@@ -1,8 +1,15 @@
-import math
-
 import numpy as np
 
 from leo_kepler_rotation import run_leo_orbit_rotation_task
+from orbit_formula import (
+    compute_doppler_shift_hz,
+    compute_free_space_path_loss_db,
+    compute_inclination_deg_from_positions,
+    compute_mean_altitude_km,
+    compute_mean_speed_km_s,
+    compute_noise_floor_dbm,
+    extract_windows,
+)
 
 EARTH_RADIUS_M = 6_371_000.0
 SPEED_OF_LIGHT_MPS = 299_792_458.0
@@ -22,24 +29,10 @@ def compute_satellite_orbit(network_geometry, params_mod, step_seconds: float, s
     return orbit_state["satellite_positions_m"], orbit_state
 
 
-def _extract_windows(mask: np.ndarray) -> list[tuple[int, int]]:
-    windows: list[tuple[int, int]] = []
-    start = None
-    for i, flag in enumerate(mask):
-        if bool(flag) and start is None:
-            start = i
-        if (not bool(flag)) and start is not None:
-            windows.append((start, i - 1))
-            start = None
-    if start is not None:
-        windows.append((start, len(mask) - 1))
-    return windows
-
-
 def generate_visibility_windows(sat_pos: np.ndarray, utils_mod, min_elev_deg: float):
     elev_deg = utils_mod.get_elevation_angle_from_center(sat_pos[0, :], sat_pos[2, :]) * 180.0 / np.pi
     visible = elev_deg >= min_elev_deg
-    windows = _extract_windows(visible)
+    windows = extract_windows(visible)
     return {
         "visible_mask": visible,
         "elevation_deg": elev_deg,
@@ -50,8 +43,8 @@ def generate_visibility_windows(sat_pos: np.ndarray, utils_mod, min_elev_deg: fl
 
 def generate_sunlight_windows(sat_pos: np.ndarray):
     sunlit_mask = sat_pos[0, :] >= 0.0
-    sunlit_windows = _extract_windows(sunlit_mask)
-    eclipse_windows = _extract_windows(~sunlit_mask)
+    sunlit_windows = extract_windows(sunlit_mask)
+    eclipse_windows = extract_windows(~sunlit_mask)
     return {
         "sunlit_mask": sunlit_mask,
         "sunlit_windows": sunlit_windows,
@@ -87,17 +80,26 @@ def compute_link_budget_and_doppler(
     sat_radius_m = float(np.linalg.norm(sat_xyz))
     altitude_m = float(max(1.0, sat_radius_m - EARTH_RADIUS_M))
     slant_range_km = float(altitude_m / 1000.0)
-    f_ghz = float(center_frequency_hz / 1e9)
-    free_space_path_loss_db = float(92.45 + 20.0 * math.log10(max(f_ghz, 1e-9)) + 20.0 * math.log10(max(slant_range_km, 1e-9)))
+    free_space_path_loss_db = compute_free_space_path_loss_db(
+        center_frequency_hz=center_frequency_hz,
+        slant_range_km=slant_range_km,
+    )
     rx_power_dbm = float(tx_power_dbm + tx_gain_dbi + rx_gain_dbi - free_space_path_loss_db - implementation_loss_db)
-    noise_floor_dbm = float(-174.0 + 10.0 * math.log10(max(noise_bandwidth_hz, 1e-9)) + noise_figure_db)
+    noise_floor_dbm = compute_noise_floor_dbm(
+        noise_bandwidth_hz=noise_bandwidth_hz,
+        noise_figure_db=noise_figure_db,
+    )
     snr_db = float(rx_power_dbm - noise_floor_dbm)
 
     next_frame = (frame + 1) % sat_pos.shape[1]
     prev_frame = (frame - 1) % sat_pos.shape[1]
     velocity_vec = (sat_pos[:, next_frame] - sat_pos[:, prev_frame]) / (2.0 * step_seconds)
     radial_speed_mps = float(np.dot(velocity_vec, sat_xyz) / max(np.linalg.norm(sat_xyz), 1e-9))
-    doppler_hz = float((radial_speed_mps / SPEED_OF_LIGHT_MPS) * center_frequency_hz)
+    doppler_hz = compute_doppler_shift_hz(
+        radial_speed_mps=radial_speed_mps,
+        center_frequency_hz=center_frequency_hz,
+        speed_of_light_mps=SPEED_OF_LIGHT_MPS,
+    )
 
     return {
         "slant_range_km": slant_range_km,
@@ -111,21 +113,9 @@ def compute_link_budget_and_doppler(
 
 def compute_orbit_parameters(sat_pos: np.ndarray, step_seconds: float) -> dict:
     radii = np.linalg.norm(sat_pos, axis=0)
-    altitudes_km = (radii - EARTH_RADIUS_M) / 1000.0
-    altitude_km = float(np.mean(altitudes_km))
-
-    vel = np.diff(sat_pos, axis=1) / step_seconds
-    speed_km_s = float(np.mean(np.linalg.norm(vel, axis=0)) / 1000.0) if vel.shape[1] > 0 else 0.0
-
-    if sat_pos.shape[1] >= 2:
-        h_vec = np.cross(sat_pos[:, 0], sat_pos[:, 1])
-        h_norm = float(np.linalg.norm(h_vec))
-        if h_norm > 0.0:
-            inclination_deg = float(np.degrees(np.arccos(max(-1.0, min(1.0, h_vec[2] / h_norm)))))
-        else:
-            inclination_deg = 0.0
-    else:
-        inclination_deg = 0.0
+    altitude_km = compute_mean_altitude_km(radii_m=radii, earth_radius_m=EARTH_RADIUS_M)
+    speed_km_s = compute_mean_speed_km_s(positions_m=sat_pos, step_seconds=step_seconds)
+    inclination_deg = compute_inclination_deg_from_positions(sat_pos=sat_pos)
 
     return {
         "altitude_km": altitude_km,

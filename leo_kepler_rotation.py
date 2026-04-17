@@ -5,6 +5,18 @@ from dataclasses import dataclass, asdict
 from typing import Any, Mapping
 
 import numpy as np
+from orbit_formula import (
+    compute_horizon_visibility_span_seconds,
+    compute_mean_motion_rad_s,
+    compute_orbital_period_s,
+    compute_semi_major_axis_m,
+    solve_kepler_equation,
+    safe_float,
+    normalize_columns,
+    rotation_matrix_r1,
+    rotation_matrix_r3,
+    wrap_longitude_deg,
+)
 
 # Citable algorithms used in this module:
 # 1) Two-body Keplerian propagation from classical orbital elements.
@@ -32,64 +44,18 @@ class LEOOrbitConfig:
 
     @property
     def semi_major_axis_m(self) -> float:
-        return float(self.earth_radius_m + self.altitude_m)
+        return compute_semi_major_axis_m(earth_radius_m=self.earth_radius_m, altitude_m=self.altitude_m)
 
     @property
     def mean_motion_rad_s(self) -> float:
-        return float(math.sqrt(self.earth_mu_m3_s2 / (self.semi_major_axis_m**3)))
+        return compute_mean_motion_rad_s(
+            earth_mu_m3_s2=self.earth_mu_m3_s2,
+            semi_major_axis_m=self.semi_major_axis_m,
+        )
 
     @property
     def orbital_period_s(self) -> float:
-        return float((2.0 * math.pi) / max(self.mean_motion_rad_s, 1e-12))
-
-
-def _safe_float(value: Any, default: float) -> float:
-    try:
-        out = float(value)
-        if math.isfinite(out):
-            return out
-    except (TypeError, ValueError):
-        pass
-    return float(default)
-
-
-def _normalize_columns(matrix: np.ndarray) -> np.ndarray:
-    norms = np.linalg.norm(matrix, axis=0)
-    norms = np.where(norms <= 1e-12, 1.0, norms)
-    return matrix / norms
-
-
-def _r1(angle_rad: float) -> np.ndarray:
-    c = math.cos(angle_rad)
-    s = math.sin(angle_rad)
-    return np.array([[1.0, 0.0, 0.0], [0.0, c, -s], [0.0, s, c]], dtype=float)
-
-
-def _r3(angle_rad: float) -> np.ndarray:
-    c = math.cos(angle_rad)
-    s = math.sin(angle_rad)
-    return np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]], dtype=float)
-
-
-def _wrap_longitude_deg(lon_deg: np.ndarray) -> np.ndarray:
-    return ((lon_deg + 180.0) % 360.0) - 180.0
-
-
-def solve_kepler_equation(mean_anomaly_rad: np.ndarray, eccentricity: float, tol: float = 1e-12, max_iter: int = 30) -> np.ndarray:
-    e = float(max(0.0, min(0.999999, eccentricity)))
-    m = np.asarray(mean_anomaly_rad, dtype=float)
-    m_wrapped = np.mod(m, 2.0 * math.pi)
-    ecc_anomaly = np.where(e < 0.8, m_wrapped, np.pi * np.ones_like(m_wrapped))
-
-    for _ in range(max_iter):
-        f = ecc_anomaly - e * np.sin(ecc_anomaly) - m_wrapped
-        fp = 1.0 - e * np.cos(ecc_anomaly)
-        delta = -f / np.where(np.abs(fp) < 1e-15, 1e-15, fp)
-        ecc_anomaly = ecc_anomaly + delta
-        if np.max(np.abs(delta)) < tol:
-            break
-
-    return ecc_anomaly
+        return compute_orbital_period_s(mean_motion_rad_s=self.mean_motion_rad_s)
 
 
 def build_leo_orbit_config(
@@ -105,9 +71,9 @@ def build_leo_orbit_config(
             "reason": "orbit config missing",
         }
 
-    earth_radius_m = _safe_float(params_config.get("r_earth"), defaults.earth_radius_m)
-    altitude_m = _safe_float(params_config.get("h_satellite"), defaults.altitude_m)
-    time_step_s = _safe_float(params_config.get("t_frame"), defaults.time_step_s)
+    earth_radius_m = safe_float(params_config.get("r_earth"), defaults.earth_radius_m)
+    altitude_m = safe_float(params_config.get("h_satellite"), defaults.altitude_m)
+    time_step_s = safe_float(params_config.get("t_frame"), defaults.time_step_s)
 
     leo_min_alt_m = 160_000.0
     leo_max_alt_m = 2_000_000.0
@@ -130,11 +96,11 @@ def build_leo_orbit_config(
         reasons.append("invalid t_frame; fallback default")
 
     # Optional advanced orbital elements with safe defaults.
-    eccentricity = _safe_float(params_config.get("orbit_eccentricity"), defaults.eccentricity)
-    inclination_deg = _safe_float(params_config.get("orbit_inclination_deg"), defaults.inclination_deg)
-    raan_deg = _safe_float(params_config.get("orbit_raan_deg"), defaults.raan_deg)
-    arg_perigee_deg = _safe_float(params_config.get("orbit_arg_perigee_deg"), defaults.arg_perigee_deg)
-    mean_anomaly_epoch_deg = _safe_float(params_config.get("orbit_mean_anomaly_epoch_deg"), defaults.mean_anomaly_epoch_deg)
+    eccentricity = safe_float(params_config.get("orbit_eccentricity"), defaults.eccentricity)
+    inclination_deg = safe_float(params_config.get("orbit_inclination_deg"), defaults.inclination_deg)
+    raan_deg = safe_float(params_config.get("orbit_raan_deg"), defaults.raan_deg)
+    arg_perigee_deg = safe_float(params_config.get("orbit_arg_perigee_deg"), defaults.arg_perigee_deg)
+    mean_anomaly_epoch_deg = safe_float(params_config.get("orbit_mean_anomaly_epoch_deg"), defaults.mean_anomaly_epoch_deg)
 
     if not (0.0 <= eccentricity < 1.0):
         eccentricity = defaults.eccentricity
@@ -199,7 +165,7 @@ def propagate_kepler_orbit_with_rotation(
         np.zeros_like(radius),
     ))
 
-    q_pqw_to_eci = _r3(raan) @ _r1(inc) @ _r3(argp)
+    q_pqw_to_eci = rotation_matrix_r3(raan) @ rotation_matrix_r1(inc) @ rotation_matrix_r3(argp)
     r_eci = q_pqw_to_eci @ r_pqw
     v_eci = q_pqw_to_eci @ v_pqw
 
@@ -225,13 +191,13 @@ def propagate_kepler_orbit_with_rotation(
     # Nadir-pointing body frame rotation per sample.
     sat_from_earth_center_local = sat_local.copy()
     sat_from_earth_center_local[2, :] += orbit_cfg.earth_radius_m
-    radial_hat = _normalize_columns(sat_from_earth_center_local)
+    radial_hat = normalize_columns(sat_from_earth_center_local)
 
     tangential = vel_local - radial_hat * np.sum(vel_local * radial_hat, axis=0, keepdims=True)
-    x_body = _normalize_columns(tangential)
+    x_body = normalize_columns(tangential)
     z_body = -radial_hat
-    y_body = _normalize_columns(np.cross(z_body.T, x_body.T).T)
-    x_body = _normalize_columns(np.cross(y_body.T, z_body.T).T)
+    y_body = normalize_columns(np.cross(z_body.T, x_body.T).T)
+    x_body = normalize_columns(np.cross(y_body.T, z_body.T).T)
 
     body_to_local = np.zeros((n, 3, 3), dtype=float)
     body_to_local[:, :, 0] = x_body.T
@@ -260,15 +226,18 @@ def run_leo_orbit_rotation_task(
     cfg, source_meta = build_leo_orbit_config(params_config=params_config, fallback_step_s=fallback_step_s)
 
     # Create enough timeline around the local zenith crossing so visibility extraction can run next.
-    psi_horizon = math.acos(max(-1.0, min(1.0, cfg.earth_radius_m / cfg.semi_major_axis_m)))
-    span_seconds = float((4.0 * psi_horizon) / max(cfg.mean_motion_rad_s, 1e-12))
+    span_seconds = compute_horizon_visibility_span_seconds(
+        earth_radius_m=cfg.earth_radius_m,
+        orbital_radius_m=cfg.semi_major_axis_m,
+        mean_motion_rad_s=cfg.mean_motion_rad_s,
+    )
     adaptive_frames = int(span_seconds / cfg.time_step_s) + 1
     one_orbit_frames = int(math.ceil(cfg.orbital_period_s / max(cfg.time_step_s, 1e-12))) + 1
     frame_count = int(max(minimum_frames, adaptive_frames, one_orbit_frames))
 
     state = propagate_kepler_orbit_with_rotation(orbit_cfg=cfg, frame_count=frame_count)
-    center_lat_deg = _safe_float((params_config or {}).get("latitude_center"), 35.6761919)
-    center_lon_deg = _safe_float((params_config or {}).get("longitude_center"), 139.6503106)
+    center_lat_deg = safe_float((params_config or {}).get("latitude_center"), 35.6761919)
+    center_lon_deg = safe_float((params_config or {}).get("longitude_center"), 139.6503106)
 
     timestamps_s = np.asarray(state["timestamps_s"], dtype=float)
     r_eci = np.asarray(state["satellite_positions_eci_m"], dtype=float)
@@ -290,7 +259,7 @@ def run_leo_orbit_rotation_task(
     lat_offset = center_lat_deg - float(lat_deg[center_idx])
     lon_offset = center_lon_deg - float(lon_deg[center_idx])
     lat_deg_aligned = np.clip(lat_deg + lat_offset, -90.0, 90.0)
-    lon_deg_aligned = _wrap_longitude_deg(lon_deg + lon_offset)
+    lon_deg_aligned = wrap_longitude_deg(lon_deg + lon_offset)
 
     state["satellite_ground_track_lat_deg"] = lat_deg_aligned
     state["satellite_ground_track_lon_deg"] = lon_deg_aligned
