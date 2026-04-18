@@ -63,3 +63,4 @@ use_headerdrop = False
 linkBudgetLog = True
 
 node_population_ratio = 0.000001
+nodes_per_demodulator  = 1

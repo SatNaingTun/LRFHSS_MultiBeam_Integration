@@ -89,31 +89,68 @@ def user_satellite_distances(user_positions, sat_pos):
     returns: shape (n_user,)
     """
     return np.linalg.norm(user_positions - sat_pos[:, None], axis=0)
+def compute_demod_states(n_active_users, n_demod, sleep_ratio=0.3):
+    """
+    Compute demodulator states:
+    """
+    n_busy = min(n_active_users, n_demod)
+    remaining = max(0, n_demod - n_busy)
 
-def evaluate_users_and_distances(elev_list=[90, 55, 25], n_user=100000):
+    n_sleep = int(sleep_ratio * remaining)
+    n_idle  = remaining - n_sleep
+
+    return n_busy, n_idle, n_sleep
+
+
+def evaluate_users_and_distances(
+    elev_list=[90, 55, 25],
+    n_user=100000,
+    activity_ratio=0.1,
+    n_demod=100,
+    sleep_ratio=0.3
+):
     """
     Returns results for each elevation:
     - number of users
     - distance statistics (min, max, mean)
+    - demodulator states (busy, idle, sleep)
     """
 
     users = get_user_position(n_user)
 
     results = {}
 
+    # number of active transmitting users
+    n_active = int(activity_ratio * n_user)
+
     for elev in elev_list:
         sat = satellite_pos_from_center_elevation(elev)
         d = user_satellite_distances(users, sat)
 
+        # ---- DEMOD STATES ----
+        n_busy, n_idle, n_sleep = compute_demod_states(
+            n_active_users=n_active,
+            n_demod=n_demod,
+            sleep_ratio=sleep_ratio
+        )
+
         results[elev] = {
             "num_users": users.shape[1],
+            "active_users": n_active,
+
             "min_distance_km": float(d.min() / 1e3),
             "max_distance_km": float(d.max() / 1e3),
             "mean_distance_km": float(d.mean() / 1e3),
+
+            "demodulators": {
+                "total": n_demod,
+                "busy": n_busy,
+                "idle": n_idle,
+                "sleep": n_sleep
+            }
         }
 
     return results
-
 
 def get_grid_positions(user_distance):
     """

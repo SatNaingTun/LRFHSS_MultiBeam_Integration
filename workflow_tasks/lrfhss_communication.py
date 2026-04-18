@@ -277,8 +277,16 @@ def plot_comparison_curves(
     ax.set_xscale("log")
     if x_min is not None and x_max is not None:
         ax.set_xlim(float(x_min), float(x_max))
-    if y_max is not None:
-        ax.set_ylim(0, float(y_max))
+    if y_max is None:
+        y_candidates = [
+            float(np.max(series.driver_base)),
+            float(np.max(series.driver_earlydd)),
+        ]
+        if include_lifan and series.lifan_base is not None and series.lifan_earlydd is not None:
+            y_candidates.append(float(np.max(series.lifan_base)))
+            y_candidates.append(float(np.max(series.lifan_earlydd)))
+        y_max = float(max(y_candidates) + 100.0)
+    ax.set_ylim(top=float(y_max))
     ax.grid(True, which="both", linestyle="-", linewidth=0.5, alpha=0.4)
     ax.tick_params(labelsize=14)
     ax.legend(fontsize=16, loc="lower center")

@@ -6,8 +6,8 @@ import json
 import math
 from pathlib import Path
 import sys
+from datetime import datetime, timezone, timedelta
 from typing import Any
-from ProjectConfig import node_population_ratio
 
 import numpy as np
 
@@ -26,6 +26,8 @@ from ProjectConfig import (
     SAT_H,
     T_FRAME,
     V_SATELLITE,
+    node_population_ratio,
+    nodes_per_demodulator
 )
 
 
@@ -37,10 +39,12 @@ class SatelliteStepper:
     - get_footprint(): footprint radius derived from current satellite position
     - next(): advance one logical step and append one CSV row
     """
-    CSV_FIELDNAMES = [
+    BASE_CSV_FIELDNAMES = [
         "step",
         "orbit_index",
         "timestamp_s",
+        "orbit_timestamp_s",
+        "timestamp_utc",
         "sat_x_m",
         "sat_y_m",
         "sat_z_m",
@@ -49,13 +53,28 @@ class SatelliteStepper:
         "sat_radius_m",
         "footprint_radius_m",
         "footprint_area_km2",
+        "footprint_earth_surface_ratio",
+        "footprint_horizon_utilization_ratio",
         "covered_population_total",
         "covered_population_points",
+        "covered_population_ratio",
         "covered_ocean_points",
+        "covered_ocean_ratio",
         "covered_population_places",
         "covered_ocean_places",
         "calculated_nodes",
+        "calculated_nodes_ratio",
         "calculated_demodulators",
+        "calculated_demodulator_capacity_nodes",
+        "center_elevation_deg",
+        "center_slant_range_km",
+        "user_positions_count",
+        "user_distance_min_km",
+        "user_distance_max_km",
+        "user_distance_mean_km",
+        "elevation_impact_range_ratio",
+        "elevation_impact_fspl_delta_db",
+        "sample_user_positions_local_m",
     ]
 
     def __init__(
@@ -65,8 +84,11 @@ class SatelliteStepper:
         ocean_csv_path: str | Path = "Data/csv/ocean_data.csv",
         current_pos_json_path: str | Path | None = None,
         node_population_ratio: float = 0.0001,
-        nodes_per_demodulator: int = 250,
+        nodes_per_demodulator: int = nodes_per_demodulator,
         minimum_frames: int = 720,
+        simulation_start_utc: datetime | str | None = None,
+        user_position_seed: int = 42,
+        elev_list: list[float] | None = None,
     ) -> None:
         self.output_csv_path = Path(output_csv_path)
         self.population_csv_path = Path(population_csv_path)
@@ -78,9 +100,24 @@ class SatelliteStepper:
         self.node_population_ratio = max(0.0, min(1.0, float(node_population_ratio)))
         self.nodes_per_demodulator = max(1, int(nodes_per_demodulator))
         self.minimum_frames = max(8, int(minimum_frames))
+        self._simulation_start_utc = self._resolve_simulation_start_utc(simulation_start_utc)
+        self._user_position_seed = int(user_position_seed)
+        self._elev_list = self._resolve_elev_list(elev_list)
+        self._elev_tokens: list[tuple[float, str]] = [
+            (float(elev), self._elev_token(float(elev))) for elev in self._elev_list
+        ]
+
+        self._elev_csv_fields: list[str] = []
+        for _, token in self._elev_tokens:
+            self._elev_csv_fields.append(f"elev_{token}_num_users")
+            self._elev_csv_fields.append(f"elev_{token}_distance_km")
+        self._csv_fieldnames = list(self.BASE_CSV_FIELDNAMES) + self._elev_csv_fields
 
         self._population_points = self._load_points(self.population_csv_path)
         self._ocean_points = self._load_points(self.ocean_csv_path)
+        self._total_population_catalog = int(sum(int(p["population"]) for p in self._population_points))
+        self._population_catalog_points = int(len(self._population_points))
+        self._ocean_catalog_points = int(len(self._ocean_points))
         self._step_count = 0
 
         self._orbit_state = run_leo_orbit_rotation_task(
@@ -121,6 +158,44 @@ class SatelliteStepper:
 
         self._ensure_output_header()
         self._append_current_row()  # Save original first satellite position as first row.
+
+    @staticmethod
+    def _resolve_simulation_start_utc(simulation_start_utc: datetime | str | None) -> datetime:
+        if isinstance(simulation_start_utc, datetime):
+            dt = simulation_start_utc
+        elif isinstance(simulation_start_utc, str) and simulation_start_utc.strip():
+            token = simulation_start_utc.strip()
+            if token.endswith("Z"):
+                token = f"{token[:-1]}+00:00"
+            dt = datetime.fromisoformat(token)
+        else:
+            dt = datetime.now(timezone.utc)
+
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+
+    @staticmethod
+    def _resolve_elev_list(elev_list: list[float] | None) -> list[float]:
+        if elev_list is None or len(elev_list) == 0:
+            return [90.0, 55.0, 22.0]
+        parsed: list[float] = []
+        for e in elev_list:
+            try:
+                parsed.append(float(e))
+            except (TypeError, ValueError):
+                continue
+        if len(parsed) == 0:
+            return [90.0, 55.0, 22.0]
+        return parsed
+
+    @staticmethod
+    def _elev_token(elev_deg: float) -> str:
+        rounded = round(float(elev_deg), 3)
+        if float(rounded).is_integer():
+            return f"{int(rounded)}deg"
+        token = f"{rounded}".replace("-", "m").replace(".", "p")
+        return f"{token}deg"
 
     @staticmethod
     def _load_points(csv_path: Path) -> list[dict[str, Any]]:
@@ -187,7 +262,7 @@ class SatelliteStepper:
         with self.output_csv_path.open("w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(
                 f,
-                fieldnames=self.CSV_FIELDNAMES,
+                fieldnames=self._csv_fieldnames,
             )
             writer.writeheader()
 
@@ -197,6 +272,8 @@ class SatelliteStepper:
             "step": int(row["step"]),
             "orbit_index": int(row["orbit_index"]),
             "timestamp_s": float(row["timestamp_s"]),
+            "orbit_timestamp_s": float(row["orbit_timestamp_s"]),
+            "timestamp_utc": str(row["timestamp_utc"]),
             "position_m": {
                 "x": float(row["sat_x_m"]),
                 "y": float(row["sat_y_m"]),
@@ -210,15 +287,39 @@ class SatelliteStepper:
             "footprint": {
                 "radius_m": float(row["footprint_radius_m"]),
                 "area_km2": float(row["footprint_area_km2"]),
+                "earth_surface_ratio": float(row["footprint_earth_surface_ratio"]),
+                "horizon_utilization_ratio": float(row["footprint_horizon_utilization_ratio"]),
             },
             "coverage": {
                 "population_total": int(row["covered_population_total"]),
                 "population_points": int(row["covered_population_points"]),
+                "population_ratio": float(row["covered_population_ratio"]),
                 "ocean_points": int(row["covered_ocean_points"]),
+                "ocean_ratio": float(row["covered_ocean_ratio"]),
             },
             "calculated": {
                 "nodes": int(row["calculated_nodes"]),
+                "nodes_ratio": float(row["calculated_nodes_ratio"]),
                 "demodulators": int(row["calculated_demodulators"]),
+                "demodulator_capacity_nodes": int(row["calculated_demodulator_capacity_nodes"]),
+            },
+            "elevation_user_impact": {
+                "center_elevation_deg": float(row["center_elevation_deg"]),
+                "center_slant_range_km": float(row["center_slant_range_km"]),
+                "user_positions_count": int(row["user_positions_count"]),
+                "user_distance_min_km": float(row["user_distance_min_km"]),
+                "user_distance_max_km": float(row["user_distance_max_km"]),
+                "user_distance_mean_km": float(row["user_distance_mean_km"]),
+                "range_ratio_vs_sat_altitude": float(row["elevation_impact_range_ratio"]),
+                "fspl_delta_db_vs_zenith": float(row["elevation_impact_fspl_delta_db"]),
+                "sample_user_positions_local_m": str(row["sample_user_positions_local_m"]),
+            },
+            "elevation_scenarios": {
+                str(elev_deg): {
+                    "num_users": int(row.get(f"elev_{token}_num_users", 0) or 0),
+                    "distance_km": float(row.get(f"elev_{token}_distance_km", float("nan"))),
+                }
+                for elev_deg, token in self._elev_tokens
             },
         }
         with self.current_pos_json_path.open("w", encoding="utf-8") as f:
@@ -227,17 +328,19 @@ class SatelliteStepper:
     def _write_single_latest_row(self, row: dict[str, Any]) -> None:
         self._ensure_output_header()
         with self.output_csv_path.open("a", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=self.CSV_FIELDNAMES)
+            writer = csv.DictWriter(f, fieldnames=self._csv_fieldnames)
             writer.writerow(row)
 
     def get_pos(self) -> dict[str, float]:
         i = self._index
         xyz = self._sat_local[:, i]
         sat_radius_m = float(np.linalg.norm(self._sat_eci[:, i]))
+        elapsed_s = float(self._step_count) * float(T_FRAME)
         return {
             "step": float(self._step_count),
             "orbit_index": float(i),
-            "timestamp_s": float(self._timestamps_s[i]),
+            "timestamp_s": float(elapsed_s),
+            "orbit_timestamp_s": float(self._timestamps_s[i]),
             "x_m": float(xyz[0]),
             "y_m": float(xyz[1]),
             "z_m": float(xyz[2]),
@@ -263,11 +366,20 @@ class SatelliteStepper:
         if footprint_radius_m <= 0.0:
             footprint_radius_m = float(max(0.0, min(geometric_radius_m, float(R_FOOTPRINT))))
         footprint_area_km2 = float(math.pi * footprint_radius_m * footprint_radius_m / 1_000_000.0)
+        earth_surface_area_m2 = float(4.0 * math.pi * float(EARTRH_R) * float(EARTRH_R))
+        footprint_earth_surface_ratio = float(
+            (math.pi * footprint_radius_m * footprint_radius_m) / earth_surface_area_m2
+        ) if earth_surface_area_m2 > 0.0 else 0.0
+        footprint_horizon_utilization_ratio = float(
+            footprint_radius_m / geometric_radius_m
+        ) if geometric_radius_m > 1e-9 else 0.0
         return {
             "footprint_radius_m": float(footprint_radius_m),
             "footprint_area_km2": float(footprint_area_km2),
             "altitude_m": float(altitude_m),
             "geometric_footprint_radius_m": float(geometric_radius_m),
+            "footprint_earth_surface_ratio": float(max(0.0, min(1.0, footprint_earth_surface_ratio))),
+            "footprint_horizon_utilization_ratio": float(max(0.0, min(1.0, footprint_horizon_utilization_ratio))),
         }
 
     def _compute_coverage(self, sat_lat_deg: float, sat_lon_deg: float, footprint_radius_m: float) -> dict[str, Any]:
@@ -301,16 +413,167 @@ class SatelliteStepper:
 
         calculated_nodes = int(round(float(covered_population_total) * self.node_population_ratio))
         calculated_demodulators = int(math.ceil(calculated_nodes / self.nodes_per_demodulator)) if calculated_nodes > 0 else 0
+        calculated_demodulator_capacity_nodes = int(calculated_demodulators * self.nodes_per_demodulator)
+
+        covered_population_ratio = float(
+            covered_population_total / self._total_population_catalog
+        ) if self._total_population_catalog > 0 else 0.0
+        covered_ocean_ratio = float(
+            covered_ocean_points / self._ocean_catalog_points
+        ) if self._ocean_catalog_points > 0 else 0.0
+        calculated_nodes_ratio = float(
+            calculated_nodes / calculated_demodulator_capacity_nodes
+        ) if calculated_demodulator_capacity_nodes > 0 else 0.0
 
         return {
             "covered_population_total": int(covered_population_total),
             "covered_population_points": int(covered_population_points),
+            "covered_population_ratio": float(max(0.0, min(1.0, covered_population_ratio))),
             "covered_ocean_points": int(covered_ocean_points),
+            "covered_ocean_ratio": float(max(0.0, min(1.0, covered_ocean_ratio))),
             "covered_population_places": ";".join(covered_population_labels),
             "covered_ocean_places": ";".join(covered_ocean_labels),
             "calculated_nodes": int(calculated_nodes),
+            "calculated_nodes_ratio": float(max(0.0, min(1.0, calculated_nodes_ratio))),
             "calculated_demodulators": int(calculated_demodulators),
+            "calculated_demodulator_capacity_nodes": int(calculated_demodulator_capacity_nodes),
         }
+
+    def _sample_user_positions_local(
+        self,
+        n_user: int,
+        footprint_radius_m: float,
+        rng: np.random.Generator,
+    ) -> np.ndarray:
+        n = int(max(0, n_user))
+        if n <= 0:
+            return np.zeros((3, 0), dtype=float)
+
+        r_earth = float(EARTRH_R)
+        cap_radius = float(max(0.0, footprint_radius_m))
+        cos_min = float(np.cos(cap_radius / max(r_earth, 1.0)))
+        theta = np.arccos(rng.uniform(cos_min, 1.0, n))
+        phi = rng.uniform(0.0, 2.0 * np.pi, n)
+
+        x = r_earth * np.sin(theta) * np.cos(phi)
+        y = r_earth * np.sin(theta) * np.sin(phi)
+        z = r_earth * np.cos(theta) - r_earth
+        return np.vstack((x, y, z))
+
+    def _compute_elevation_user_impact(
+        self,
+        sat_x_m: float,
+        sat_y_m: float,
+        sat_z_m: float,
+        calculated_nodes: int,
+        footprint_radius_m: float,
+    ) -> dict[str, Any]:
+        sat = np.array([float(sat_x_m), float(sat_y_m), float(sat_z_m)], dtype=float)
+        center_slant_range_m = float(np.linalg.norm(sat))
+        if center_slant_range_m <= 1e-12:
+            center_elevation_deg = 90.0
+        else:
+            center_elevation_deg = float(
+                np.degrees(np.arcsin(np.clip(sat[2] / center_slant_range_m, -1.0, 1.0)))
+            )
+
+        n_user = int(max(0, calculated_nodes))
+        if n_user <= 0:
+            return {
+                "center_elevation_deg": float(center_elevation_deg),
+                "center_slant_range_km": float(center_slant_range_m / 1000.0),
+                "user_positions_count": 0,
+                "user_distance_min_km": float("nan"),
+                "user_distance_max_km": float("nan"),
+                "user_distance_mean_km": float("nan"),
+                "elevation_impact_range_ratio": 0.0,
+                "elevation_impact_fspl_delta_db": 0.0,
+                "sample_user_positions_local_m": "",
+            }
+
+        rng = np.random.default_rng(self._user_position_seed + int(self._step_count))
+        users = self._sample_user_positions_local(
+            n_user=n_user,
+            footprint_radius_m=float(footprint_radius_m),
+            rng=rng,
+        )
+        distances_m = np.linalg.norm(users - sat[:, None], axis=0)
+
+        min_km = float(np.min(distances_m) / 1000.0)
+        max_km = float(np.max(distances_m) / 1000.0)
+        mean_km = float(np.mean(distances_m) / 1000.0)
+        baseline_m = float(max(1.0, float(SAT_H)))
+        mean_distance_m = float(np.mean(distances_m))
+        elevation_impact_range_ratio = float(mean_distance_m / baseline_m)
+        elevation_impact_fspl_delta_db = float(20.0 * np.log10(mean_distance_m / baseline_m))
+
+        sample_count = int(min(6, n_user))
+        sample_labels: list[str] = []
+        for i in range(sample_count):
+            sample_labels.append(f"{users[0, i]:.1f}|{users[1, i]:.1f}|{users[2, i]:.1f}")
+
+        return {
+            "center_elevation_deg": float(center_elevation_deg),
+            "center_slant_range_km": float(center_slant_range_m / 1000.0),
+            "user_positions_count": int(n_user),
+            "user_distance_min_km": float(min_km),
+            "user_distance_max_km": float(max_km),
+            "user_distance_mean_km": float(mean_km),
+            "elevation_impact_range_ratio": float(elevation_impact_range_ratio),
+            "elevation_impact_fspl_delta_db": float(elevation_impact_fspl_delta_db),
+            "sample_user_positions_local_m": ";".join(sample_labels),
+        }
+
+    def _satellite_pos_from_center_elevation(self, elev_deg: float) -> np.ndarray:
+        eps = float(np.deg2rad(float(elev_deg)))
+        earth_r = float(EARTRH_R)
+        altitude = earth_r + float(SAT_H)
+        alpha = float(np.arccos((earth_r / altitude) * np.cos(eps)) - eps)
+        x_sat = altitude * np.sin(alpha)
+        y_sat = 0.0
+        z_sat = altitude * np.cos(alpha) - earth_r
+        return np.array([x_sat, y_sat, z_sat], dtype=float)
+
+    def _compute_elev_list_user_distances(
+        self,
+        calculated_nodes: int,
+        calculated_nodes_ratio: float,
+        footprint_radius_m: float,
+    ) -> dict[str, Any]:
+        del calculated_nodes_ratio
+        n_user = int(max(0, calculated_nodes))
+        output: dict[str, Any] = {}
+        if n_user <= 0:
+            for _, token in self._elev_tokens:
+                output[f"elev_{token}_num_users"] = 0
+                output[f"elev_{token}_distance_km"] = float("nan")
+            return output
+
+        rng = np.random.default_rng(self._user_position_seed + int(self._step_count))
+        users = self._sample_user_positions_local(
+            n_user=n_user,
+            footprint_radius_m=float(footprint_radius_m),
+            rng=rng,
+        )
+
+        n_bins = int(max(1, len(self._elev_tokens)))
+        base = n_user // n_bins
+        remainder = n_user % n_bins
+        counts = [base + (1 if i < remainder else 0) for i in range(n_bins)]
+
+        start = 0
+        for i, (elev_deg, token) in enumerate(self._elev_tokens):
+            count_i = int(counts[i])
+            end = start + count_i
+            sat = self._satellite_pos_from_center_elevation(elev_deg=elev_deg)
+            output[f"elev_{token}_num_users"] = int(count_i)
+            if count_i <= 0:
+                output[f"elev_{token}_distance_km"] = float("nan")
+            else:
+                d_m = np.linalg.norm(users[:, start:end] - sat[:, None], axis=0)
+                output[f"elev_{token}_distance_km"] = float(np.mean(d_m) / 1000.0)
+            start = end
+        return output
 
     def _build_current_row(self) -> dict[str, Any]:
         pos = self.get_pos()
@@ -320,10 +583,24 @@ class SatelliteStepper:
             sat_lon_deg=float(pos["longitude_deg"]),
             footprint_radius_m=float(footprint["footprint_radius_m"]),
         )
+        user_impact = self._compute_elevation_user_impact(
+            sat_x_m=float(pos["x_m"]),
+            sat_y_m=float(pos["y_m"]),
+            sat_z_m=float(pos["z_m"]),
+            calculated_nodes=int(coverage["calculated_nodes"]),
+            footprint_radius_m=float(footprint["footprint_radius_m"]),
+        )
+        elev_series = self._compute_elev_list_user_distances(
+            calculated_nodes=int(coverage["calculated_nodes"]),
+            calculated_nodes_ratio=float(coverage["calculated_nodes_ratio"]),
+            footprint_radius_m=float(footprint["footprint_radius_m"]),
+        )
         return {
             "step": int(self._step_count),
             "orbit_index": int(pos["orbit_index"]),
             "timestamp_s": float(pos["timestamp_s"]),
+            "orbit_timestamp_s": float(pos["orbit_timestamp_s"]),
+            "timestamp_utc": (self._simulation_start_utc + timedelta(seconds=float(pos["timestamp_s"]))).isoformat(),
             "sat_x_m": float(pos["x_m"]),
             "sat_y_m": float(pos["y_m"]),
             "sat_z_m": float(pos["z_m"]),
@@ -332,13 +609,29 @@ class SatelliteStepper:
             "sat_radius_m": float(pos["sat_radius_m"]),
             "footprint_radius_m": float(footprint["footprint_radius_m"]),
             "footprint_area_km2": float(footprint["footprint_area_km2"]),
+            "footprint_earth_surface_ratio": float(footprint["footprint_earth_surface_ratio"]),
+            "footprint_horizon_utilization_ratio": float(footprint["footprint_horizon_utilization_ratio"]),
             "covered_population_total": int(coverage["covered_population_total"]),
             "covered_population_points": int(coverage["covered_population_points"]),
+            "covered_population_ratio": float(coverage["covered_population_ratio"]),
             "covered_ocean_points": int(coverage["covered_ocean_points"]),
+            "covered_ocean_ratio": float(coverage["covered_ocean_ratio"]),
             "covered_population_places": str(coverage["covered_population_places"]),
             "covered_ocean_places": str(coverage["covered_ocean_places"]),
             "calculated_nodes": int(coverage["calculated_nodes"]),
+            "calculated_nodes_ratio": float(coverage["calculated_nodes_ratio"]),
             "calculated_demodulators": int(coverage["calculated_demodulators"]),
+            "calculated_demodulator_capacity_nodes": int(coverage["calculated_demodulator_capacity_nodes"]),
+            "center_elevation_deg": float(user_impact["center_elevation_deg"]),
+            "center_slant_range_km": float(user_impact["center_slant_range_km"]),
+            "user_positions_count": int(user_impact["user_positions_count"]),
+            "user_distance_min_km": float(user_impact["user_distance_min_km"]),
+            "user_distance_max_km": float(user_impact["user_distance_max_km"]),
+            "user_distance_mean_km": float(user_impact["user_distance_mean_km"]),
+            "elevation_impact_range_ratio": float(user_impact["elevation_impact_range_ratio"]),
+            "elevation_impact_fspl_delta_db": float(user_impact["elevation_impact_fspl_delta_db"]),
+            "sample_user_positions_local_m": str(user_impact["sample_user_positions_local_m"]),
+            **elev_series,
         }
 
     def estimate_row_for_lat_lon(self, sat_lat_deg: float, sat_lon_deg: float) -> dict[str, Any]:
@@ -349,10 +642,24 @@ class SatelliteStepper:
             sat_lon_deg=float(sat_lon_deg),
             footprint_radius_m=float(footprint["footprint_radius_m"]),
         )
+        user_impact = self._compute_elevation_user_impact(
+            sat_x_m=float(pos["x_m"]),
+            sat_y_m=float(pos["y_m"]),
+            sat_z_m=float(pos["z_m"]),
+            calculated_nodes=int(coverage["calculated_nodes"]),
+            footprint_radius_m=float(footprint["footprint_radius_m"]),
+        )
+        elev_series = self._compute_elev_list_user_distances(
+            calculated_nodes=int(coverage["calculated_nodes"]),
+            calculated_nodes_ratio=float(coverage["calculated_nodes_ratio"]),
+            footprint_radius_m=float(footprint["footprint_radius_m"]),
+        )
         return {
             "step": int(self._step_count),
             "orbit_index": int(pos["orbit_index"]),
             "timestamp_s": float(pos["timestamp_s"]),
+            "orbit_timestamp_s": float(pos["orbit_timestamp_s"]),
+            "timestamp_utc": (self._simulation_start_utc + timedelta(seconds=float(pos["timestamp_s"]))).isoformat(),
             "sat_x_m": float(pos["x_m"]),
             "sat_y_m": float(pos["y_m"]),
             "sat_z_m": float(pos["z_m"]),
@@ -361,13 +668,29 @@ class SatelliteStepper:
             "sat_radius_m": float(pos["sat_radius_m"]),
             "footprint_radius_m": float(footprint["footprint_radius_m"]),
             "footprint_area_km2": float(footprint["footprint_area_km2"]),
+            "footprint_earth_surface_ratio": float(footprint["footprint_earth_surface_ratio"]),
+            "footprint_horizon_utilization_ratio": float(footprint["footprint_horizon_utilization_ratio"]),
             "covered_population_total": int(coverage["covered_population_total"]),
             "covered_population_points": int(coverage["covered_population_points"]),
+            "covered_population_ratio": float(coverage["covered_population_ratio"]),
             "covered_ocean_points": int(coverage["covered_ocean_points"]),
+            "covered_ocean_ratio": float(coverage["covered_ocean_ratio"]),
             "covered_population_places": str(coverage["covered_population_places"]),
             "covered_ocean_places": str(coverage["covered_ocean_places"]),
             "calculated_nodes": int(coverage["calculated_nodes"]),
+            "calculated_nodes_ratio": float(coverage["calculated_nodes_ratio"]),
             "calculated_demodulators": int(coverage["calculated_demodulators"]),
+            "calculated_demodulator_capacity_nodes": int(coverage["calculated_demodulator_capacity_nodes"]),
+            "center_elevation_deg": float(user_impact["center_elevation_deg"]),
+            "center_slant_range_km": float(user_impact["center_slant_range_km"]),
+            "user_positions_count": int(user_impact["user_positions_count"]),
+            "user_distance_min_km": float(user_impact["user_distance_min_km"]),
+            "user_distance_max_km": float(user_impact["user_distance_max_km"]),
+            "user_distance_mean_km": float(user_impact["user_distance_mean_km"]),
+            "elevation_impact_range_ratio": float(user_impact["elevation_impact_range_ratio"]),
+            "elevation_impact_fspl_delta_db": float(user_impact["elevation_impact_fspl_delta_db"]),
+            "sample_user_positions_local_m": str(user_impact["sample_user_positions_local_m"]),
+            **elev_series,
         }
 
     def get_nodes_demods_for_lat_lon(self, sat_lat_deg: float, sat_lon_deg: float) -> tuple[int, int]:
@@ -405,7 +728,7 @@ class SatelliteStepper:
     def _append_current_row(self) -> dict[str, Any]:
         row = self._build_current_row()
         with self.output_csv_path.open("a", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=self.CSV_FIELDNAMES)
+            writer = csv.DictWriter(f, fieldnames=self._csv_fieldnames)
             writer.writerow(row)
         self._rows_in_cycle += 1
         self._save_current_pos_json(row)
@@ -429,7 +752,7 @@ class SatelliteStepper:
             return row
 
         with self.output_csv_path.open("a", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=self.CSV_FIELDNAMES)
+            writer = csv.DictWriter(f, fieldnames=self._csv_fieldnames)
             writer.writerow(row)
         self._rows_in_cycle += 1
         self._save_current_pos_json(row)
@@ -488,6 +811,25 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         default=720,
         help="Minimum Kepler orbit frames used by the stepper.",
     )
+    parser.add_argument(
+        "--simulation-start-utc",
+        type=str,
+        default=None,
+        help="Simulation start time in ISO-8601 UTC format (e.g. 2026-04-18T00:00:00Z).",
+    )
+    parser.add_argument(
+        "--user-position-seed",
+        type=int,
+        default=42,
+        help="Base seed for per-step user position sampling used in elevation impact metrics.",
+    )
+    parser.add_argument(
+        "--elev-list",
+        type=float,
+        nargs="+",
+        default=[90.0, 55.0, 22.0],
+        help="Elevation scenarios (deg) used for per-step user-distance columns.",
+    )
     return parser
 
 
@@ -501,9 +843,12 @@ def main() -> int:
         population_csv_path=args.population_csv,
         ocean_csv_path=args.ocean_csv,
         current_pos_json_path=args.current_pos_json,
-        node_penetration_ratio=float(args.node_penetration_ratio),
+        node_population_ratio=float(args.node_population_ratio),
         nodes_per_demodulator=int(args.nodes_per_demodulator),
         minimum_frames=int(args.minimum_frames),
+        simulation_start_utc=args.simulation_start_utc,
+        user_position_seed=int(args.user_position_seed),
+        elev_list=[float(v) for v in args.elev_list],
     )
     last_row = None
     for _ in range(steps):
@@ -530,6 +875,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-
-

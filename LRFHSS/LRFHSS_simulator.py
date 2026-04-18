@@ -560,8 +560,11 @@ def _plot_runsim_rows(
     ax.set_xlabel("Sent packets", fontsize=22)
     ax.set_ylabel("Number of Decoded Payloads", fontsize=22)
     ax.set_xscale("log")
-    if x_min is not None and x_max is not None:
-        ax.set_xlim(float(x_min), float(x_max))
+    if x_max is not None:
+        x0 = float(x_min) if x_min is not None else float(max(1.0, float(min(nodes[nodes > 0]))))
+        ax.set_xlim(x0, float(x_max))
+    elif x_min is not None:
+        ax.set_xlim(float(x_min), float(max(1.0, float(min(nodes[nodes > 0])))))
     if y_min is not None or y_max is not None:
         y0 = float(y_min) if y_min is not None else None
         y1 = float(y_max) if y_max is not None else None
