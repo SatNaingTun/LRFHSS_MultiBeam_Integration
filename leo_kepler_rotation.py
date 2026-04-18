@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from typing import Any, Mapping
 
 import numpy as np
@@ -169,7 +169,7 @@ def propagate_kepler_orbit_with_rotation(
     r_eci = q_pqw_to_eci @ r_pqw
     v_eci = q_pqw_to_eci @ v_pqw
 
-    # Build footprint-centered local frame using the epoch sub-satellite point.
+    # Build local orbital frame using epoch sub-satellite direction as local +Z.
     center_idx = int(np.argmin(np.abs(timestamps_s)))
     r0 = r_eci[:, center_idx]
     v0 = v_eci[:, center_idx]
@@ -183,9 +183,9 @@ def propagate_kepler_orbit_with_rotation(
     y_axis = y_axis / max(np.linalg.norm(y_axis), 1e-12)
 
     q_eci_to_local = np.vstack((x_axis, y_axis, z_axis))
-    footprint_center_eci = orbit_cfg.earth_radius_m * z_axis
+    local_origin_eci = orbit_cfg.earth_radius_m * z_axis
 
-    sat_local = q_eci_to_local @ (r_eci - footprint_center_eci[:, None])
+    sat_local = q_eci_to_local @ (r_eci - local_origin_eci[:, None])
     vel_local = q_eci_to_local @ v_eci
 
     # Nadir-pointing body frame rotation per sample.
@@ -210,11 +210,6 @@ def propagate_kepler_orbit_with_rotation(
         "satellite_velocity_mps": vel_local,
         "satellite_positions_eci_m": r_eci,
         "body_to_local_dcm": body_to_local,
-        "orbit_frame": {
-            "x_axis": x_axis,
-            "y_axis": y_axis,
-            "z_axis": z_axis,
-        },
     }
 
 
@@ -223,7 +218,7 @@ def run_leo_orbit_rotation_task(
     fallback_step_s: float,
     minimum_frames: int,
 ) -> dict[str, Any]:
-    cfg, source_meta = build_leo_orbit_config(params_config=params_config, fallback_step_s=fallback_step_s)
+    cfg, _ = build_leo_orbit_config(params_config=params_config, fallback_step_s=fallback_step_s)
 
     # Create enough timeline around the local zenith crossing so visibility extraction can run next.
     span_seconds = compute_horizon_visibility_span_seconds(
@@ -263,23 +258,4 @@ def run_leo_orbit_rotation_task(
 
     state["satellite_ground_track_lat_deg"] = lat_deg_aligned
     state["satellite_ground_track_lon_deg"] = lon_deg_aligned
-    state["orbit_task"] = {
-        "task": "check_leo_orbit_or_default_then_kepler_rotation",
-        "algorithm": [
-            "two_body_kepler_propagation_classical_orbital_elements",
-            "newton_raphson_kepler_equation_solver",
-        ],
-        "citations": [
-            "Vallado, Fundamentals of Astrodynamics and Applications (4th ed.)",
-            "Curtis, Orbital Mechanics for Engineering Students (4th ed.)",
-        ],
-        "config_source": source_meta,
-        "orbit_config": asdict(cfg),
-        "frame_count": frame_count,
-        "earth_rotation_rad_s": EARTH_ROTATION_RAD_S,
-        "ground_track_reference_center": {
-            "latitude_deg": center_lat_deg,
-            "longitude_deg": center_lon_deg,
-        },
-    }
     return state

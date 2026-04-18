@@ -48,24 +48,10 @@ class SatelliteStepper:
         "sat_x_m",
         "sat_y_m",
         "sat_z_m",
-        "sat_lat_deg",
-        "sat_lon_deg",
         "sat_radius_m",
-        "footprint_radius_m",
-        "footprint_area_km2",
-        "footprint_earth_surface_ratio",
-        "footprint_horizon_utilization_ratio",
-        "covered_population_total",
-        "covered_population_points",
-        "covered_population_ratio",
-        "covered_ocean_points",
-        "covered_ocean_ratio",
-        "covered_population_places",
-        "covered_ocean_places",
+        "node_population_ratio",
         "calculated_nodes",
-        "calculated_nodes_ratio",
         "calculated_demodulators",
-        "calculated_demodulator_capacity_nodes",
     ]
 
     def __init__(
@@ -74,6 +60,7 @@ class SatelliteStepper:
         population_csv_path: str | Path = "Data/csv/population_data.csv",
         ocean_csv_path: str | Path = "Data/csv/ocean_data.csv",
         current_pos_json_path: str | Path | None = None,
+        groundtrack_coverage_csv_path: str | Path | None = None,
         elevation_states_csv_path: str | Path | None = None,
         node_population_ratio: float = 0.0001,
         nodes_per_demodulator: int = nodes_per_demodulator,
@@ -91,6 +78,12 @@ class SatelliteStepper:
             self.current_pos_json_path = self.output_csv_path.with_name(f"{self.output_csv_path.stem}_current_pos.json")
         else:
             self.current_pos_json_path = Path(current_pos_json_path)
+        if groundtrack_coverage_csv_path is None:
+            self.groundtrack_coverage_csv_path = self.output_csv_path.with_name(
+                f"{self.output_csv_path.stem}_groundtrack_coverage.csv"
+            )
+        else:
+            self.groundtrack_coverage_csv_path = Path(groundtrack_coverage_csv_path)
         if elevation_states_csv_path is None:
             self.elevation_states_csv_path = self.output_csv_path.with_name(
                 f"{self.output_csv_path.stem}_elevation_states.csv"
@@ -124,6 +117,23 @@ class SatelliteStepper:
             self._elev_metric_fields.append(f"elev_{token}_num_users")
             self._elev_metric_fields.append(f"elev_{token}_distance_km")
         self._csv_fieldnames = list(self.BASE_CSV_FIELDNAMES)
+        self._groundtrack_coverage_fieldnames = [
+            "step",
+            "orbit_index",
+            "sat_lat_deg",
+            "sat_lon_deg",
+            "footprint_radius_m",
+            "footprint_area_km2",
+            "footprint_earth_surface_ratio",
+            "footprint_horizon_utilization_ratio",
+            "covered_population_total",
+            "covered_population_points",
+            "covered_population_ratio",
+            "covered_ocean_points",
+            "covered_ocean_ratio",
+            "covered_population_places",
+            "covered_ocean_places",
+        ]
         self._elev_states_fieldnames = ["step", "orbit_index"]
         self._elev_states_fieldnames.extend(self._elev_metric_fields)
         for _, token in self._elev_tokens:
@@ -137,14 +147,15 @@ class SatelliteStepper:
         self._population_catalog_points = int(len(self._population_points))
         self._ocean_catalog_points = int(len(self._ocean_points))
         self._step_count = 0
+        center_lat_deg, center_lon_deg = self._resolve_rotation_center_deg()
 
         self._orbit_state = run_leo_orbit_rotation_task(
             params_config={
                 "r_earth": float(EARTRH_R),
                 "h_satellite": float(SAT_H),
                 "t_frame": float(T_FRAME),
-                "latitude_center": float(LATITUDE_CENTER_DEG),
-                "longitude_center": float(LONGITUDE_CENTER_DEG),
+                "latitude_center": float(center_lat_deg),
+                "longitude_center": float(center_lon_deg),
             },
             fallback_step_s=float(T_FRAME),
             minimum_frames=self.minimum_frames,
@@ -175,6 +186,7 @@ class SatelliteStepper:
         self._rows_in_cycle = 0
 
         self._ensure_output_header()
+        self._ensure_groundtrack_coverage_header()
         self._ensure_elevation_states_header()
         self._append_current_row()  # Save original first satellite position as first row.
 
@@ -207,6 +219,39 @@ class SatelliteStepper:
         if len(parsed) == 0:
             return [90.0, 55.0, 22.0]
         return parsed
+
+    def _resolve_rotation_center_deg(self) -> tuple[float, float]:
+        default_lat = float(LATITUDE_CENTER_DEG)
+        default_lon = float(LONGITUDE_CENTER_DEG)
+
+        # Prefer persisted current position JSON when available.
+        if self.current_pos_json_path.exists():
+            try:
+                with self.current_pos_json_path.open("r", encoding="utf-8") as f:
+                    payload = json.load(f)
+                gt = payload.get("ground_track_deg", {}) if isinstance(payload, dict) else {}
+                lat = float(gt.get("latitude", default_lat))
+                lon = float(gt.get("longitude", default_lon))
+                return lat, lon
+            except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                pass
+
+        # Fallback: latest row from side CSV when available.
+        if self.groundtrack_coverage_csv_path.exists():
+            last_row: dict[str, str] | None = None
+            try:
+                with self.groundtrack_coverage_csv_path.open("r", encoding="utf-8", newline="") as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        last_row = row
+                if last_row is not None:
+                    lat = float(last_row.get("sat_lat_deg", default_lat) or default_lat)
+                    lon = float(last_row.get("sat_lon_deg", default_lon) or default_lon)
+                    return lat, lon
+            except (OSError, ValueError, TypeError):
+                pass
+
+        return default_lat, default_lon
 
     @staticmethod
     def _elev_token(elev_deg: float) -> str:
@@ -294,60 +339,81 @@ class SatelliteStepper:
             )
             writer.writeheader()
 
-    def _save_current_pos_json(self, row: dict[str, Any]) -> None:
+    def _ensure_groundtrack_coverage_header(self) -> None:
+        self.groundtrack_coverage_csv_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.groundtrack_coverage_csv_path.open("w", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=self._groundtrack_coverage_fieldnames,
+            )
+            writer.writeheader()
+
+    def _save_current_pos_json(
+        self,
+        row: dict[str, Any],
+        groundtrack_coverage_row: dict[str, Any] | None = None,
+        elevation_states_row: dict[str, Any] | None = None,
+    ) -> None:
+        merged = dict(row)
+        if groundtrack_coverage_row:
+            merged.update(groundtrack_coverage_row)
+        if elevation_states_row:
+            merged.update(elevation_states_row)
         self.current_pos_json_path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
-            "step": int(row["step"]),
-            "orbit_index": int(row["orbit_index"]),
-            "timestamp_s": float(row["timestamp_s"]),
-            "orbit_timestamp_s": float(row["orbit_timestamp_s"]),
-            "timestamp_utc": str(row["timestamp_utc"]),
+            "step": int(merged["step"]),
+            "orbit_index": int(merged["orbit_index"]),
+            "timestamp_s": float(merged["timestamp_s"]),
+            "orbit_timestamp_s": float(merged["orbit_timestamp_s"]),
+            "timestamp_utc": str(merged["timestamp_utc"]),
             "position_m": {
-                "x": float(row["sat_x_m"]),
-                "y": float(row["sat_y_m"]),
-                "z": float(row["sat_z_m"]),
+                "x": float(merged["sat_x_m"]),
+                "y": float(merged["sat_y_m"]),
+                "z": float(merged["sat_z_m"]),
             },
-            "ground_track_deg": {
-                "latitude": float(row["sat_lat_deg"]),
-                "longitude": float(row["sat_lon_deg"]),
-            },
-            "sat_radius_m": float(row["sat_radius_m"]),
-            "footprint": {
-                "radius_m": float(row["footprint_radius_m"]),
-                "area_km2": float(row["footprint_area_km2"]),
-                "earth_surface_ratio": float(row["footprint_earth_surface_ratio"]),
-                "horizon_utilization_ratio": float(row["footprint_horizon_utilization_ratio"]),
-            },
-            "coverage": {
-                "population_total": int(row["covered_population_total"]),
-                "population_points": int(row["covered_population_points"]),
-                "population_ratio": float(row["covered_population_ratio"]),
-                "ocean_points": int(row["covered_ocean_points"]),
-                "ocean_ratio": float(row["covered_ocean_ratio"]),
-            },
+            "sat_radius_m": float(merged["sat_radius_m"]),
             "calculated": {
-                "nodes": int(row["calculated_nodes"]),
-                "nodes_ratio": float(row["calculated_nodes_ratio"]),
-                "demodulators": int(row["calculated_demodulators"]),
-                "demodulator_capacity_nodes": int(row["calculated_demodulator_capacity_nodes"]),
+                "node_population_ratio": float(merged["node_population_ratio"]),
+                "nodes": int(merged["calculated_nodes"]),
+                "demodulators": int(merged["calculated_demodulators"]),
             },
         }
-        if "center_elevation_deg" in row:
+        if "sat_lat_deg" in merged and "sat_lon_deg" in merged:
+            payload["ground_track_deg"] = {
+                "latitude": float(merged["sat_lat_deg"]),
+                "longitude": float(merged["sat_lon_deg"]),
+            }
+        if "footprint_radius_m" in merged:
+            payload["footprint"] = {
+                "radius_m": float(merged["footprint_radius_m"]),
+                "area_km2": float(merged["footprint_area_km2"]),
+                "earth_surface_ratio": float(merged["footprint_earth_surface_ratio"]),
+                "horizon_utilization_ratio": float(merged["footprint_horizon_utilization_ratio"]),
+            }
+        if "covered_population_total" in merged:
+            payload["coverage"] = {
+                "population_total": int(merged["covered_population_total"]),
+                "population_points": int(merged["covered_population_points"]),
+                "population_ratio": float(merged["covered_population_ratio"]),
+                "ocean_points": int(merged["covered_ocean_points"]),
+                "ocean_ratio": float(merged["covered_ocean_ratio"]),
+            }
+        if "center_elevation_deg" in merged:
             payload["elevation_user_impact"] = {
-                "center_elevation_deg": float(row.get("center_elevation_deg", float("nan"))),
-                "center_slant_range_km": float(row.get("center_slant_range_km", float("nan"))),
-                "user_positions_count": int(row.get("user_positions_count", 0) or 0),
-                "user_distance_min_km": float(row.get("user_distance_min_km", float("nan"))),
-                "user_distance_max_km": float(row.get("user_distance_max_km", float("nan"))),
-                "user_distance_mean_km": float(row.get("user_distance_mean_km", float("nan"))),
-                "range_ratio_vs_sat_altitude": float(row.get("elevation_impact_range_ratio", float("nan"))),
-                "fspl_delta_db_vs_zenith": float(row.get("elevation_impact_fspl_delta_db", float("nan"))),
-                "sample_user_positions_local_m": str(row.get("sample_user_positions_local_m", "")),
+                "center_elevation_deg": float(merged.get("center_elevation_deg", float("nan"))),
+                "center_slant_range_km": float(merged.get("center_slant_range_km", float("nan"))),
+                "user_positions_count": int(merged.get("user_positions_count", 0) or 0),
+                "user_distance_min_km": float(merged.get("user_distance_min_km", float("nan"))),
+                "user_distance_max_km": float(merged.get("user_distance_max_km", float("nan"))),
+                "user_distance_mean_km": float(merged.get("user_distance_mean_km", float("nan"))),
+                "range_ratio_vs_sat_altitude": float(merged.get("elevation_impact_range_ratio", float("nan"))),
+                "fspl_delta_db_vs_zenith": float(merged.get("elevation_impact_fspl_delta_db", float("nan"))),
+                "sample_user_positions_local_m": str(merged.get("sample_user_positions_local_m", "")),
             }
             payload["elevation_scenarios"] = {
                 str(elev_deg): {
-                    "num_users": int(row.get(f"elev_{token}_num_users", 0) or 0),
-                    "distance_km": float(row.get(f"elev_{token}_distance_km", float("nan"))),
+                    "num_users": int(merged.get(f"elev_{token}_num_users", 0) or 0),
+                    "distance_km": float(merged.get(f"elev_{token}_distance_km", float("nan"))),
                 }
                 for elev_deg, token in self._elev_tokens
             }
@@ -360,7 +426,17 @@ class SatelliteStepper:
             writer = csv.DictWriter(f, fieldnames=self._csv_fieldnames)
             writer.writerow(row)
 
-    def _build_elevation_states_row(self, row: dict[str, Any]) -> dict[str, Any]:
+    def _write_single_latest_groundtrack_coverage_row(self, row: dict[str, Any]) -> None:
+        self._ensure_groundtrack_coverage_header()
+        with self.groundtrack_coverage_csv_path.open("a", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=self._groundtrack_coverage_fieldnames)
+            writer.writerow(row)
+
+    def _build_elevation_states_row(
+        self,
+        row: dict[str, Any],
+        groundtrack_coverage_row: dict[str, Any],
+    ) -> dict[str, Any]:
         out: dict[str, Any] = {
             "step": int(row["step"]),
             "orbit_index": int(row["orbit_index"]),
@@ -370,12 +446,11 @@ class SatelliteStepper:
             sat_y_m=float(row["sat_y_m"]),
             sat_z_m=float(row["sat_z_m"]),
             calculated_nodes=int(row["calculated_nodes"]),
-            footprint_radius_m=float(row["footprint_radius_m"]),
+            footprint_radius_m=float(groundtrack_coverage_row["footprint_radius_m"]),
         )
         elev_series = self._compute_elev_list_user_distances(
             calculated_nodes=int(row["calculated_nodes"]),
-            calculated_nodes_ratio=float(row["calculated_nodes_ratio"]),
-            footprint_radius_m=float(row["footprint_radius_m"]),
+            footprint_radius_m=float(groundtrack_coverage_row["footprint_radius_m"]),
         )
         for k, v in user_impact.items():
             out[k] = v
@@ -398,18 +473,28 @@ class SatelliteStepper:
             out[f"elev_{token}_sleep"] = n_sleep
         return out
 
-    def _append_elevation_states_row(self, row: dict[str, Any]) -> None:
-        states_row = self._build_elevation_states_row(row)
+    def _append_elevation_states_row(
+        self,
+        row: dict[str, Any],
+        groundtrack_coverage_row: dict[str, Any],
+    ) -> dict[str, Any]:
+        states_row = self._build_elevation_states_row(row, groundtrack_coverage_row)
         with self.elevation_states_csv_path.open("a", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=self._elev_states_fieldnames)
             writer.writerow(states_row)
+        return states_row
 
-    def _write_single_latest_elevation_states_row(self, row: dict[str, Any]) -> None:
+    def _write_single_latest_elevation_states_row(
+        self,
+        row: dict[str, Any],
+        groundtrack_coverage_row: dict[str, Any],
+    ) -> dict[str, Any]:
         self._ensure_elevation_states_header()
-        states_row = self._build_elevation_states_row(row)
+        states_row = self._build_elevation_states_row(row, groundtrack_coverage_row)
         with self.elevation_states_csv_path.open("a", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=self._elev_states_fieldnames)
             writer.writerow(states_row)
+        return states_row
 
     def get_pos(self) -> dict[str, float]:
         i = self._index
@@ -493,7 +578,6 @@ class SatelliteStepper:
 
         calculated_nodes = int(round(float(covered_population_total) * self.node_population_ratio))
         calculated_demodulators = int(math.ceil(calculated_nodes / self.nodes_per_demodulator)) if calculated_nodes > 0 else 0
-        calculated_demodulator_capacity_nodes = int(calculated_demodulators * self.nodes_per_demodulator)
 
         covered_population_ratio = float(
             covered_population_total / self._total_population_catalog
@@ -501,9 +585,6 @@ class SatelliteStepper:
         covered_ocean_ratio = float(
             covered_ocean_points / self._ocean_catalog_points
         ) if self._ocean_catalog_points > 0 else 0.0
-        calculated_nodes_ratio = float(
-            calculated_nodes / calculated_demodulator_capacity_nodes
-        ) if calculated_demodulator_capacity_nodes > 0 else 0.0
 
         return {
             "covered_population_total": int(covered_population_total),
@@ -514,9 +595,7 @@ class SatelliteStepper:
             "covered_population_places": ";".join(covered_population_labels),
             "covered_ocean_places": ";".join(covered_ocean_labels),
             "calculated_nodes": int(calculated_nodes),
-            "calculated_nodes_ratio": float(max(0.0, min(1.0, calculated_nodes_ratio))),
             "calculated_demodulators": int(calculated_demodulators),
-            "calculated_demodulator_capacity_nodes": int(calculated_demodulator_capacity_nodes),
         }
 
     def _sample_user_positions_local(
@@ -617,10 +696,8 @@ class SatelliteStepper:
     def _compute_elev_list_user_distances(
         self,
         calculated_nodes: int,
-        calculated_nodes_ratio: float,
         footprint_radius_m: float,
     ) -> dict[str, Any]:
-        del calculated_nodes_ratio
         n_user = int(max(0, calculated_nodes))
         output: dict[str, Any] = {}
         if n_user <= 0:
@@ -655,7 +732,7 @@ class SatelliteStepper:
             start = end
         return output
 
-    def _build_current_row(self) -> dict[str, Any]:
+    def _build_current_row(self) -> tuple[dict[str, Any], dict[str, Any]]:
         pos = self.get_pos()
         footprint = self.get_footprint()
         coverage = self._compute_coverage(
@@ -663,7 +740,7 @@ class SatelliteStepper:
             sat_lon_deg=float(pos["longitude_deg"]),
             footprint_radius_m=float(footprint["footprint_radius_m"]),
         )
-        return {
+        main_row = {
             "step": int(self._step_count),
             "orbit_index": int(pos["orbit_index"]),
             "timestamp_s": float(pos["timestamp_s"]),
@@ -672,9 +749,16 @@ class SatelliteStepper:
             "sat_x_m": float(pos["x_m"]),
             "sat_y_m": float(pos["y_m"]),
             "sat_z_m": float(pos["z_m"]),
+            "sat_radius_m": float(pos["sat_radius_m"]),
+            "node_population_ratio": float(self.node_population_ratio),
+            "calculated_nodes": int(coverage["calculated_nodes"]),
+            "calculated_demodulators": int(coverage["calculated_demodulators"]),
+        }
+        groundtrack_coverage_row = {
+            "step": int(self._step_count),
+            "orbit_index": int(pos["orbit_index"]),
             "sat_lat_deg": float(pos["latitude_deg"]),
             "sat_lon_deg": float(pos["longitude_deg"]),
-            "sat_radius_m": float(pos["sat_radius_m"]),
             "footprint_radius_m": float(footprint["footprint_radius_m"]),
             "footprint_area_km2": float(footprint["footprint_area_km2"]),
             "footprint_earth_surface_ratio": float(footprint["footprint_earth_surface_ratio"]),
@@ -686,11 +770,8 @@ class SatelliteStepper:
             "covered_ocean_ratio": float(coverage["covered_ocean_ratio"]),
             "covered_population_places": str(coverage["covered_population_places"]),
             "covered_ocean_places": str(coverage["covered_ocean_places"]),
-            "calculated_nodes": int(coverage["calculated_nodes"]),
-            "calculated_nodes_ratio": float(coverage["calculated_nodes_ratio"]),
-            "calculated_demodulators": int(coverage["calculated_demodulators"]),
-            "calculated_demodulator_capacity_nodes": int(coverage["calculated_demodulator_capacity_nodes"]),
         }
+        return main_row, groundtrack_coverage_row
 
     def estimate_row_for_lat_lon(self, sat_lat_deg: float, sat_lon_deg: float) -> dict[str, Any]:
         pos = self.get_pos()
@@ -709,6 +790,7 @@ class SatelliteStepper:
             "sat_x_m": float(pos["x_m"]),
             "sat_y_m": float(pos["y_m"]),
             "sat_z_m": float(pos["z_m"]),
+            "node_population_ratio": float(self.node_population_ratio),
             "sat_lat_deg": float(sat_lat_deg),
             "sat_lon_deg": float(sat_lon_deg),
             "sat_radius_m": float(pos["sat_radius_m"]),
@@ -724,9 +806,7 @@ class SatelliteStepper:
             "covered_population_places": str(coverage["covered_population_places"]),
             "covered_ocean_places": str(coverage["covered_ocean_places"]),
             "calculated_nodes": int(coverage["calculated_nodes"]),
-            "calculated_nodes_ratio": float(coverage["calculated_nodes_ratio"]),
             "calculated_demodulators": int(coverage["calculated_demodulators"]),
-            "calculated_demodulator_capacity_nodes": int(coverage["calculated_demodulator_capacity_nodes"]),
         }
 
     def get_nodes_demods_for_lat_lon(self, sat_lat_deg: float, sat_lon_deg: float) -> tuple[int, int]:
@@ -762,39 +842,47 @@ class SatelliteStepper:
             return 0
 
     def _append_current_row(self) -> dict[str, Any]:
-        row = self._build_current_row()
+        row, groundtrack_coverage_row = self._build_current_row()
         with self.output_csv_path.open("a", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=self._csv_fieldnames)
             writer.writerow(row)
-        self._append_elevation_states_row(row)
+        with self.groundtrack_coverage_csv_path.open("a", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=self._groundtrack_coverage_fieldnames)
+            writer.writerow(groundtrack_coverage_row)
+        elevation_states_row = self._append_elevation_states_row(row, groundtrack_coverage_row)
         self._rows_in_cycle += 1
-        self._save_current_pos_json(row)
+        self._save_current_pos_json(row, groundtrack_coverage_row, elevation_states_row)
         return row
     
     def current(self) -> dict[str, Any]:
-        row = self._build_current_row()
-        self._save_current_pos_json(row)
+        row, groundtrack_coverage_row = self._build_current_row()
+        elevation_states_row = self._build_elevation_states_row(row, groundtrack_coverage_row)
+        self._save_current_pos_json(row, groundtrack_coverage_row, elevation_states_row)
         return row
 
     def next(self) -> dict[str, Any]:
         self._index = int((self._index + self._index_stride) % self._orbit_len)
         self._step_count += 1
-        row = self._build_current_row()
+        row, groundtrack_coverage_row = self._build_current_row()
 
         # Once one-orbit capacity is reached, clear CSV rows and keep only latest row.
         if self._rows_in_cycle + 1 >= self._steps_per_orbit:
             self._write_single_latest_row(row)
-            self._write_single_latest_elevation_states_row(row)
+            self._write_single_latest_groundtrack_coverage_row(groundtrack_coverage_row)
+            elevation_states_row = self._write_single_latest_elevation_states_row(row, groundtrack_coverage_row)
             self._rows_in_cycle = 1
-            self._save_current_pos_json(row)
+            self._save_current_pos_json(row, groundtrack_coverage_row, elevation_states_row)
             return row
 
         with self.output_csv_path.open("a", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=self._csv_fieldnames)
             writer.writerow(row)
-        self._append_elevation_states_row(row)
+        with self.groundtrack_coverage_csv_path.open("a", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=self._groundtrack_coverage_fieldnames)
+            writer.writerow(groundtrack_coverage_row)
+        elevation_states_row = self._append_elevation_states_row(row, groundtrack_coverage_row)
         self._rows_in_cycle += 1
-        self._save_current_pos_json(row)
+        self._save_current_pos_json(row, groundtrack_coverage_row, elevation_states_row)
         return row
 
 
@@ -831,6 +919,12 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="Current-position JSON file path (default: beside output CSV).",
+    )
+    parser.add_argument(
+        "--groundtrack-coverage-csv",
+        type=Path,
+        default=None,
+        help="Optional CSV path for ground-track, footprint, and coverage columns.",
     )
     parser.add_argument(
         "--elevation-states-csv",
@@ -890,6 +984,7 @@ def main() -> int:
         population_csv_path=args.population_csv,
         ocean_csv_path=args.ocean_csv,
         current_pos_json_path=args.current_pos_json,
+        groundtrack_coverage_csv_path=args.groundtrack_coverage_csv,
         elevation_states_csv_path=args.elevation_states_csv,
         node_population_ratio=float(args.node_population_ratio),
         nodes_per_demodulator=int(args.nodes_per_demodulator),
