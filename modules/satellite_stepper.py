@@ -66,15 +66,6 @@ class SatelliteStepper:
         "calculated_nodes_ratio",
         "calculated_demodulators",
         "calculated_demodulator_capacity_nodes",
-        "center_elevation_deg",
-        "center_slant_range_km",
-        "user_positions_count",
-        "user_distance_min_km",
-        "user_distance_max_km",
-        "user_distance_mean_km",
-        "elevation_impact_range_ratio",
-        "elevation_impact_fspl_delta_db",
-        "sample_user_positions_local_m",
     ]
 
     def __init__(
@@ -83,12 +74,15 @@ class SatelliteStepper:
         population_csv_path: str | Path = "Data/csv/population_data.csv",
         ocean_csv_path: str | Path = "Data/csv/ocean_data.csv",
         current_pos_json_path: str | Path | None = None,
+        elevation_states_csv_path: str | Path | None = None,
         node_population_ratio: float = 0.0001,
         nodes_per_demodulator: int = nodes_per_demodulator,
         minimum_frames: int = 720,
         simulation_start_utc: datetime | str | None = None,
         user_position_seed: int = 42,
         elev_list: list[float] | None = None,
+        demod_activity_ratio: float = 0.1,
+        demod_sleep_ratio: float = 0.3,
     ) -> None:
         self.output_csv_path = Path(output_csv_path)
         self.population_csv_path = Path(population_csv_path)
@@ -97,21 +91,45 @@ class SatelliteStepper:
             self.current_pos_json_path = self.output_csv_path.with_name(f"{self.output_csv_path.stem}_current_pos.json")
         else:
             self.current_pos_json_path = Path(current_pos_json_path)
+        if elevation_states_csv_path is None:
+            self.elevation_states_csv_path = self.output_csv_path.with_name(
+                f"{self.output_csv_path.stem}_elevation_states.csv"
+            )
+        else:
+            self.elevation_states_csv_path = Path(elevation_states_csv_path)
         self.node_population_ratio = max(0.0, min(1.0, float(node_population_ratio)))
         self.nodes_per_demodulator = max(1, int(nodes_per_demodulator))
         self.minimum_frames = max(8, int(minimum_frames))
         self._simulation_start_utc = self._resolve_simulation_start_utc(simulation_start_utc)
         self._user_position_seed = int(user_position_seed)
+        self._demod_activity_ratio = float(max(0.0, min(1.0, float(demod_activity_ratio))))
+        self._demod_sleep_ratio = float(max(0.0, min(1.0, float(demod_sleep_ratio))))
         self._elev_list = self._resolve_elev_list(elev_list)
         self._elev_tokens: list[tuple[float, str]] = [
             (float(elev), self._elev_token(float(elev))) for elev in self._elev_list
         ]
 
-        self._elev_csv_fields: list[str] = []
+        self._elev_metric_fields: list[str] = [
+            "center_elevation_deg",
+            "center_slant_range_km",
+            "user_positions_count",
+            "user_distance_min_km",
+            "user_distance_max_km",
+            "user_distance_mean_km",
+            "elevation_impact_range_ratio",
+            "elevation_impact_fspl_delta_db",
+            "sample_user_positions_local_m",
+        ]
         for _, token in self._elev_tokens:
-            self._elev_csv_fields.append(f"elev_{token}_num_users")
-            self._elev_csv_fields.append(f"elev_{token}_distance_km")
-        self._csv_fieldnames = list(self.BASE_CSV_FIELDNAMES) + self._elev_csv_fields
+            self._elev_metric_fields.append(f"elev_{token}_num_users")
+            self._elev_metric_fields.append(f"elev_{token}_distance_km")
+        self._csv_fieldnames = list(self.BASE_CSV_FIELDNAMES)
+        self._elev_states_fieldnames = ["step", "orbit_index"]
+        self._elev_states_fieldnames.extend(self._elev_metric_fields)
+        for _, token in self._elev_tokens:
+            self._elev_states_fieldnames.append(f"elev_{token}_busy")
+            self._elev_states_fieldnames.append(f"elev_{token}_idle")
+            self._elev_states_fieldnames.append(f"elev_{token}_sleep")
 
         self._population_points = self._load_points(self.population_csv_path)
         self._ocean_points = self._load_points(self.ocean_csv_path)
@@ -157,6 +175,7 @@ class SatelliteStepper:
         self._rows_in_cycle = 0
 
         self._ensure_output_header()
+        self._ensure_elevation_states_header()
         self._append_current_row()  # Save original first satellite position as first row.
 
     @staticmethod
@@ -266,6 +285,15 @@ class SatelliteStepper:
             )
             writer.writeheader()
 
+    def _ensure_elevation_states_header(self) -> None:
+        self.elevation_states_csv_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.elevation_states_csv_path.open("w", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=self._elev_states_fieldnames,
+            )
+            writer.writeheader()
+
     def _save_current_pos_json(self, row: dict[str, Any]) -> None:
         self.current_pos_json_path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
@@ -303,25 +331,26 @@ class SatelliteStepper:
                 "demodulators": int(row["calculated_demodulators"]),
                 "demodulator_capacity_nodes": int(row["calculated_demodulator_capacity_nodes"]),
             },
-            "elevation_user_impact": {
-                "center_elevation_deg": float(row["center_elevation_deg"]),
-                "center_slant_range_km": float(row["center_slant_range_km"]),
-                "user_positions_count": int(row["user_positions_count"]),
-                "user_distance_min_km": float(row["user_distance_min_km"]),
-                "user_distance_max_km": float(row["user_distance_max_km"]),
-                "user_distance_mean_km": float(row["user_distance_mean_km"]),
-                "range_ratio_vs_sat_altitude": float(row["elevation_impact_range_ratio"]),
-                "fspl_delta_db_vs_zenith": float(row["elevation_impact_fspl_delta_db"]),
-                "sample_user_positions_local_m": str(row["sample_user_positions_local_m"]),
-            },
-            "elevation_scenarios": {
+        }
+        if "center_elevation_deg" in row:
+            payload["elevation_user_impact"] = {
+                "center_elevation_deg": float(row.get("center_elevation_deg", float("nan"))),
+                "center_slant_range_km": float(row.get("center_slant_range_km", float("nan"))),
+                "user_positions_count": int(row.get("user_positions_count", 0) or 0),
+                "user_distance_min_km": float(row.get("user_distance_min_km", float("nan"))),
+                "user_distance_max_km": float(row.get("user_distance_max_km", float("nan"))),
+                "user_distance_mean_km": float(row.get("user_distance_mean_km", float("nan"))),
+                "range_ratio_vs_sat_altitude": float(row.get("elevation_impact_range_ratio", float("nan"))),
+                "fspl_delta_db_vs_zenith": float(row.get("elevation_impact_fspl_delta_db", float("nan"))),
+                "sample_user_positions_local_m": str(row.get("sample_user_positions_local_m", "")),
+            }
+            payload["elevation_scenarios"] = {
                 str(elev_deg): {
                     "num_users": int(row.get(f"elev_{token}_num_users", 0) or 0),
                     "distance_km": float(row.get(f"elev_{token}_distance_km", float("nan"))),
                 }
                 for elev_deg, token in self._elev_tokens
-            },
-        }
+            }
         with self.current_pos_json_path.open("w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
 
@@ -330,6 +359,57 @@ class SatelliteStepper:
         with self.output_csv_path.open("a", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=self._csv_fieldnames)
             writer.writerow(row)
+
+    def _build_elevation_states_row(self, row: dict[str, Any]) -> dict[str, Any]:
+        out: dict[str, Any] = {
+            "step": int(row["step"]),
+            "orbit_index": int(row["orbit_index"]),
+        }
+        user_impact = self._compute_elevation_user_impact(
+            sat_x_m=float(row["sat_x_m"]),
+            sat_y_m=float(row["sat_y_m"]),
+            sat_z_m=float(row["sat_z_m"]),
+            calculated_nodes=int(row["calculated_nodes"]),
+            footprint_radius_m=float(row["footprint_radius_m"]),
+        )
+        elev_series = self._compute_elev_list_user_distances(
+            calculated_nodes=int(row["calculated_nodes"]),
+            calculated_nodes_ratio=float(row["calculated_nodes_ratio"]),
+            footprint_radius_m=float(row["footprint_radius_m"]),
+        )
+        for k, v in user_impact.items():
+            out[k] = v
+        for k, v in elev_series.items():
+            out[k] = v
+
+        n_demod = int(max(0, int(row.get("calculated_demodulators", 0) or 0)))
+
+        for _, token in self._elev_tokens:
+            n_user = int(max(0, int(row.get(f"elev_{token}_num_users", 0) or 0)))
+            if f"elev_{token}_num_users" in out:
+                n_user = int(max(0, int(out[f"elev_{token}_num_users"] or 0)))
+            n_active = int(self._demod_activity_ratio * n_user)
+            n_busy = int(min(n_active, n_demod))
+            remaining = int(max(0, n_demod - n_busy))
+            n_sleep = int(self._demod_sleep_ratio * remaining)
+            n_idle = int(remaining - n_sleep)
+            out[f"elev_{token}_busy"] = n_busy
+            out[f"elev_{token}_idle"] = n_idle
+            out[f"elev_{token}_sleep"] = n_sleep
+        return out
+
+    def _append_elevation_states_row(self, row: dict[str, Any]) -> None:
+        states_row = self._build_elevation_states_row(row)
+        with self.elevation_states_csv_path.open("a", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=self._elev_states_fieldnames)
+            writer.writerow(states_row)
+
+    def _write_single_latest_elevation_states_row(self, row: dict[str, Any]) -> None:
+        self._ensure_elevation_states_header()
+        states_row = self._build_elevation_states_row(row)
+        with self.elevation_states_csv_path.open("a", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=self._elev_states_fieldnames)
+            writer.writerow(states_row)
 
     def get_pos(self) -> dict[str, float]:
         i = self._index
@@ -583,18 +663,6 @@ class SatelliteStepper:
             sat_lon_deg=float(pos["longitude_deg"]),
             footprint_radius_m=float(footprint["footprint_radius_m"]),
         )
-        user_impact = self._compute_elevation_user_impact(
-            sat_x_m=float(pos["x_m"]),
-            sat_y_m=float(pos["y_m"]),
-            sat_z_m=float(pos["z_m"]),
-            calculated_nodes=int(coverage["calculated_nodes"]),
-            footprint_radius_m=float(footprint["footprint_radius_m"]),
-        )
-        elev_series = self._compute_elev_list_user_distances(
-            calculated_nodes=int(coverage["calculated_nodes"]),
-            calculated_nodes_ratio=float(coverage["calculated_nodes_ratio"]),
-            footprint_radius_m=float(footprint["footprint_radius_m"]),
-        )
         return {
             "step": int(self._step_count),
             "orbit_index": int(pos["orbit_index"]),
@@ -622,16 +690,6 @@ class SatelliteStepper:
             "calculated_nodes_ratio": float(coverage["calculated_nodes_ratio"]),
             "calculated_demodulators": int(coverage["calculated_demodulators"]),
             "calculated_demodulator_capacity_nodes": int(coverage["calculated_demodulator_capacity_nodes"]),
-            "center_elevation_deg": float(user_impact["center_elevation_deg"]),
-            "center_slant_range_km": float(user_impact["center_slant_range_km"]),
-            "user_positions_count": int(user_impact["user_positions_count"]),
-            "user_distance_min_km": float(user_impact["user_distance_min_km"]),
-            "user_distance_max_km": float(user_impact["user_distance_max_km"]),
-            "user_distance_mean_km": float(user_impact["user_distance_mean_km"]),
-            "elevation_impact_range_ratio": float(user_impact["elevation_impact_range_ratio"]),
-            "elevation_impact_fspl_delta_db": float(user_impact["elevation_impact_fspl_delta_db"]),
-            "sample_user_positions_local_m": str(user_impact["sample_user_positions_local_m"]),
-            **elev_series,
         }
 
     def estimate_row_for_lat_lon(self, sat_lat_deg: float, sat_lon_deg: float) -> dict[str, Any]:
@@ -640,18 +698,6 @@ class SatelliteStepper:
         coverage = self._compute_coverage(
             sat_lat_deg=float(sat_lat_deg),
             sat_lon_deg=float(sat_lon_deg),
-            footprint_radius_m=float(footprint["footprint_radius_m"]),
-        )
-        user_impact = self._compute_elevation_user_impact(
-            sat_x_m=float(pos["x_m"]),
-            sat_y_m=float(pos["y_m"]),
-            sat_z_m=float(pos["z_m"]),
-            calculated_nodes=int(coverage["calculated_nodes"]),
-            footprint_radius_m=float(footprint["footprint_radius_m"]),
-        )
-        elev_series = self._compute_elev_list_user_distances(
-            calculated_nodes=int(coverage["calculated_nodes"]),
-            calculated_nodes_ratio=float(coverage["calculated_nodes_ratio"]),
             footprint_radius_m=float(footprint["footprint_radius_m"]),
         )
         return {
@@ -681,16 +727,6 @@ class SatelliteStepper:
             "calculated_nodes_ratio": float(coverage["calculated_nodes_ratio"]),
             "calculated_demodulators": int(coverage["calculated_demodulators"]),
             "calculated_demodulator_capacity_nodes": int(coverage["calculated_demodulator_capacity_nodes"]),
-            "center_elevation_deg": float(user_impact["center_elevation_deg"]),
-            "center_slant_range_km": float(user_impact["center_slant_range_km"]),
-            "user_positions_count": int(user_impact["user_positions_count"]),
-            "user_distance_min_km": float(user_impact["user_distance_min_km"]),
-            "user_distance_max_km": float(user_impact["user_distance_max_km"]),
-            "user_distance_mean_km": float(user_impact["user_distance_mean_km"]),
-            "elevation_impact_range_ratio": float(user_impact["elevation_impact_range_ratio"]),
-            "elevation_impact_fspl_delta_db": float(user_impact["elevation_impact_fspl_delta_db"]),
-            "sample_user_positions_local_m": str(user_impact["sample_user_positions_local_m"]),
-            **elev_series,
         }
 
     def get_nodes_demods_for_lat_lon(self, sat_lat_deg: float, sat_lon_deg: float) -> tuple[int, int]:
@@ -730,6 +766,7 @@ class SatelliteStepper:
         with self.output_csv_path.open("a", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=self._csv_fieldnames)
             writer.writerow(row)
+        self._append_elevation_states_row(row)
         self._rows_in_cycle += 1
         self._save_current_pos_json(row)
         return row
@@ -747,6 +784,7 @@ class SatelliteStepper:
         # Once one-orbit capacity is reached, clear CSV rows and keep only latest row.
         if self._rows_in_cycle + 1 >= self._steps_per_orbit:
             self._write_single_latest_row(row)
+            self._write_single_latest_elevation_states_row(row)
             self._rows_in_cycle = 1
             self._save_current_pos_json(row)
             return row
@@ -754,6 +792,7 @@ class SatelliteStepper:
         with self.output_csv_path.open("a", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=self._csv_fieldnames)
             writer.writerow(row)
+        self._append_elevation_states_row(row)
         self._rows_in_cycle += 1
         self._save_current_pos_json(row)
         return row
@@ -794,6 +833,12 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         help="Current-position JSON file path (default: beside output CSV).",
     )
     parser.add_argument(
+        "--elevation-states-csv",
+        type=Path,
+        default=None,
+        help="Optional CSV path for per-elevation demod states (busy/idle/sleep).",
+    )
+    parser.add_argument(
         "--node-population-ratio",
         type=float,
         default=node_population_ratio,
@@ -830,6 +875,8 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         default=[90.0, 55.0, 22.0],
         help="Elevation scenarios (deg) used for per-step user-distance columns.",
     )
+    parser.add_argument("--demod-activity-ratio", type=float, default=0.1)
+    parser.add_argument("--demod-sleep-ratio", type=float, default=0.3)
     return parser
 
 
@@ -843,12 +890,15 @@ def main() -> int:
         population_csv_path=args.population_csv,
         ocean_csv_path=args.ocean_csv,
         current_pos_json_path=args.current_pos_json,
+        elevation_states_csv_path=args.elevation_states_csv,
         node_population_ratio=float(args.node_population_ratio),
         nodes_per_demodulator=int(args.nodes_per_demodulator),
         minimum_frames=int(args.minimum_frames),
         simulation_start_utc=args.simulation_start_utc,
         user_position_seed=int(args.user_position_seed),
         elev_list=[float(v) for v in args.elev_list],
+        demod_activity_ratio=float(args.demod_activity_ratio),
+        demod_sleep_ratio=float(args.demod_sleep_ratio),
     )
     last_row = None
     for _ in range(steps):
