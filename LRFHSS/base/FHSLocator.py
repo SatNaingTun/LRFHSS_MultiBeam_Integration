@@ -1,6 +1,7 @@
 import numpy as np
 from multiprocessing import Pool
 from base.base import *
+from base.channel import dopplerShift,get_visibility_time
 
 
 class FHSLocator():

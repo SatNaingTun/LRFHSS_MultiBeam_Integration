@@ -25,7 +25,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--stepper-output-csv",
         type=Path,
-        default=root / "results" / "one_pos_satellite" / "satellite_steps.csv",
+        default=root / "results" / "one_pos_lrfhss" / "satellite_steps.csv",
         help="Satellite stepper CSV to use as source of calculated_nodes/calculated_demodulators.",
     )
     parser.add_argument(
