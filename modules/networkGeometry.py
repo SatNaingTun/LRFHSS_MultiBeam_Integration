@@ -63,6 +63,56 @@ def get_user_position(n_user):
     [x_user, y_user, z_user] = utils.pol2cart3D(r_earth, phi, theta)
     z_user = z_user - r_earth  # re-center coordinates around center of satellite footprint
     return np.array([x_user, y_user, z_user])  # (3, n_user)
+     # example, replace with your ProjectConfig value
+
+def satellite_pos_from_center_elevation(elev_deg, earth_r=EARTRH_R, sat_h=SAT_H):
+    """
+    Satellite position in the same local coordinate system used in the paper/code:
+    footprint center at (0,0,0), Earth center at (0,0,-earth_r).
+    Satellite is placed in x-z plane.
+    """
+    eps = np.deg2rad(elev_deg)           # center elevation angle
+    altitude = earth_r + sat_h
+
+    # central angle from Earth center
+    alpha = np.arccos((earth_r / altitude) * np.cos(eps)) - eps
+
+    x_sat = altitude * np.sin(alpha)
+    y_sat = 0.0
+    z_sat = altitude * np.cos(alpha) - earth_r
+    return np.array([x_sat, y_sat, z_sat])
+
+def user_satellite_distances(user_positions, sat_pos):
+    """
+    user_positions: shape (3, n_user)
+    sat_pos: shape (3,)
+    returns: shape (n_user,)
+    """
+    return np.linalg.norm(user_positions - sat_pos[:, None], axis=0)
+
+def evaluate_users_and_distances(elev_list=[90, 55, 25], n_user=100000):
+    """
+    Returns results for each elevation:
+    - number of users
+    - distance statistics (min, max, mean)
+    """
+
+    users = get_user_position(n_user)
+
+    results = {}
+
+    for elev in elev_list:
+        sat = satellite_pos_from_center_elevation(elev)
+        d = user_satellite_distances(users, sat)
+
+        results[elev] = {
+            "num_users": users.shape[1],
+            "min_distance_km": float(d.min() / 1e3),
+            "max_distance_km": float(d.max() / 1e3),
+            "mean_distance_km": float(d.mean() / 1e3),
+        }
+
+    return results
 
 
 def get_grid_positions(user_distance):
