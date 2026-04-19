@@ -156,11 +156,11 @@ class LoRaNode():
         
         dis2sat = distance_from_center_elevation(elev_deg)
 
-        tau = get_visibility_time(dis2sat)
+        # tau = get_visibility_time(dis2sat)
 
         # still random time inside same visibility window
-        time = random.uniform(-tau + self.maxFrameT, tau - self.maxFrameT)
-
+        # time = random.uniform(-tau + self.maxFrameT, tau - self.maxFrameT)
+        time = 0
         hdr_frg_times = self.calculate_hdr_frg_times(time, numHeaders, numFragments)
         dynamicDoppler = [dopplerShift(t) for t in hdr_frg_times]
 

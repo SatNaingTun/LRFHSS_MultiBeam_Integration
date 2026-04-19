@@ -8,7 +8,7 @@ import sys
 from typing import Any
 
 from modules.satellite_stepper import SatelliteStepper
-from ProjectConfig import numDecoders, node_population_ratio, demd_population_ratio
+from ProjectConfig import numDecoders, node_population_ratio, demd_population_ratio,elev_list
 
 
 def parse_args() -> argparse.Namespace:
@@ -40,6 +40,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--demd-population-ratio", type=float, default=float(demd_population_ratio))
     parser.add_argument("--num-demodulators", type=int, default=int(numDecoders), help="Explicit number of demodulators to simulate; defaults to ProjectConfig.numDecoders.")
     parser.add_argument("--minimum-frames", type=int, default=720)
+    parser.add_argument("--elev-list", type=list, default=elev_list, help="List of elevations to simulate (degrees).")
 
     parser.add_argument("--lrfhss-root", type=Path, default=root / "LRFHSS")
     parser.add_argument("--coding-rate", type=int, default=1)
@@ -178,11 +179,37 @@ def main() -> int:
         title=f"Total decoded payloads with CR{int(args.coding_rate)} and {int(num_decoders)} demodulators",
     )
 
-    print(f"lrfhss_png={out_png.resolve()}")
-    print(
-        f"stepper_source_csv={stepper_csv.resolve()} step={args.step if args.step is not None else 'latest'} "
-        f"requested_nodes={int(requested_nodes)} requested_demodulators={int(requested_demods)}"
-    )
+    print(f"lrfhss_png: {out_png.resolve()}")
+    if elev_list is not None:
+        print(f"elevations: {elev_list}")
+        for elev in elev_list:
+            elev_out_csv = output_dir / f"lrfhss_sim_cr{int(args.coding_rate)}_elev{int(elev)}.csv"
+            elev_out_png = output_dir / f"lrfhss_demod_{int(num_decoders)}_elev{int(elev)}.png"
+            csv_path, png_path = sim.runsim2plot(
+                num_decoders=int(num_decoders),
+                drop_mode=str(drop_mode),
+                filename=elev_out_csv,
+                coding_rate=int(args.coding_rate),
+                metric=str(args.metric),
+                include_lifan=bool(args.include_lifan),
+                include_infp=bool(args.include_infp),
+                inf_demods=args.inf_demods,
+                node_min=args.node_min,
+                node_max=args.node_max,
+                # selected_nodes=selected_nodes,
+                node_points=int(requested_nodes),
+                runs_per_node=max(1, int(args.runs_per_node)),
+                link_budget_log=bool(args.link_budget_log),
+                plot_enabled=bool(args.plot_enabled),
+                plot_filename=elev_out_png,
+                x_min=args.x_min,
+                x_max=args.x_max,
+                y_min=args.y_min,
+                y_max=args.y_max,
+                title=f"Total decoded payloads with CR{int(args.coding_rate)}, {int(num_decoders)} demodulators, and elevation {int(elev)}°",
+                fixed_elevation=int(elev),
+            )
+            print(f"lrfhss_png: {elev_out_png.resolve()}")
     # summary = {
     #     "sat_lat_deg": float(sat_lat),
     #     "sat_lon_deg": float(sat_lon),
