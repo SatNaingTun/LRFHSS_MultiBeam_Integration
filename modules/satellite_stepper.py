@@ -73,6 +73,7 @@ class SatelliteStepper:
         current_pos_json_path: str | Path | None = None,
         groundtrack_coverage_csv_path: str | Path | None = None,
         elevation_states_csv_path: str | Path | None = None,
+        population_timeseries_csv_path: str | Path | None = None,
         node_population_ratio: float = 0.0001,
         demd_population_ratio: int = demd_population_ratio,
         minimum_frames: int = 720,
@@ -104,6 +105,12 @@ class SatelliteStepper:
             )
         else:
             self.elevation_states_csv_path = Path(elevation_states_csv_path)
+        if population_timeseries_csv_path is None:
+            self.population_timeseries_csv_path = self.output_csv_path.with_name(
+                f"{self.output_csv_path.stem}_population_timeseries.csv"
+            )
+        else:
+            self.population_timeseries_csv_path = Path(population_timeseries_csv_path)
         self.node_population_ratio = max(0.0, min(1.0, float(node_population_ratio)))
         self.demd_population_ratio = max(0.0, min(1.0, float(demd_population_ratio)))
         self.minimum_frames = max(8, int(minimum_frames))
@@ -158,6 +165,18 @@ class SatelliteStepper:
             self._elev_states_fieldnames.append(f"elev_{token}_idle")
             self._elev_states_fieldnames.append(f"elev_{token}_sleep")
             self._elev_states_fieldnames.append(f"elev_{token}_energy_model_w")
+        self._population_timeseries_fieldnames = [
+            "step",
+            "orbit_index",
+            "timestamp_s",
+            "orbit_timestamp_s",
+            "timestamp_utc",
+            "covered_population_total",
+            "covered_population_points",
+            "covered_population_ratio",
+            "calculated_nodes",
+            "calculated_demodulators",
+        ]
 
         self._population_points = self._load_points(self.population_csv_path)
         self._ocean_points = self._load_points(self.ocean_csv_path)
@@ -207,6 +226,7 @@ class SatelliteStepper:
         self._ensure_output_header()
         self._ensure_groundtrack_coverage_header()
         self._ensure_elevation_states_header()
+        self._ensure_population_timeseries_header()
         self._append_current_row()  # Save original first satellite position as first row.
 
     @staticmethod
@@ -367,6 +387,17 @@ class SatelliteStepper:
             elapsed.append(float(elapsed[-1] + delta_s))
         return np.asarray(elapsed, dtype=float)
 
+    MU = 3.986004418e14  # m^3/s^2
+    def _compute_orbital_period_s(self) -> float:
+        r = float(EARTRH_R + SAT_H)
+        return 2.0 * math.pi * math.sqrt((r ** 3) / self.MU)
+
+    def _get_orbit_timestamp_s(self, timestamp_s: float) -> float:
+        period_s = self._compute_orbital_period_s()
+        if period_s <= 0.0:
+            return 0.0
+        return float(timestamp_s) % period_s
+
     def _ensure_output_header(self) -> None:
         self.output_csv_path.parent.mkdir(parents=True, exist_ok=True)
         with self.output_csv_path.open("w", encoding="utf-8", newline="") as f:
@@ -391,6 +422,15 @@ class SatelliteStepper:
             writer = csv.DictWriter(
                 f,
                 fieldnames=self._groundtrack_coverage_fieldnames,
+            )
+            writer.writeheader()
+
+    def _ensure_population_timeseries_header(self) -> None:
+        self.population_timeseries_csv_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.population_timeseries_csv_path.open("w", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=self._population_timeseries_fieldnames,
             )
             writer.writeheader()
 
@@ -483,6 +523,30 @@ class SatelliteStepper:
             writer = csv.DictWriter(f, fieldnames=self._groundtrack_coverage_fieldnames)
             writer.writerow(row)
 
+    def _build_population_timeseries_row(
+        self,
+        row: dict[str, Any],
+        groundtrack_coverage_row: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            "step": int(row["step"]),
+            "orbit_index": int(row["orbit_index"]),
+            "timestamp_s": float(row["timestamp_s"]),
+            "orbit_timestamp_s": float(row["orbit_timestamp_s"]),
+            "timestamp_utc": str(row["timestamp_utc"]),
+            "covered_population_total": int(groundtrack_coverage_row["covered_population_total"]),
+            "covered_population_points": int(groundtrack_coverage_row["covered_population_points"]),
+            "covered_population_ratio": float(groundtrack_coverage_row["covered_population_ratio"]),
+            "calculated_nodes": int(row["calculated_nodes"]),
+            "calculated_demodulators": int(row["calculated_demodulators"]),
+        }
+
+    def _write_single_latest_population_timeseries_row(self, row: dict[str, Any]) -> None:
+        self._ensure_population_timeseries_header()
+        with self.population_timeseries_csv_path.open("a", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=self._population_timeseries_fieldnames)
+            writer.writerow(row)
+
     def _build_elevation_states_row(
         self,
         row: dict[str, Any],
@@ -493,6 +557,7 @@ class SatelliteStepper:
             "orbit_index": int(row["orbit_index"]),
             "orbit_timestamp_s": float(row["orbit_timestamp_s"]),
         }
+
         user_impact = self._compute_elevation_user_impact(
             sat_x_m=float(row["sat_x_m"]),
             sat_y_m=float(row["sat_y_m"]),
@@ -504,31 +569,79 @@ class SatelliteStepper:
             calculated_nodes=int(row["calculated_nodes"]),
             footprint_radius_m=float(groundtrack_coverage_row["footprint_radius_m"]),
         )
+
         for k, v in user_impact.items():
             out[k] = v
         for k, v in elev_series.items():
             out[k] = v
 
-        n_demod = int(max(0, int(row.get("calculated_demodulators", 0) or 0)))
+        n_demod_total = int(max(0, int(row.get("calculated_demodulators", 0) or 0)))
+        if n_demod_total <= 0:
+            for _, token in self._elev_tokens:
+                out[f"elev_{token}_busy"] = 0
+                out[f"elev_{token}_idle"] = 0
+                out[f"elev_{token}_sleep"] = 0
+                out[f"elev_{token}_energy_model_w"] = float(self._baseline_power_w)
+            return out
 
-        for _, token in self._elev_tokens:
-            n_user = int(max(0, int(row.get(f"elev_{token}_num_users", 0) or 0)))
-            if f"elev_{token}_num_users" in out:
-                n_user = int(max(0, int(out[f"elev_{token}_num_users"] or 0)))
-            n_active = int(self._demod_activity_ratio * n_user)
-            n_busy = int(min(n_active, n_demod))
-            remaining = int(max(0, n_demod - n_busy))
-            n_sleep = int(self._demod_sleep_ratio * remaining)
-            n_idle = int(remaining - n_sleep)
+        # Reference distance: zenith case
+        d_ref_km = float(SAT_H) / 1000.0
+
+        # First compute elevation-dependent load factors
+        load_factors: dict[str, float] = {}
+        total_factor = 0.0
+
+        for elev_deg, token in self._elev_tokens:
+            n_user = int(max(0, int(out.get(f"elev_{token}_num_users", 0) or 0)))
+            d_km = float(out.get(f"elev_{token}_distance_km", float("nan")))
+
+            if n_user <= 0 or not np.isfinite(d_km):
+                load_factors[token] = 0.0
+                continue
+
+            # Relative FSPL pressure ~ (d / d_ref)^2
+            relative_path_loss_factor = (d_km / max(d_ref_km, 1e-9)) ** 2
+
+            # Higher path loss -> more demod occupancy pressure
+            # Scale by users and activity ratio
+            factor = float(n_user) * float(self._demod_activity_ratio) * relative_path_loss_factor
+            load_factors[token] = factor
+            total_factor += factor
+
+        # Avoid divide-by-zero
+        if total_factor <= 0.0:
+            for _, token in self._elev_tokens:
+                out[f"elev_{token}_busy"] = 0
+                out[f"elev_{token}_idle"] = int((1.0 - self._demod_sleep_ratio) * n_demod_total)
+                out[f"elev_{token}_sleep"] = int(self._demod_sleep_ratio * n_demod_total)
+                out[f"elev_{token}_energy_model_w"] = float(
+                    self._baseline_power_w
+                    + out[f"elev_{token}_idle"] * self._idle_demodulator_power_w
+                )
+            return out
+
+        for elev_deg, token in self._elev_tokens:
+            factor = load_factors[token]
+
+            # Elevation-specific busy demodulators
+            n_busy = int(round(n_demod_total * factor / total_factor))
+            n_busy = max(0, min(n_busy, n_demod_total))
+
+            remaining = max(0, n_demod_total - n_busy)
+            n_sleep = int(round(self._demod_sleep_ratio * remaining))
+            n_idle = max(0, remaining - n_sleep)
+
             energy_model_w = float(
                 self._baseline_power_w
                 + n_idle * self._idle_demodulator_power_w
                 + n_busy * self._busy_demodulator_power_w
             )
-            out[f"elev_{token}_busy"] = n_busy
-            out[f"elev_{token}_idle"] = n_idle
-            out[f"elev_{token}_sleep"] = n_sleep
+
+            out[f"elev_{token}_busy"] = int(n_busy)
+            out[f"elev_{token}_idle"] = int(n_idle)
+            out[f"elev_{token}_sleep"] = int(n_sleep)
             out[f"elev_{token}_energy_model_w"] = energy_model_w
+
         return out
 
     def _append_elevation_states_row(
@@ -560,11 +673,12 @@ class SatelliteStepper:
         sat_radius_m = float(np.linalg.norm(self._sat_eci[:, i]))
         cycle_step = int(self._step_count % max(1, self._steps_per_orbit))
         elapsed_s = float(self._orbit_elapsed_lookup_s[cycle_step])
+        orbit_timestamp_s = self._get_orbit_timestamp_s(elapsed_s)
         return {
             "step": float(self._step_count),
             "orbit_index": float(i),
             "timestamp_s": float(elapsed_s),
-            "orbit_timestamp_s": float(elapsed_s),
+            "orbit_timestamp_s": float(orbit_timestamp_s),
             "x_m": float(xyz[0]),
             "y_m": float(xyz[1]),
             "z_m": float(xyz[2]),
@@ -920,6 +1034,26 @@ class SatelliteStepper:
         )
         return rows
 
+    def _load_sorted_population_timeseries_rows(self) -> list[dict[str, str]]:
+        if not self.population_timeseries_csv_path.exists():
+            return []
+
+        rows: list[dict[str, str]] = []
+        with self.population_timeseries_csv_path.open("r", encoding="utf-8", newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                rows.append(row)
+        if not rows:
+            return []
+
+        rows.sort(
+            key=lambda row: (
+                float(row.get("orbit_timestamp_s", 0.0) or 0.0),
+                int(float(row.get("step", 0) or 0)),
+            )
+        )
+        return rows
+
     def plot_elevation_energy_timeseries(self, output_dir: str | Path | None = None) -> list[Path]:
         if plt is None:
             return []
@@ -957,6 +1091,90 @@ class SatelliteStepper:
             plot_paths.append(out_path)
 
         return plot_paths
+
+    def plot_elevation_demodulator_timeseries(self, output_dir: str | Path | None = None) -> list[Path]:
+        if plt is None:
+            return []
+
+        if output_dir is None:
+            plots_dir = self.elevation_states_csv_path.parent / "plots"
+        else:
+            plots_dir = Path(output_dir)
+        plots_dir.mkdir(parents=True, exist_ok=True)
+
+        rows = self._load_sorted_elevation_state_rows()
+        if not rows:
+            return []
+
+        orbit_timestamp_s = [float(row.get("orbit_timestamp_s", 0.0) or 0.0) for row in rows]
+        plot_paths: list[Path] = []
+        for elev_deg, token in self._elev_tokens:
+            busy_field = f"elev_{token}_busy"
+            idle_field = f"elev_{token}_idle"
+            if busy_field not in rows[0] or idle_field not in rows[0]:
+                continue
+
+            busy_demodulators = [int(float(row.get(busy_field, 0) or 0)) for row in rows]
+            idle_demodulators = [int(float(row.get(idle_field, 0) or 0)) for row in rows]
+
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.plot(
+                orbit_timestamp_s,
+                idle_demodulators,
+                color="#2980b9",
+                linewidth=2.0,
+                label="Idle demodulators",
+            )
+            ax.plot(
+                orbit_timestamp_s,
+                busy_demodulators,
+                color="#d35400",
+                linewidth=2.0,
+                label="Busy demodulators",
+            )
+            ax.set_title(f"Orbit Timestamp vs Demodulator States @ {elev_deg:g} deg")
+            ax.set_xlabel("orbit_timestamp_s")
+            ax.set_ylabel("number_of_demodulators")
+            ax.grid(True, linestyle="-", linewidth=0.5, alpha=0.35)
+            ax.legend()
+            fig.tight_layout()
+
+            out_path = plots_dir / f"satellite_stepper_demodulators_{token}.png"
+            fig.savefig(out_path, dpi=220)
+            plt.close(fig)
+            plot_paths.append(out_path)
+
+        return plot_paths
+
+    def plot_population_timeseries(self, output_dir: str | Path | None = None) -> Path | None:
+        if plt is None:
+            return None
+
+        if output_dir is None:
+            plots_dir = self.population_timeseries_csv_path.parent / "plots"
+        else:
+            plots_dir = Path(output_dir)
+        plots_dir.mkdir(parents=True, exist_ok=True)
+
+        rows = self._load_sorted_population_timeseries_rows()
+        if not rows or "covered_population_total" not in rows[0]:
+            return None
+
+        orbit_timestamp_s = [float(row.get("orbit_timestamp_s", 0.0) or 0.0) for row in rows]
+        covered_population_total = [int(float(row.get("covered_population_total", 0) or 0)) for row in rows]
+
+        fig, ax = plt.subplots(figsize=(11, 6))
+        ax.plot(orbit_timestamp_s, covered_population_total, color="#16a085", linewidth=2.2)
+        ax.set_title("Orbit Timestamp vs Covered Population")
+        ax.set_xlabel("orbit_timestamp_s")
+        ax.set_ylabel("number_of_population")
+        ax.grid(True, linestyle="-", linewidth=0.5, alpha=0.35)
+        fig.tight_layout()
+
+        out_path = plots_dir / "satellite_stepper_population.png"
+        fig.savefig(out_path, dpi=220)
+        plt.close(fig)
+        return out_path
 
     def plot_combined_elevation_energy_timeseries(
         self,
@@ -1019,6 +1237,10 @@ class SatelliteStepper:
         with self.groundtrack_coverage_csv_path.open("a", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=self._groundtrack_coverage_fieldnames)
             writer.writerow(groundtrack_coverage_row)
+        population_timeseries_row = self._build_population_timeseries_row(row, groundtrack_coverage_row)
+        with self.population_timeseries_csv_path.open("a", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=self._population_timeseries_fieldnames)
+            writer.writerow(population_timeseries_row)
         elevation_states_row = self._append_elevation_states_row(row, groundtrack_coverage_row)
         self._rows_in_cycle += 1
         self._save_current_pos_json(row, groundtrack_coverage_row, elevation_states_row)
@@ -1039,6 +1261,8 @@ class SatelliteStepper:
         if self._rows_in_cycle + 1 >= self._steps_per_orbit:
             self._write_single_latest_row(row)
             self._write_single_latest_groundtrack_coverage_row(groundtrack_coverage_row)
+            population_timeseries_row = self._build_population_timeseries_row(row, groundtrack_coverage_row)
+            self._write_single_latest_population_timeseries_row(population_timeseries_row)
             elevation_states_row = self._write_single_latest_elevation_states_row(row, groundtrack_coverage_row)
             self._rows_in_cycle = 1
             self._save_current_pos_json(row, groundtrack_coverage_row, elevation_states_row)
@@ -1050,6 +1274,10 @@ class SatelliteStepper:
         with self.groundtrack_coverage_csv_path.open("a", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=self._groundtrack_coverage_fieldnames)
             writer.writerow(groundtrack_coverage_row)
+        population_timeseries_row = self._build_population_timeseries_row(row, groundtrack_coverage_row)
+        with self.population_timeseries_csv_path.open("a", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=self._population_timeseries_fieldnames)
+            writer.writerow(population_timeseries_row)
         elevation_states_row = self._append_elevation_states_row(row, groundtrack_coverage_row)
         self._rows_in_cycle += 1
         self._save_current_pos_json(row, groundtrack_coverage_row, elevation_states_row)
@@ -1101,6 +1329,12 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="Optional CSV path for per-elevation demod states (busy/idle/sleep).",
+    )
+    parser.add_argument(
+        "--population-timeseries-csv",
+        type=Path,
+        default=None,
+        help="Optional CSV path for per-step covered population timeseries.",
     )
     parser.add_argument(
         "--node-population-ratio",
@@ -1159,6 +1393,7 @@ def main() -> int:
         current_pos_json_path=args.current_pos_json,
         groundtrack_coverage_csv_path=args.groundtrack_coverage_csv,
         elevation_states_csv_path=args.elevation_states_csv,
+        population_timeseries_csv_path=args.population_timeseries_csv,
         node_population_ratio=float(args.node_population_ratio),
         demd_population_ratio=float(args.demd_population_ratio),
         minimum_frames=int(args.minimum_frames),
@@ -1176,28 +1411,39 @@ def main() -> int:
         last_row = stepper.next()
 
     plot_paths = stepper.plot_elevation_energy_timeseries()
+    demod_plot_paths = stepper.plot_elevation_demodulator_timeseries()
+    population_plot_path = stepper.plot_population_timeseries()
     combined_plot_path = stepper.plot_combined_elevation_energy_timeseries()
 
     if last_row is None:
         pos = stepper.get_pos()
         footprint = stepper.get_footprint()
-        print(
-            f"initialized_only output={args.output} step={int(pos['step'])} "
-            f"lat={float(pos['latitude_deg']):.6f} lon={float(pos['longitude_deg']):.6f} "
-            f"footprint_m={float(footprint['footprint_radius_m']):.3f}"
-        )
-    else:
-        print(
-            f"completed output={args.output} rows_added={steps + 1} "
-            f"last_step={int(last_row['step'])} "
-            f"nodes={int(last_row['calculated_nodes'])} "
-            f"demods={int(last_row['calculated_demodulators'])} "
-            f"current_json={stepper.current_pos_json_path}"
-        )
+    #     print(
+    #         f"initialized_only output={args.output} step={int(pos['step'])} "
+    #         f"lat={float(pos['latitude_deg']):.6f} lon={float(pos['longitude_deg']):.6f} "
+    #         f"footprint_m={float(footprint['footprint_radius_m']):.3f}"
+    #     )
+    # else:
+    #     print(
+    #         f"completed output={args.output} rows_added={steps + 1} "
+    #         f"last_step={int(last_row['step'])} "
+    #         f"nodes={int(last_row['calculated_nodes'])} "
+    #         f"demods={int(last_row['calculated_demodulators'])} "
+    #         f"current_json={stepper.current_pos_json_path}"
+    #     )
     if plot_paths:
         print("energy_plots=" + ",".join(str(path) for path in plot_paths))
     elif plt is None:
         print("energy_plots=skipped_matplotlib_not_installed")
+    if demod_plot_paths:
+        print("demodulator_plots=" + ",".join(str(path) for path in demod_plot_paths))
+    elif plt is None:
+        print("demodulator_plots=skipped_matplotlib_not_installed")
+    if population_plot_path is not None:
+        print(f"population_plot={population_plot_path}")
+    elif plt is None:
+        print("population_plot=skipped_matplotlib_not_installed")
+    print(f"population_csv={stepper.population_timeseries_csv_path}")
     if combined_plot_path is not None:
         print(f"energy_plot_combined={combined_plot_path}")
     elif plt is None:
