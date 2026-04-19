@@ -4,6 +4,7 @@ from base.base import *
 from PIL import Image
 from base.LRFHSSTransmission import LRFHSSTransmission
 from families.LR_FHSS_DriverMethod import LR_FHSS_DriverFamily
+from modules.channel import dopplerShift, get_visibility_time
 
 
 class DatasetGenerator():

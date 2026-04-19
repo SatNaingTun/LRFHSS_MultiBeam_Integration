@@ -413,6 +413,7 @@ def path_loss(
     include_atmospheric_loss=True,
     p=DEFAULT_P,
     D=DEFAULT_D,
+    elevation_deg=None,
 ):
     """
     Total path loss in dB = FSPL + optional atmospheric attenuation.
@@ -430,42 +431,12 @@ def path_loss(
         )
     else:
         l_atm_db = np.zeros_like(l_fspl_db)
+    
+    if elevation_deg is not None:
+        theta = np.deg2rad(elevation_deg)
+        l_atm_db = l_atm_db / np.sin(theta)
 
     return l_fspl_db + l_atm_db
-
-def path_loss_with_elevation(
-    user_pos,
-    satellite_pos,
-    elevation_deg,
-    frequency_hz=DEFAULT_FREQUENCY_HZ,
-    include_atmospheric_loss=True,
-    p=DEFAULT_P,
-    D=DEFAULT_D,
-    ):
-
-    theta = np.deg2rad(elevation_deg)
-
-    # FSPL
-    distance_m = calculate_user_satellite_distance(user_pos, satellite_pos)
-    l_fspl_db = get_free_space_path_loss_db(distance_m, frequency_hz)
-
-
-    if include_atmospheric_loss:
-        l_atm_db = get_atmospheric_loss_db(
-            user_pos,
-            satellite_pos,
-            frequency_hz=frequency_hz,
-            p=p,
-            D=D,
-        )
-        l_atm_db=l_atm_db/np.sin(theta)
-    else:
-        l_atm_db = np.zeros_like(l_fspl_db)/np.sin(theta)
-
-
-
-    return l_fspl_db + l_atm_db
-
 
 # -----------------------------------------------------------------------------
 # Fading / Doppler / phase
