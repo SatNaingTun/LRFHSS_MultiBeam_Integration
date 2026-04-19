@@ -3,7 +3,7 @@ import numpy as np
 from base.base import *
 from base.LRFHSSTransmission import LRFHSSTransmission
 from families.LR_FHSS_DriverMethod import FHSfamily
-from modules.channel import dopplerShift, get_visibility_time
+from modules.channel import dopplerShift, get_visibility_time, distance_from_center_elevation
 
 class LoRaNode():
     """
@@ -121,5 +121,66 @@ class LoRaNode():
 
         tx = LRFHSSTransmission(self.id, self.id, startSlot, ocw, numHeaders, payload_size, numFragments,
                               sequence, seqid, dis2sat, dynamicDoppler, self.TXpower_dB)
+
+        return [tx]
+    
+    def get_transmissions_fixed_elevation(self, family: FHSfamily, elev_deg: float) -> list[LRFHSSTransmission]:
+        """
+        Obtain all transmission during simulation time for this node.
+        Fixed single-elevation version.
+        """
+
+        ocw = random.randrange(0, self.numOCW)
+        startSlot = random.randrange(0, self.startLimit)
+
+        if self.CR == 1:
+            payload_size = random.randrange(13, 58)
+            numHeaders = 3
+        elif self.CR == 2:
+            payload_size = random.randrange(29, 118)
+            numHeaders = 2
+        else:
+            raise Exception(f"Invalid coding rate '{self.CR}'")
+
+        payload_size = 20
+
+        numFragments = int(self.numHops(payload_size))
+        seq_length = int(numFragments + numHeaders)
+
+        seqid, sequence = family.get_random_sequence()
+        sequence = sequence[:seq_length]
+
+        self.sent_packets += 1
+        self.sent_payload_bytes += payload_size
+
+        
+        dis2sat = distance_from_center_elevation(elev_deg)
+
+        tau = get_visibility_time(dis2sat)
+
+        # still random time inside same visibility window
+        time = random.uniform(-tau + self.maxFrameT, tau - self.maxFrameT)
+
+        hdr_frg_times = self.calculate_hdr_frg_times(time, numHeaders, numFragments)
+        dynamicDoppler = [dopplerShift(t) for t in hdr_frg_times]
+
+        tx = LRFHSSTransmission(
+            self.id,
+            self.id,
+            startSlot,
+            ocw,
+            numHeaders,
+            payload_size,
+            numFragments,
+            sequence,
+            seqid,
+            dis2sat,
+            dynamicDoppler,
+            self.TXpower_dB
+        )
+
+        # strongly recommended: attach elevation too
+        tx.elevation_deg = elev_deg
+        tx.distance_m = dis2sat
 
         return [tx]

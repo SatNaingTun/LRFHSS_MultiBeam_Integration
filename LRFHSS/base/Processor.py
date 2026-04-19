@@ -107,8 +107,7 @@ class Processor():
     
 
     def isCollided_power(self, args: list) -> bool:
-        
-        estSignalPower = args[0]
+        signal_power_mw = args[0]
         interferenceBlock = args[1]
         isHdr = args[2]
         noise_power = RadioSignalQuality.noise_power_mw()
@@ -118,16 +117,18 @@ class Processor():
 
         for t in range(timeslots):
             SINRt_dB = RadioSignalQuality.sinr_db(
-                signal_power_mw=estSignalPower,
+                signal_power_mw=signal_power_mw,
                 interference_power_mw=interferenceBlock[t],
                 noise_power_mw=noise_power,
             )
-            
+
             if SINRt_dB < self.th2:
-                if t==0: return True
+                # Keep your existing header/fragments behavior
+                if t == 0:
+                    return True
                 collidedslots += 1
 
-        return (collidedslots/timeslots) > self.symbolThreshold
+        return (collidedslots / timeslots) > self.symbolThreshold
     
 
     def predecode_headers(self, tx: LRFHSSTransmission, rcvM: np.ndarray, dynamic: bool) -> int:
@@ -293,5 +294,10 @@ class Processor():
             
             time = endTime
 
-        return RadioSignalQuality.estimate_signal_and_interference(headers, fragments)
+            _, headersPi, fragmentsPi = RadioSignalQuality.estimate_signal_and_interference(headers, fragments)
+
+            
+            estSignalPower = self.received_signal_power_mw(tx)
+
+            return estSignalPower, headersPi, fragmentsPi
     

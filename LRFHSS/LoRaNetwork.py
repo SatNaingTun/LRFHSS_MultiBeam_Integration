@@ -21,7 +21,7 @@ except ModuleNotFoundError:  # pragma: no cover - optional dependency
 class LoRaNetwork():
 
     def __init__(self, numNodes, familyname, numOCW, numOBW, numGrids, CR, timeGranularity, freqGranularity,
-                 simTime, numDecoders, use_earlydecode, use_earlydrop, use_headerdrop, collision_method) -> None:
+                 simTime, numDecoders, use_earlydecode, use_earlydrop, use_headerdrop, collision_method,fixed_elevation=None) -> None:
         
         self.numOCW = numOCW
         self.numOBW = numOBW
@@ -61,7 +61,10 @@ class LoRaNetwork():
         startLimit = simTime - max_packet_duration
         self.nodes = [LoRaNode(i, CR, numOCW, startLimit) for i in range(numNodes)]
 
-        self.TXset = self.set_transmissions()
+        if fixed_elevation is None:
+            self.TXset = self.set_transmissions()
+        else:
+            self.TXset = self.set_transmissions_fixed_elevation(fixed_elevation)
 
         # add support for multiple gateways in the future
         self.gateway = LoRaGateway(CR, timeGranularity, freqGranularity, use_earlydrop, use_earlydecode,
@@ -99,6 +102,18 @@ class LoRaNetwork():
         node : LoRaNode
         for node in self.nodes:
             transmissions += node.get_transmissions(self.FHSfam)
+
+        sorted_txs = sorted(transmissions)
+        #for tx in sorted_txs: print(tx)
+
+        return sorted_txs
+    
+    def set_transmissions_fixed_elevation(self, elev_deg: float) -> list[LRFHSSTransmission]:
+
+        transmissions = []
+        node : LoRaNode
+        for node in self.nodes:
+            transmissions += node.get_transmissions_fixed_elevation(self.FHSfam, elev_deg)
 
         sorted_txs = sorted(transmissions)
         #for tx in sorted_txs: print(tx)

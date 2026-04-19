@@ -251,6 +251,7 @@ def run_sim(
     num_grids: int = numGrids,
     time_granularity: int = timeGranularity,
     freq_granularity: int = freqGranularity,
+    fixed_elevation: float | None = None,
     link_budget_log: bool = linkBudgetLog,
     return_link_budget_summary: bool = False,
     control: bool | None = None,
@@ -275,6 +276,7 @@ def run_sim(
         bool(use_earlydrop),
         bool(use_headerdrop),
         collision_method,
+        fixed_elevation=float(fixed_elevation) if fixed_elevation is not None else None,
     )
 
     if control is not None:
@@ -347,7 +349,7 @@ def runsim2csv(
     time_granularity: int = timeGranularity,
     freq_granularity: int = freqGranularity,
     link_budget_log: bool = linkBudgetLog,
-    
+    fixed_elevation: float | None = None,
 ) -> Path:
     if link_budget_log is not None:
         link_budget_log = bool(link_budget_log)
@@ -598,6 +600,7 @@ def runsim2plot(
     num_ocw: int = numOCW,
     num_obw: int = numOBW,
     num_grids: int = numGrids,
+    fixed_elevation: float | None = None,
     time_granularity: int = timeGranularity,
     freq_granularity: int = freqGranularity,
     link_budget_log: bool = linkBudgetLog,
@@ -630,7 +633,9 @@ def runsim2plot(
         time_granularity=time_granularity,
         freq_granularity=freq_granularity,
         link_budget_log=link_budget_log,
+        fixed_elevation=float(fixed_elevation) if fixed_elevation is not None else None,
     )
+
 
     if not bool(plot_enabled):
         return out_csv, None

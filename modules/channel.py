@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import random
 
@@ -11,6 +13,7 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - optional dependency
     itur = None
 
+from LRFHSS.base.LRFHSSTransmission import LRFHSSTransmission
 import ProjectConfig
 
 
@@ -272,6 +275,16 @@ def visibility_time_from_distance(d, earth_r=EARTH_R, sat_h=SAT_H):
 # -----------------------------------------------------------------------------
 # Legacy LR-FHSS helpers kept for compatibility
 # -----------------------------------------------------------------------------
+def distance_from_center_elevation(elev_deg, earth_r=EARTH_R, sat_h=SAT_H):
+    """
+    Legacy helper returning slant range from the serving-area center to the
+    satellite for a given center elevation angle [deg].
+    """
+    satellite_pos = satellite_pos_from_center_elevation(elev_deg, earth_r, sat_h)
+    center_pos = np.array([[0.0], [0.0], [0.0]], dtype=float)
+    return float(calculate_user_satellite_distance(center_pos, satellite_pos)[0])
+
+
 def get_coverageTime(r):
     """
     Legacy helper that returns coverage time from a coverage radius [m].
@@ -716,3 +729,72 @@ def atmospheric_gases_plot(
         ]
     )
     plt.grid(which="major", linestyle=":")
+
+def fspl_db(self, distance_m: float, frequency_hz: float) -> float:
+    c = ProjectConfig.SPEED_OF_LIGHT
+    return 20.0 * math.log10(4.0 * math.pi * distance_m * frequency_hz / c)
+
+
+def atmospheric_loss_db_from_elevation(self, elevation_deg: float) -> float:
+    """
+    Simple elevation-aware atmospheric attenuation.
+    For LR-FHSS this is usually small, but it creates the correct
+    trend: lower elevation -> higher loss.
+    """
+    theta_deg = max(float(elevation_deg), 1.0)
+    theta_rad = math.radians(theta_deg)
+
+    # Tunable zenith atmospheric loss in dB.
+    # Keep small for sub-GHz LR-FHSS unless you intentionally want
+    # a stronger elevation penalty.
+    l_zenith_db = getattr(ProjectConfig, "ATM_LOSS_ZENITH_DB", 0.5)
+
+    return l_zenith_db / max(math.sin(theta_rad), 1e-3)
+
+
+def shadowing_loss_db_from_elevation(self, elevation_deg: float) -> float:
+    """
+    Optional extra low-elevation penalty.
+    Set coefficients to 0 if you do not want this effect.
+    """
+    a = getattr(ProjectConfig, "ELEV_SHADOW_A_DB", 0.0)
+    b = getattr(ProjectConfig, "ELEV_SHADOW_B", 0.05)
+
+    return a * math.exp(-b * float(elevation_deg))
+
+
+def total_path_loss_db(self, distance_m: float, elevation_deg: float) -> float:
+    frequency_hz = getattr(
+        ProjectConfig,
+        "OCW_FC",
+        getattr(ProjectConfig, "CENTER_FREQUENCY_HZ", 868100000.0),
+    )
+
+    l_fspl = self.fspl_db(distance_m, frequency_hz)
+    l_atm = self.atmospheric_loss_db_from_elevation(elevation_deg)
+    l_shadow = self.shadowing_loss_db_from_elevation(elevation_deg)
+
+    return l_fspl + l_atm + l_shadow
+
+
+def received_signal_power_mw(self, tx: LRFHSSTransmission) -> float:
+    """
+    Compute elevation-aware received signal power.
+    Expected tx fields:
+      - tx.txPowerDbm or fallback ProjectConfig.TX_PWR_DB
+      - tx.distance or tx.distance_m
+      - tx.elevation or tx.elevation_deg
+    """
+    tx_power_dbm = getattr(tx, "txPowerDbm", getattr(ProjectConfig, "TX_PWR_DB", 14.0))
+
+    distance_m = getattr(tx, "distance_m", getattr(tx, "distance", None))
+    elevation_deg = getattr(tx, "elevation_deg", getattr(tx, "elevation", None))
+
+    if distance_m is None:
+        raise AttributeError("Transmission object must provide distance_m or distance.")
+    if elevation_deg is None:
+        raise AttributeError("Transmission object must provide elevation_deg or elevation.")
+
+    total_loss_db = self.total_path_loss_db(distance_m, elevation_deg)
+    rx_power_dbm = tx_power_dbm - total_loss_db
+    return self.dbm_to_mw(rx_power_dbm)
