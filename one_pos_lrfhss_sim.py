@@ -8,7 +8,7 @@ import sys
 from typing import Any
 
 from modules.satellite_stepper import SatelliteStepper
-from ProjectConfig import numDecoders, node_population_ratio, nodes_per_demodulator
+from ProjectConfig import numDecoders, node_population_ratio, demd_population_ratio
 
 
 def parse_args() -> argparse.Namespace:
@@ -37,7 +37,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--population-csv", type=Path, default=root / "Data" / "csv" / "population_data.csv")
     parser.add_argument("--ocean-csv", type=Path, default=root / "Data" / "csv" / "ocean_data.csv")
     parser.add_argument("--node-population-ratio", type=float, default=float(node_population_ratio))
-    parser.add_argument("--nodes-per-demodulator", type=int, default=int(nodes_per_demodulator))
+    parser.add_argument("--demd-population-ratio", type=float, default=float(demd_population_ratio))
     parser.add_argument("--num-demodulators", type=int, default=int(numDecoders), help="Explicit number of demodulators to simulate; defaults to ProjectConfig.numDecoders.")
     parser.add_argument("--minimum-frames", type=int, default=720)
 
@@ -110,7 +110,7 @@ def main() -> int:
             ocean_csv_path=args.ocean_csv,
             current_pos_json_path=stepper_json,
             node_population_ratio=float(args.node_population_ratio),
-            nodes_per_demodulator=int(args.nodes_per_demodulator),
+            demd_population_ratio=float(args.demd_population_ratio),
             minimum_frames=int(args.minimum_frames),
         )
 

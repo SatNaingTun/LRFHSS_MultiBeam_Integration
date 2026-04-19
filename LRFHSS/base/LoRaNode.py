@@ -3,7 +3,7 @@ import numpy as np
 from base.base import *
 from base.LRFHSSTransmission import LRFHSSTransmission
 from families.LR_FHSS_DriverMethod import FHSfamily
-from base.channel import get_visibility_time, dopplerShift
+from modules.channel import dopplerShift, get_visibility_time
 
 class LoRaNode():
     """
