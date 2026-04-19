@@ -63,4 +63,10 @@ use_headerdrop = False
 linkBudgetLog = True
 
 node_population_ratio = 0.000001
-nodes_per_demodulator  = 1
+demd_population_ratio = 0.000001
+
+baseline_power=35
+idle_demodulator_power=0.12
+busy_demodulator_power=0.8
+
+elev_list = [90.0, 55.0, 25.0]

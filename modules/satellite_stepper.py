@@ -35,8 +35,11 @@ from ProjectConfig import (
     T_FRAME,
     V_SATELLITE,
     node_population_ratio,
-    nodes_per_demodulator
-)
+    demd_population_ratio,
+    baseline_power,
+    idle_demodulator_power,
+    busy_demodulator_power,
+    elev_list)
 
 
 class SatelliteStepper:
@@ -71,16 +74,16 @@ class SatelliteStepper:
         groundtrack_coverage_csv_path: str | Path | None = None,
         elevation_states_csv_path: str | Path | None = None,
         node_population_ratio: float = 0.0001,
-        nodes_per_demodulator: int = nodes_per_demodulator,
+        demd_population_ratio: int = demd_population_ratio,
         minimum_frames: int = 720,
         simulation_start_utc: datetime | str | None = None,
         user_position_seed: int = 42,
-        elev_list: list[float] | None = None,
+        elev_list: list[float] | None = elev_list,
         demod_activity_ratio: float = 0.1,
         demod_sleep_ratio: float = 0.3,
-        baseline_power_w: float = 35.0,
-        idle_demodulator_power_w: float = 0.12,
-        busy_demodulator_power_w: float = 0.80,
+        baseline_power_w: float = baseline_power,
+        idle_demodulator_power_w: float = idle_demodulator_power,
+        busy_demodulator_power_w: float = busy_demodulator_power,
     ) -> None:
         self.output_csv_path = Path(output_csv_path)
         self.population_csv_path = Path(population_csv_path)
@@ -102,7 +105,7 @@ class SatelliteStepper:
         else:
             self.elevation_states_csv_path = Path(elevation_states_csv_path)
         self.node_population_ratio = max(0.0, min(1.0, float(node_population_ratio)))
-        self.nodes_per_demodulator = max(1, int(nodes_per_demodulator))
+        self.demd_population_ratio = max(0.0, min(1.0, float(demd_population_ratio)))
         self.minimum_frames = max(8, int(minimum_frames))
         self._simulation_start_utc = self._resolve_simulation_start_utc(simulation_start_utc)
         self._user_position_seed = int(user_position_seed)
@@ -225,7 +228,7 @@ class SatelliteStepper:
     @staticmethod
     def _resolve_elev_list(elev_list: list[float] | None) -> list[float]:
         if elev_list is None or len(elev_list) == 0:
-            return [90.0, 55.0, 22.0]
+            return [90.0, 55.0, 25.0]
         parsed: list[float] = []
         for e in elev_list:
             try:
@@ -417,8 +420,9 @@ class SatelliteStepper:
             "sat_radius_m": float(merged["sat_radius_m"]),
             "calculated": {
                 "node_population_ratio": float(merged["node_population_ratio"]),
+                # "demd_population_ratio": float(merged["demd_population_ratio"]),
                 "nodes": int(merged["calculated_nodes"]),
-                "demodulators": int(merged["calculated_demodulators"]),
+                "demodulators": float(merged["calculated_demodulators"]),
             },
         }
         if "sat_lat_deg" in merged and "sat_lon_deg" in merged:
@@ -632,7 +636,7 @@ class SatelliteStepper:
                 covered_ocean_labels.append(self._format_place_label(p))
 
         calculated_nodes = int(round(float(covered_population_total) * self.node_population_ratio))
-        calculated_demodulators = int(math.ceil(calculated_nodes / self.nodes_per_demodulator)) if calculated_nodes > 0 else 0
+        calculated_demodulators = int(round(float(covered_population_total) * self.demd_population_ratio))
 
         covered_population_ratio = float(
             covered_population_total / self._total_population_catalog
@@ -1043,10 +1047,10 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         help="Estimated node ratio from covered population.",
     )
     parser.add_argument(
-        "--nodes-per-demodulator",
-        type=int,
-        default=250,
-        help="Node capacity per demodulator.",
+        "--demd_population_ratio",
+        type=float,
+        default=demd_population_ratio,
+        help="demodulator population ratio",
     )
     parser.add_argument(
         "--minimum-frames",
@@ -1070,7 +1074,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "--elev-list",
         type=float,
         nargs="+",
-        default=[90.0, 55.0, 22.0],
+        default=[90.0, 55.0, 25.0],
         help="Elevation scenarios (deg) used for per-step user-distance columns.",
     )
     parser.add_argument("--demod-activity-ratio", type=float, default=0.1)
@@ -1094,7 +1098,7 @@ def main() -> int:
         groundtrack_coverage_csv_path=args.groundtrack_coverage_csv,
         elevation_states_csv_path=args.elevation_states_csv,
         node_population_ratio=float(args.node_population_ratio),
-        nodes_per_demodulator=int(args.nodes_per_demodulator),
+        demd_population_ratio=float(args.demd_population_ratio),
         minimum_frames=int(args.minimum_frames),
         simulation_start_utc=args.simulation_start_utc,
         user_position_seed=int(args.user_position_seed),
