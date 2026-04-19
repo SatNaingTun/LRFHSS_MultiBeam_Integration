@@ -20,12 +20,13 @@ def get_coverageTime(r):
 
 def get_visibility_time(d):
     
-    E = np.arcsin( (SAT_H**2 + 2*SAT_H*EARTRH_R - d**2) / (2*d*EARTRH_R) ) # elevation angle
-    dg = EARTRH_R * np.arcsin( d*np.cos(E) / (EARTRH_R+SAT_H) )            # ground range
-    v = np.sqrt( EARTRH_G*EARTRH_R / (1 + SAT_H/EARTRH_R) )                # satellite velocity
-    tau = dg / v                                                           # half satellite visibility time
+	E = np.arcsin( (SAT_H**2 + 2*SAT_H*EARTRH_R - d**2) / (2*d*EARTRH_R) ) # elevation angle
+	# print(f"Elevation angle: {np.degrees(E)} degrees")
+	dg = EARTRH_R * np.arcsin( d*np.cos(E) / (EARTRH_R+SAT_H) )            # ground range
+	v = np.sqrt( EARTRH_G*EARTRH_R / (1 + SAT_H/EARTRH_R) )                # satellite velocity
+	tau = dg / v                                                           # half satellite visibility time
     
-    return tau
+	return tau
 
 def get_FS_pathloss(d, f):
     c = 299792458  # m/s

@@ -153,7 +153,7 @@ def main() -> int:
 
     out_csv = output_dir / f"lrfhss_sim_cr{int(args.coding_rate)}_one_pos.csv"
     out_png = output_dir / f"lrfhss_demod_{int(num_decoders)}.png"
-    print(num_decoders)
+    
     csv_path, png_path = sim.runsim2plot(
         num_decoders=int(num_decoders),
         drop_mode=str(drop_mode),

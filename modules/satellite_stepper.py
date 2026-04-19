@@ -11,6 +11,14 @@ from typing import Any
 
 import numpy as np
 
+try:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    plt = None
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
@@ -70,6 +78,9 @@ class SatelliteStepper:
         elev_list: list[float] | None = None,
         demod_activity_ratio: float = 0.1,
         demod_sleep_ratio: float = 0.3,
+        baseline_power_w: float = 35.0,
+        idle_demodulator_power_w: float = 0.12,
+        busy_demodulator_power_w: float = 0.80,
     ) -> None:
         self.output_csv_path = Path(output_csv_path)
         self.population_csv_path = Path(population_csv_path)
@@ -97,6 +108,9 @@ class SatelliteStepper:
         self._user_position_seed = int(user_position_seed)
         self._demod_activity_ratio = float(max(0.0, min(1.0, float(demod_activity_ratio))))
         self._demod_sleep_ratio = float(max(0.0, min(1.0, float(demod_sleep_ratio))))
+        self._baseline_power_w = float(baseline_power_w)
+        self._idle_demodulator_power_w = float(idle_demodulator_power_w)
+        self._busy_demodulator_power_w = float(busy_demodulator_power_w)
         self._elev_list = self._resolve_elev_list(elev_list)
         self._elev_tokens: list[tuple[float, str]] = [
             (float(elev), self._elev_token(float(elev))) for elev in self._elev_list
@@ -134,12 +148,13 @@ class SatelliteStepper:
             "covered_population_places",
             "covered_ocean_places",
         ]
-        self._elev_states_fieldnames = ["step", "orbit_index"]
+        self._elev_states_fieldnames = ["step", "orbit_index", "orbit_timestamp_s"]
         self._elev_states_fieldnames.extend(self._elev_metric_fields)
         for _, token in self._elev_tokens:
             self._elev_states_fieldnames.append(f"elev_{token}_busy")
             self._elev_states_fieldnames.append(f"elev_{token}_idle")
             self._elev_states_fieldnames.append(f"elev_{token}_sleep")
+            self._elev_states_fieldnames.append(f"elev_{token}_energy_model_w")
 
         self._population_points = self._load_points(self.population_csv_path)
         self._ocean_points = self._load_points(self.ocean_csv_path)
@@ -183,6 +198,7 @@ class SatelliteStepper:
         self._index = int(self._center_index)
         self._index_stride = self._compute_index_stride()
         self._steps_per_orbit = int(self._orbit_len // math.gcd(self._orbit_len, self._index_stride))
+        self._orbit_elapsed_lookup_s = self._build_orbit_elapsed_lookup()
         self._rows_in_cycle = 0
 
         self._ensure_output_header()
@@ -321,6 +337,33 @@ class SatelliteStepper:
         stride = int(round(target_distance_m / step_distance_m))
         return max(1, stride)
 
+    def _build_orbit_elapsed_lookup(self) -> np.ndarray:
+        if self._steps_per_orbit <= 0:
+            return np.zeros(1, dtype=float)
+        if self._orbit_len <= 1:
+            return np.zeros(self._steps_per_orbit, dtype=float)
+
+        raw_step_s = float(np.median(np.diff(self._timestamps_s[: self._orbit_len])))
+        if not np.isfinite(raw_step_s) or raw_step_s <= 0.0:
+            raw_step_s = float(T_FRAME)
+        timeline_span_s = float(self._timestamps_s[self._orbit_len - 1] - self._timestamps_s[0] + raw_step_s)
+        if timeline_span_s <= 0.0:
+            timeline_span_s = float(raw_step_s * max(1, self._orbit_len))
+
+        indices = [
+            int((self._center_index + k * self._index_stride) % self._orbit_len)
+            for k in range(self._steps_per_orbit)
+        ]
+        raw_times = [float(self._timestamps_s[idx]) for idx in indices]
+
+        elapsed = [0.0]
+        for k in range(1, len(raw_times)):
+            delta_s = float(raw_times[k] - raw_times[k - 1])
+            if delta_s < 0.0:
+                delta_s += timeline_span_s
+            elapsed.append(float(elapsed[-1] + delta_s))
+        return np.asarray(elapsed, dtype=float)
+
     def _ensure_output_header(self) -> None:
         self.output_csv_path.parent.mkdir(parents=True, exist_ok=True)
         with self.output_csv_path.open("w", encoding="utf-8", newline="") as f:
@@ -414,6 +457,10 @@ class SatelliteStepper:
                 str(elev_deg): {
                     "num_users": int(merged.get(f"elev_{token}_num_users", 0) or 0),
                     "distance_km": float(merged.get(f"elev_{token}_distance_km", float("nan"))),
+                    "busy_demodulators": int(merged.get(f"elev_{token}_busy", 0) or 0),
+                    "idle_demodulators": int(merged.get(f"elev_{token}_idle", 0) or 0),
+                    "sleep_demodulators": int(merged.get(f"elev_{token}_sleep", 0) or 0),
+                    "energy_model_w": float(merged.get(f"elev_{token}_energy_model_w", float("nan"))),
                 }
                 for elev_deg, token in self._elev_tokens
             }
@@ -440,6 +487,7 @@ class SatelliteStepper:
         out: dict[str, Any] = {
             "step": int(row["step"]),
             "orbit_index": int(row["orbit_index"]),
+            "orbit_timestamp_s": float(row["orbit_timestamp_s"]),
         }
         user_impact = self._compute_elevation_user_impact(
             sat_x_m=float(row["sat_x_m"]),
@@ -468,9 +516,15 @@ class SatelliteStepper:
             remaining = int(max(0, n_demod - n_busy))
             n_sleep = int(self._demod_sleep_ratio * remaining)
             n_idle = int(remaining - n_sleep)
+            energy_model_w = float(
+                self._baseline_power_w
+                + n_idle * self._idle_demodulator_power_w
+                + n_busy * self._busy_demodulator_power_w
+            )
             out[f"elev_{token}_busy"] = n_busy
             out[f"elev_{token}_idle"] = n_idle
             out[f"elev_{token}_sleep"] = n_sleep
+            out[f"elev_{token}_energy_model_w"] = energy_model_w
         return out
 
     def _append_elevation_states_row(
@@ -500,12 +554,13 @@ class SatelliteStepper:
         i = self._index
         xyz = self._sat_local[:, i]
         sat_radius_m = float(np.linalg.norm(self._sat_eci[:, i]))
-        elapsed_s = float(self._step_count) * float(T_FRAME)
+        cycle_step = int(self._step_count % max(1, self._steps_per_orbit))
+        elapsed_s = float(self._orbit_elapsed_lookup_s[cycle_step])
         return {
             "step": float(self._step_count),
             "orbit_index": float(i),
             "timestamp_s": float(elapsed_s),
-            "orbit_timestamp_s": float(self._timestamps_s[i]),
+            "orbit_timestamp_s": float(elapsed_s),
             "x_m": float(xyz[0]),
             "y_m": float(xyz[1]),
             "z_m": float(xyz[2]),
@@ -841,6 +896,55 @@ class SatelliteStepper:
         except (TypeError, ValueError):
             return 0
 
+    def plot_elevation_energy_timeseries(self, output_dir: str | Path | None = None) -> list[Path]:
+        if plt is None or not self.elevation_states_csv_path.exists():
+            return []
+
+        if output_dir is None:
+            plots_dir = self.elevation_states_csv_path.parent / "plots"
+        else:
+            plots_dir = Path(output_dir)
+        plots_dir.mkdir(parents=True, exist_ok=True)
+
+        rows: list[dict[str, str]] = []
+        with self.elevation_states_csv_path.open("r", encoding="utf-8", newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                rows.append(row)
+        if not rows:
+            return []
+
+        rows.sort(
+            key=lambda row: (
+                float(row.get("orbit_timestamp_s", 0.0) or 0.0),
+                int(float(row.get("step", 0) or 0)),
+            )
+        )
+
+        plot_paths: list[Path] = []
+        for elev_deg, token in self._elev_tokens:
+            energy_field = f"elev_{token}_energy_model_w"
+            if energy_field not in rows[0]:
+                continue
+
+            orbit_timestamp_s = [float(row.get("orbit_timestamp_s", 0.0) or 0.0) for row in rows]
+            energy_model_w = [float(row.get(energy_field, 0.0) or 0.0) for row in rows]
+
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.plot(orbit_timestamp_s, energy_model_w, color="#c0392b", linewidth=2.0)
+            ax.set_title(f"Orbit Timestamp vs Energy Model @ {elev_deg:g} deg")
+            ax.set_xlabel("orbit_timestamp_s")
+            ax.set_ylabel("energy_model_w")
+            ax.grid(True, linestyle="-", linewidth=0.5, alpha=0.35)
+            fig.tight_layout()
+
+            out_path = plots_dir / f"satellite_stepper_energy_{token}.png"
+            fig.savefig(out_path, dpi=220)
+            plt.close(fig)
+            plot_paths.append(out_path)
+
+        return plot_paths
+
     def _append_current_row(self) -> dict[str, Any]:
         row, groundtrack_coverage_row = self._build_current_row()
         with self.output_csv_path.open("a", encoding="utf-8", newline="") as f:
@@ -971,6 +1075,9 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--demod-activity-ratio", type=float, default=0.1)
     parser.add_argument("--demod-sleep-ratio", type=float, default=0.3)
+    parser.add_argument("--baseline-power-w", type=float, default=35.0)
+    parser.add_argument("--idle-demodulator-power-w", type=float, default=0.12)
+    parser.add_argument("--busy-demodulator-power-w", type=float, default=0.80)
     return parser
 
 
@@ -994,10 +1101,15 @@ def main() -> int:
         elev_list=[float(v) for v in args.elev_list],
         demod_activity_ratio=float(args.demod_activity_ratio),
         demod_sleep_ratio=float(args.demod_sleep_ratio),
+        baseline_power_w=float(args.baseline_power_w),
+        idle_demodulator_power_w=float(args.idle_demodulator_power_w),
+        busy_demodulator_power_w=float(args.busy_demodulator_power_w),
     )
     last_row = None
     for _ in range(steps):
         last_row = stepper.next()
+
+    plot_paths = stepper.plot_elevation_energy_timeseries()
 
     if last_row is None:
         pos = stepper.get_pos()
@@ -1015,6 +1127,10 @@ def main() -> int:
             f"demods={int(last_row['calculated_demodulators'])} "
             f"current_json={stepper.current_pos_json_path}"
         )
+    if plot_paths:
+        print("energy_plots=" + ",".join(str(path) for path in plot_paths))
+    elif plt is None:
+        print("energy_plots=skipped_matplotlib_not_installed")
     return 0
 
 
