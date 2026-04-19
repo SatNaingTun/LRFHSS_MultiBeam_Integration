@@ -900,15 +900,9 @@ class SatelliteStepper:
         except (TypeError, ValueError):
             return 0
 
-    def plot_elevation_energy_timeseries(self, output_dir: str | Path | None = None) -> list[Path]:
-        if plt is None or not self.elevation_states_csv_path.exists():
+    def _load_sorted_elevation_state_rows(self) -> list[dict[str, str]]:
+        if not self.elevation_states_csv_path.exists():
             return []
-
-        if output_dir is None:
-            plots_dir = self.elevation_states_csv_path.parent / "plots"
-        else:
-            plots_dir = Path(output_dir)
-        plots_dir.mkdir(parents=True, exist_ok=True)
 
         rows: list[dict[str, str]] = []
         with self.elevation_states_csv_path.open("r", encoding="utf-8", newline="") as f:
@@ -924,6 +918,21 @@ class SatelliteStepper:
                 int(float(row.get("step", 0) or 0)),
             )
         )
+        return rows
+
+    def plot_elevation_energy_timeseries(self, output_dir: str | Path | None = None) -> list[Path]:
+        if plt is None:
+            return []
+
+        if output_dir is None:
+            plots_dir = self.elevation_states_csv_path.parent / "plots"
+        else:
+            plots_dir = Path(output_dir)
+        plots_dir.mkdir(parents=True, exist_ok=True)
+
+        rows = self._load_sorted_elevation_state_rows()
+        if not rows:
+            return []
 
         plot_paths: list[Path] = []
         for elev_deg, token in self._elev_tokens:
@@ -948,6 +957,59 @@ class SatelliteStepper:
             plot_paths.append(out_path)
 
         return plot_paths
+
+    def plot_combined_elevation_energy_timeseries(
+        self,
+        output_dir: str | Path | None = None,
+    ) -> Path | None:
+        if plt is None:
+            return None
+
+        if output_dir is None:
+            plots_dir = self.elevation_states_csv_path.parent / "plots"
+        else:
+            plots_dir = Path(output_dir)
+        plots_dir.mkdir(parents=True, exist_ok=True)
+
+        rows = self._load_sorted_elevation_state_rows()
+        if not rows:
+            return None
+
+        orbit_timestamp_s = [float(row.get("orbit_timestamp_s", 0.0) or 0.0) for row in rows]
+        color_map = plt.get_cmap("tab10")
+
+        fig, ax = plt.subplots(figsize=(11, 6))
+        plotted = False
+        for idx, (elev_deg, token) in enumerate(self._elev_tokens):
+            energy_field = f"elev_{token}_energy_model_w"
+            if energy_field not in rows[0]:
+                continue
+
+            energy_model_w = [float(row.get(energy_field, 0.0) or 0.0) for row in rows]
+            ax.plot(
+                orbit_timestamp_s,
+                energy_model_w,
+                linewidth=2.0,
+                color=color_map(idx % 10),
+                label=f"{elev_deg:g} deg",
+            )
+            plotted = True
+
+        if not plotted:
+            plt.close(fig)
+            return None
+
+        ax.set_title("Orbit Timestamp vs Energy Model for All Elevations")
+        ax.set_xlabel("orbit_timestamp_s")
+        ax.set_ylabel("energy_model_w")
+        ax.grid(True, linestyle="-", linewidth=0.5, alpha=0.35)
+        ax.legend(title="Elevation")
+        fig.tight_layout()
+
+        out_path = plots_dir / "satellite_stepper_energy_all_elevations.png"
+        fig.savefig(out_path, dpi=220)
+        plt.close(fig)
+        return out_path
 
     def _append_current_row(self) -> dict[str, Any]:
         row, groundtrack_coverage_row = self._build_current_row()
@@ -1114,6 +1176,7 @@ def main() -> int:
         last_row = stepper.next()
 
     plot_paths = stepper.plot_elevation_energy_timeseries()
+    combined_plot_path = stepper.plot_combined_elevation_energy_timeseries()
 
     if last_row is None:
         pos = stepper.get_pos()
@@ -1135,6 +1198,10 @@ def main() -> int:
         print("energy_plots=" + ",".join(str(path) for path in plot_paths))
     elif plt is None:
         print("energy_plots=skipped_matplotlib_not_installed")
+    if combined_plot_path is not None:
+        print(f"energy_plot_combined={combined_plot_path}")
+    elif plt is None:
+        print("energy_plot_combined=skipped_matplotlib_not_installed")
     return 0
 
 

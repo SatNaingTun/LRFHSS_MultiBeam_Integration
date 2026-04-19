@@ -2,6 +2,7 @@ import numpy as np
 from pathlib import Path
 import sys
 
+from modules.channel import path_loss
 import orbit_utils as utils
 
 try:
@@ -102,6 +103,10 @@ def compute_demod_states(n_active_users, n_demod, sleep_ratio=0.3):
     return n_busy, n_idle, n_sleep
 
 
+import numpy as np
+
+
+
 def evaluate_users_and_distances(
     elev_list=[90, 55, 25],
     n_user=100000,
@@ -109,44 +114,70 @@ def evaluate_users_and_distances(
     n_demod=100,
     sleep_ratio=0.3
 ):
-    """
-    Returns results for each elevation:
-    - number of users
-    - distance statistics (min, max, mean)
-    - demodulator states (busy, idle, sleep)
-    """
-
     users = get_user_position(n_user)
-
     results = {}
 
-    # number of active transmitting users
-    n_active = int(activity_ratio * n_user)
+    # Reference (best case: 90°)
+    sat_ref = satellite_pos_from_center_elevation(90)
+    loss_ref = path_loss(users, sat_ref)
+    loss_ref_mean = np.mean(loss_ref)
+
+    base_active = activity_ratio * n_user
 
     for elev in elev_list:
         sat = satellite_pos_from_center_elevation(elev)
-        d = user_satellite_distances(users, sat)
 
-        # ---- DEMOD STATES ----
-        n_busy, n_idle, n_sleep = compute_demod_states(
-            n_active_users=n_active,
-            n_demod=n_demod,
-            sleep_ratio=sleep_ratio
-        )
+        d = user_satellite_distances(users, sat)
+        loss = path_loss(users, sat)
+        loss_mean = np.mean(loss)
+
+        # -----------------------------
+        # (1) Elevation → path loss
+        # -----------------------------
+        delta_loss_db = loss_mean - loss_ref_mean
+
+        # -----------------------------
+        # (2) Path loss → service time
+        #
+        # Lower elevation → worse SNR → longer decoding
+        # -----------------------------
+        service_time_factor = 1 + 0.15 * delta_loss_db
+        service_time_factor = max(0.1, service_time_factor)
+
+        # -----------------------------
+        # (3) Active users
+        # -----------------------------
+        n_active = int(base_active)
+
+        # -----------------------------
+        # (4) Busy demods (NO hard saturation first)
+        #
+        # load = arrival × service time
+        # -----------------------------
+        n_busy_raw = int(n_active * service_time_factor)
+
+        # now apply hardware limit
+        n_busy = min(n_busy_raw, n_demod)
+
+        # -----------------------------
+        # (5) Remaining demods
+        # -----------------------------
+        remaining = n_demod - n_busy
+
+        n_sleep = int(sleep_ratio * remaining)
+        n_idle = remaining - n_sleep
 
         results[elev] = {
-            "num_users": users.shape[1],
-            "active_users": n_active,
-
-            "min_distance_km": float(d.min() / 1e3),
-            "max_distance_km": float(d.max() / 1e3),
-            "mean_distance_km": float(d.mean() / 1e3),
+            "mean_distance_km": float(np.mean(d) / 1e3),
+            "mean_path_loss_db": float(loss_mean),
+            "delta_loss_db": float(delta_loss_db),
+            "service_time_factor": float(service_time_factor),
 
             "demodulators": {
                 "total": n_demod,
-                "busy": n_busy,
-                "idle": n_idle,
-                "sleep": n_sleep
+                "busy": int(n_busy),
+                "idle": int(n_idle),
+                "sleep": int(n_sleep)
             }
         }
 
