@@ -4,6 +4,7 @@ import sys
 
 from modules.channel import path_loss
 import orbit_utils as utils
+from ProjectConfig import node_population_ratio, demd_population_ratio, elev_list
 
 try:
     from ProjectConfig import EARTRH_R, R_FOOTPRINT, SAT_H, T_FRAME, V_SATELLITE
@@ -110,7 +111,7 @@ import numpy as np
 def evaluate_users_and_distances(
     elev_list=[90, 55, 25],
     n_user=100000,
-    activity_ratio=0.1,
+    activity_ratio=demd_population_ratio,
     n_demod=100,
     sleep_ratio=0.3
 ):
@@ -128,7 +129,7 @@ def evaluate_users_and_distances(
         sat = satellite_pos_from_center_elevation(elev)
 
         d = user_satellite_distances(users, sat)
-        loss = path_loss(users, sat)
+        loss = path_loss(users, sat,elev)
         loss_mean = np.mean(loss)
 
         # -----------------------------

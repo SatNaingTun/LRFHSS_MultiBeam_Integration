@@ -62,7 +62,7 @@ use_earlydrop = True
 use_headerdrop = False
 linkBudgetLog = True
 
-node_population_ratio = 0.000001
+node_population_ratio = 0.00001
 demd_population_ratio = 0.000001
 
 baseline_power=35

@@ -1,0 +1,72 @@
+{
+  "step": 0,
+  "orbit_index": 2896,
+  "timestamp_s": 0.0,
+  "orbit_timestamp_s": 0.0,
+  "timestamp_utc": "2026-04-19T16:55:15.071400+00:00",
+  "position_m": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 593029.0
+  },
+  "sat_radius_m": 6964029.0,
+  "calculated": {
+    "node_population_ratio": 1e-05,
+    "nodes": 423,
+    "demodulators": 42.0
+  },
+  "ground_track_deg": {
+    "latitude": 35.6761919,
+    "longitude": 139.6503106
+  },
+  "footprint": {
+    "radius_m": 98838.16666666667,
+    "area_km2": 30690.16582283345,
+    "earth_surface_ratio": 6.016918941231692e-05,
+    "horizon_utilization_ratio": 0.03732185512320653
+  },
+  "coverage": {
+    "population_total": 42270901,
+    "population_points": 7,
+    "population_ratio": 0.017821277622826304,
+    "ocean_points": 1,
+    "ocean_ratio": 0.0006357279084551812
+  },
+  "elevation_user_impact": {
+    "center_elevation_deg": 90.0,
+    "center_slant_range_km": 593.029,
+    "user_positions_count": 423,
+    "user_distance_min_km": 593.0370600649381,
+    "user_distance_max_km": 601.9165270875126,
+    "user_distance_mean_km": 597.5368299345449,
+    "range_ratio_vs_sat_altitude": 0.995894716557575,
+    "fspl_delta_db_vs_zenith": -0.035731433030220486,
+    "sample_user_positions_local_m": "44537.3|14985.7|-173.3;-58235.0|-45716.3|-430.2;11813.5|-35238.6|-108.4;3907.3|54231.2|-232.0;55007.2|-76305.4|-694.5;14444.7|5430.4|-18.7"
+  },
+  "elevation_scenarios": {
+    "90.0": {
+      "num_users": 141,
+      "distance_km": 604.5445366949475,
+      "busy_demodulators": 7,
+      "idle_demodulators": 25,
+      "sleep_demodulators": 10,
+      "energy_model_w": 43.6
+    },
+    "55.0": {
+      "num_users": 141,
+      "distance_km": 721.7839908254779,
+      "busy_demodulators": 9,
+      "idle_demodulators": 23,
+      "sleep_demodulators": 10,
+      "energy_model_w": 44.96
+    },
+    "25.0": {
+      "num_users": 141,
+      "distance_km": 1213.0095384811293,
+      "busy_demodulators": 26,
+      "idle_demodulators": 11,
+      "sleep_demodulators": 5,
+      "energy_model_w": 57.120000000000005
+    }
+  }
+}

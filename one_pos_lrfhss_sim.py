@@ -8,7 +8,7 @@ import sys
 from typing import Any
 
 from modules.satellite_stepper import SatelliteStepper
-from ProjectConfig import numDecoders, node_population_ratio, demd_population_ratio,elev_list
+from ProjectConfig import node_population_ratio, demd_population_ratio, elev_list
 
 
 def parse_args() -> argparse.Namespace:
@@ -38,7 +38,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ocean-csv", type=Path, default=root / "Data" / "csv" / "ocean_data.csv")
     parser.add_argument("--node-population-ratio", type=float, default=float(node_population_ratio))
     parser.add_argument("--demd-population-ratio", type=float, default=float(demd_population_ratio))
-    parser.add_argument("--num-demodulators", type=int, default=int(numDecoders), help="Explicit number of demodulators to simulate; defaults to ProjectConfig.numDecoders.")
     parser.add_argument("--minimum-frames", type=int, default=720)
     parser.add_argument("--elev-list", type=list, default=elev_list, help="List of elevations to simulate (degrees).")
 
@@ -129,9 +128,6 @@ def main() -> int:
             requested_nodes = int(cur_row.get("calculated_nodes", 0) or 0)
             requested_demods = int(cur_row.get("calculated_demodulators", 0) or 0)
 
-    if args.num_demodulators is not None:
-        requested_demods = int(args.num_demodulators)
-
     # Requested mapping:
     #   stepper nodes   -> selected_nodes (single exact point)
     #   stepper demods  -> num_decoders
@@ -155,6 +151,8 @@ def main() -> int:
     out_csv = output_dir / f"lrfhss_sim_cr{int(args.coding_rate)}_one_pos.csv"
     out_png = output_dir / f"lrfhss_demod_{int(num_decoders)}.png"
     
+    print(f"Number of decoders to simulate: {num_decoders}")
+    print(f"Number of nodes to simulate: {requested_nodes}")
     csv_path, png_path = sim.runsim2plot(
         num_decoders=int(num_decoders),
         drop_mode=str(drop_mode),
@@ -176,13 +174,19 @@ def main() -> int:
         x_max=args.x_max,
         y_min=args.y_min,
         y_max=args.y_max,
-        title=f"Total decoded payloads with CR{int(args.coding_rate)} and {int(num_decoders)} demodulators",
+        title=f"CR{int(args.coding_rate)} and {int(num_decoders)} demodulators",
     )
 
     print(f"lrfhss_png: {out_png.resolve()}")
     if elev_list is not None:
-        print(f"elevations: {elev_list}")
+        # print(f"elevations: {elev_list}")
         for elev in elev_list:
+            # demod_info = stepper.get_current_demodulators_for_elevation(elev)
+            # print(f"Demodulator info for elevation {elev}: {demod_info}")
+            # num_decoders=demod_info["busy"]
+            node_info=stepper.get_current_nodes_for_elevation(elev)
+            print(f"Node info for elevation {elev}: {node_info}")
+            requested_nodes= node_info["num_nodes"]
             elev_out_csv = output_dir / f"lrfhss_sim_cr{int(args.coding_rate)}_elev{int(elev)}.csv"
             elev_out_png = output_dir / f"lrfhss_demod_{int(num_decoders)}_elev{int(elev)}.png"
             csv_path, png_path = sim.runsim2plot(
@@ -206,7 +210,7 @@ def main() -> int:
                 x_max=args.x_max,
                 y_min=args.y_min,
                 y_max=args.y_max,
-                title=f"Total decoded payloads with CR{int(args.coding_rate)}, {int(num_decoders)} demodulators, and elevation {int(elev)}°",
+                title=f"CR{int(args.coding_rate)}, {int(num_decoders)} demodulators, and {int(elev)}° elevation \n {int(requested_nodes)} nodes",
                 fixed_elevation=int(elev),
             )
             print(f"lrfhss_png: {elev_out_png.resolve()}")

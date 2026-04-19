@@ -1054,6 +1054,27 @@ class SatelliteStepper:
         )
         return rows
 
+    def get_current_demodulators_for_elevation(self, elevation_deg: float) -> dict[str, int | float]:
+        main_row, groundtrack_row = self._build_current_row()
+        elev_row = self._build_elevation_states_row(main_row, groundtrack_row)
+        token = self._elev_token(elevation_deg)
+        return {
+            "elevation_deg": float(elevation_deg),
+            "busy": int(elev_row.get(f"elev_{token}_busy", 0) or 0),
+            "idle": int(elev_row.get(f"elev_{token}_idle", 0) or 0),
+            "sleep": int(elev_row.get(f"elev_{token}_sleep", 0) or 0),
+        }
+
+    def get_current_nodes_for_elevation(self, elevation_deg: float) -> dict[str, int | float]:
+        main_row, groundtrack_row = self._build_current_row()
+        elev_row = self._build_elevation_states_row(main_row, groundtrack_row)
+        token = self._elev_token(elevation_deg)
+        return {
+            "elevation_deg": float(elevation_deg),
+            "num_nodes": int(elev_row.get(f"elev_{token}_num_users", 0) or 0),
+            "distance_km": float(elev_row.get(f"elev_{token}_distance_km", float("nan"))),
+        }
+
     def plot_elevation_energy_timeseries(self, output_dir: str | Path | None = None) -> list[Path]:
         if plt is None:
             return []
