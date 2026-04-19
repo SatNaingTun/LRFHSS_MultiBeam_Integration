@@ -1,4 +1,4 @@
-from base.base import *
+from LRFHSS.base.base import *
 
 class LRFHSSTransmission():
     """

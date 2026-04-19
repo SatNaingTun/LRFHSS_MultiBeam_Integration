@@ -23,9 +23,9 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from coverage_population import haversine_distance_m
-from leo_kepler_rotation import run_leo_orbit_rotation_task
-from orbit_formula import compute_horizon_central_angle_rad
+from modules.networkGeometry import haversine_distance_m
+from modules.leo_kepler_rotation import run_leo_orbit_rotation_task
+from modules.orbit_formula import compute_horizon_central_angle_rad
 from ProjectConfig import (
     EARTRH_R,
     LATITUDE_CENTER_DEG,
@@ -1453,20 +1453,20 @@ def main() -> int:
     #         f"current_json={stepper.current_pos_json_path}"
     #     )
     if plot_paths:
-        print("energy_plots=" + ",".join(str(path) for path in plot_paths))
+        print("energy_plots= " + ",".join(str(path) for path in plot_paths))
     elif plt is None:
         print("energy_plots=skipped_matplotlib_not_installed")
     if demod_plot_paths:
-        print("demodulator_plots=" + ",".join(str(path) for path in demod_plot_paths))
+        print("demodulator_plots= " + ",".join(str(path) for path in demod_plot_paths))
     elif plt is None:
         print("demodulator_plots=skipped_matplotlib_not_installed")
     if population_plot_path is not None:
-        print(f"population_plot={population_plot_path}")
+        print(f"population_plot= {population_plot_path}")
     elif plt is None:
         print("population_plot=skipped_matplotlib_not_installed")
-    print(f"population_csv={stepper.population_timeseries_csv_path}")
+    print(f"population_csv= {stepper.population_timeseries_csv_path}")
     if combined_plot_path is not None:
-        print(f"energy_plot_combined={combined_plot_path}")
+        print(f"energy_plot_combined= {combined_plot_path}")
     elif plt is None:
         print("energy_plot_combined=skipped_matplotlib_not_installed")
     return 0

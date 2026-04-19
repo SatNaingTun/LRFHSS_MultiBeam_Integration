@@ -76,7 +76,7 @@ def main() -> None:
         _ensure_reference_paths(multi_beam_root=args.multi_beam_root, lrfhss_root=args.lrfhss_root)
 
     if run_lrfhss:
-        from workflow_tasks.lrfhss_communication import run_reference_comparison
+        from lrfhss_communication import run_reference_comparison
 
         lrfhss_output_dir = args.output_root / "lrfhss_compare"
         metric = "dec_pckts" if args.packet_only else args.metric

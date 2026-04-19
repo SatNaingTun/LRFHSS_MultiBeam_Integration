@@ -8,8 +8,8 @@ import numpy as np
 from coverage_population import export_coverage_population_csv
 from demodulator_power import DemodulatorPowerModel
 from multi_beam_connector import load_multi_beam_modules
-from workflow_tasks.lrfhss_communication import build_comparison_series, list_available_demod_counts
-from workflow_tasks.lrfhss_communication import load_row_csv
+from lrfhss_communication import build_comparison_series, list_available_demod_counts
+from lrfhss_communication import load_row_csv
 from workflow_tasks.lrfhss_flowtask import (
     _build_node_loads,
     _check_nodes_and_demods_for_coverage,

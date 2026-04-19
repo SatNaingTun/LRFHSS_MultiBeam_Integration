@@ -1,7 +1,10 @@
+import math
+
 import numpy as np
 from pathlib import Path
 import sys
 
+from modules.leo_kepler_rotation import EARTH_RADIUS_M
 from modules.channel import path_loss
 import orbit_utils as utils
 from ProjectConfig import node_population_ratio, demd_population_ratio, elev_list
@@ -234,3 +237,19 @@ def hex_grid_centers_two_rings():
     [x_hex, y_hex, z_hex] = utils.pol2cart3D(r_earth, phi_hex, theta_hex)  # convert to Cartesian coordinates
     hex_center = np.array([x_hex, y_hex, z_hex - r_earth])  # re-center to footprint center and stack into (3, 19) array
     return hex_center  # (3, 19)
+
+
+def haversine_distance_m(lat1_deg: float, lon1_deg: float, lat2_deg: float, lon2_deg: float) -> float:
+    lat1 = math.radians(lat1_deg)
+    lon1 = math.radians(lon1_deg)
+    lat2 = math.radians(lat2_deg)
+    lon2 = math.radians(lon2_deg)
+
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    sin_dlat = math.sin(dlat / 2.0)
+    sin_dlon = math.sin(dlon / 2.0)
+    a = sin_dlat * sin_dlat + math.cos(lat1) * math.cos(lat2) * sin_dlon * sin_dlon
+    c = 2.0 * math.atan2(math.sqrt(max(a, 0.0)), math.sqrt(max(1.0 - a, 0.0)))
+    return float(EARTH_RADIUS_M * c)
