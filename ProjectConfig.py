@@ -65,8 +65,9 @@ linkBudgetLog = True
 node_population_ratio = 0.00001
 demd_population_ratio = 0.000001
 
-baseline_power=35
-idle_demodulator_power=0.12
-busy_demodulator_power=0.8
+#Ref: https://tnm.engin.umich.edu/wp-content/uploads/sites/353/2017/12/2006.10.Reducing-idle-mode-power-in-software-defined-radio-terminals_ISLPED-2006.pdf
+baseline_power=2*10**-3 
+idle_demodulator_power=9*10**-3
+busy_demodulator_power=100*10**-3
 
 elev_list = [90.0, 55.0, 25.0]

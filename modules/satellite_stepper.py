@@ -591,7 +591,6 @@ class SatelliteStepper:
 
         # First compute elevation-dependent load factors
         load_factors: dict[str, float] = {}
-        total_factor = 0.0
 
         for elev_deg, token in self._elev_tokens:
             n_user = int(max(0, int(out.get(f"elev_{token}_num_users", 0) or 0)))
@@ -608,25 +607,14 @@ class SatelliteStepper:
             # Scale by users and activity ratio
             factor = float(n_user) * float(self._demod_activity_ratio) * relative_path_loss_factor
             load_factors[token] = factor
-            total_factor += factor
-
-        # Avoid divide-by-zero
-        if total_factor <= 0.0:
-            for _, token in self._elev_tokens:
-                out[f"elev_{token}_busy"] = 0
-                out[f"elev_{token}_idle"] = int((1.0 - self._demod_sleep_ratio) * n_demod_total)
-                out[f"elev_{token}_sleep"] = int(self._demod_sleep_ratio * n_demod_total)
-                out[f"elev_{token}_energy_model_w"] = float(
-                    self._baseline_power_w
-                    + out[f"elev_{token}_idle"] * self._idle_demodulator_power_w
-                )
-            return out
 
         for elev_deg, token in self._elev_tokens:
             factor = load_factors[token]
 
-            # Elevation-specific busy demodulators
-            n_busy = int(round(n_demod_total * factor / total_factor))
+            # Elevations are modeled as independent scenarios, so each
+            # busy estimate comes from its own factor (not normalized by
+            # other elevation slices).
+            n_busy = int(round(factor))
             n_busy = max(0, min(n_busy, n_demod_total))
 
             remaining = max(0, n_demod_total - n_busy)
