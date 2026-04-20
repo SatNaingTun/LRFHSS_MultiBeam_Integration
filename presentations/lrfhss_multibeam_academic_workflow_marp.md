@@ -1,344 +1,327 @@
----
-
-# LR-FHSS: Overview and Performance Analysis (2021)
-### N. Boquet et al.
-
-## Problem Definition
-
-- Evaluate LEO LR-FHSS uplink performance:
-  - reliability (decoded payload)
-  - interference (collision, SINR)
-  - energy (power)
-
-## Output Metrics
-
-- decoded payload per time & region  
-- collision rate  
-- SNR / SINR distributions  
-- power consumption  
-
-<!--
-This slide defines the research problem and evaluation metrics.
+﻿---
 marp: true
--->
+paginate: true
+math: katex
+---
+
+# LR-FHSS in LEO
+### Cross Layered Simulation
+
+- Focus: equations, assumptions, and measurable outputs
+- Inputs: updated population data + satellite geometry
+- Outputs: nodes, demod states, decoded packets, elevation effects, energy
 
 ---
 
-# End-to-End Workflow
-### Based on LR-FHSS Framework and 3GPP TR 38.811
+# Problem Statement
+### What Is Estimated at Each Step
 
-## Cross-Layer Pipeline
+Given satellite state at step $t$, estimate:
 
-- Orbit → satellite position  
-- Coverage → user distribution  
-- Load → active devices  
-- Channel → SNR / SINR  
-- Decoding → successful packets  
-- Power → energy consumption  
-
-<!--
-This slide explains the full workflow.
-Each stage depends on the previous one.
--->
+1. covered population $P_{\text{cov}}(t)$
+2. active nodes $N_{\text{node}}(t)$
+3. demodulator pool $N_{\text{demod}}(t)$
+4. elevation-conditioned load and decoding behavior
+5. busy/idle/sleep demod split and power
 
 ---
 
-# Satellite Orbit Configuration
-### LEO (Low Earth Orbit) Parameters
+# Workflow
 
-| Parameter | Value |
-|-----------|-------|
-| **Altitude** | 600 km |
-| **Eccentricity** | 0.001 (nearly circular) |
-| **Inclination** | 86.4° (near-polar) |
-| **Semi-major Axis** | 6,971 km |
-| **Orbital Period** | ~97 minutes |
-| **Velocity** | 7,560 m/s |
-
-<!--
-Our satellite operates in a Low Earth Orbit at 600 km altitude.
-The nearly circular orbit (e=0.001) with near-polar inclination (86.4°) 
-provides global coverage, which is ideal for LEO IoT networks like LoRaWAN.
-With an orbital period of ~97 minutes, the satellite completes roughly 
-15 passes per day. The velocity of 7,560 m/s is typical for LEO constellations.
-This configuration is based on Keplerian propagation with two-body dynamics.
--->
+- Orbit propagation gives future satellite position.
+- Satellite position gives footprint size on Earth.
+- Footprint over population map gives covered population.
+- Covered population is converted to estimated nodes and demodulators.
+- Elevation scenarios convert load to busy/idle/sleep demod states.
+- Demod states are converted to predicted energy and decode behavior.
 
 ---
 
-# Fundamentals of Astrodynamics (Kepler Orbit Propagation)
-### D. A. Vallado
+# Orbit Mean Motion
 
 $$
-n=\sqrt{\frac{\mu}{a^3}}, \quad M(t)=M_0+n(t-t_0)
+n=\sqrt{\frac{\mu}{a^3}}
 $$
 
-- $n$: mean motion of the satellite  
-- $\mu$: Earth's gravitational parameter  
-- $a$: semi-major axis of the orbit  
-- $M(t)$: mean anomaly at time $t$  
-- $M_0$: mean anomaly at reference time $t_0$  
-- $t$: current propagation time  
-- $t_0$: reference epoch  
-
-<!--
-Keplerian orbit propagation defines satellite motion.
-The mean motion $n$ depends on the semi-major axis.
-We solve Kepler's equation using Newton-Raphson iteration to find 
-the eccentric anomaly, then compute satellite position in inertial coordinates.
-This propagation is deterministic and highly accurate for our 600 km LEO orbit.
--->
+- Symbols: $n$ mean motion, $\mu$ Earth gravitational parameter, $a$ semi-major axis.
+- Ref: Orbital mechanics (Vallado) https://doi.org/10.1007/978-1-4939-0802-8
 
 ---
 
-# Orbital Mechanics for Engineering Students
-### H. D. Curtis
+# Mean Anomaly Update
 
 $$
-d(\psi)=\sqrt{(R_E+h)^2+R_E^2-2R_E(R_E+h)\cos\psi}
+M(t)=M_0+n(t-t_0)
 $$
 
-- $d(\psi)$: slant range from satellite to ground user  
-- $R_E$: Earth radius  
-- $h$: satellite altitude above Earth surface  
-- $R_E+h$: orbital radius from Earth center to satellite  
-- $\psi$: Earth-centered angle between subsatellite point and user location  
-- $\cos\psi$: captures how link distance changes with user position inside coverage  
-
-<!--
-Distance varies with geometry and affects signal strength.
--->
+- Symbols: $M(t)$ anomaly at time $t$, $M_0$ anomaly at reference epoch $t_0$, $n$ mean motion.
+- Ref: Orbital mechanics (Vallado) https://doi.org/10.1007/978-1-4939-0802-8
 
 ---
 
-# Coverage-Weighted Population Mapping
-### Geometry + UN World Population Prospects 2024
+# Horizon Central Angle
 
+$$
+\psi_h=\arccos\left(\frac{R_E}{r_{\text{orb}}}\right)
+$$
 
-1. **Satellite pass:** the beam footprint moves over different countries during each time step.
-2. **People under footprint:** I estimate how many people are inside the covered area using UN population data.
-3. **Active IoT terminals:** a portion of that covered population is mapped to active LR-FHSS nodes in the simulator.
-4. **Uplink burst generation:** those active nodes create packet bursts, which sets the offered load.
+- Symbols: $\psi_h$ horizon central angle, $R_E$ Earth radius, $r_{\text{orb}}$ orbital radius.
+- Ref: NTN geometry context https://www.3gpp.org/DynaReport/38.811.htm
 
 ---
-# Coverage-Weighted Population Mapping
-5. **Demodulator usage:** higher offered load activates more onboard demods and increases collision risk.
 
-This slide links geography to traffic behavior in our project:  
-**coverage location -> covered population -> active nodes -> burst load -> demod state**.
-
-**Data Source:** UN DESA Population Division, World Population Prospects 2024  
-https://population.un.org/wpp/downloads?folder=Documentation&group=Documentation
-
-<!-- ## Mathematical Model
+# Geometric Footprint Radius
 
 $$
-\xi_c(t)=\frac{A_{overlap,c}}{A_c}, \quad
-P_{eff}(t)=\sum_c P_c \, \xi_c(t)
+R_{\text{geo}}=R_E\psi_h
 $$
 
-**Key Variables:**
+- Symbols: $R_{\text{geo}}$ geometric footprint radius, $R_E$ Earth radius, $\psi_h$ horizon central angle.
+- Ref: NTN geometry context https://www.3gpp.org/DynaReport/38.811.htm
 
-- $A_{overlap,c}$: area where satellite footprint intersects country $c$
-- $A_c$: total area of country $c$  
-- $P_c$: population living in country $c$ (from UN data)
-- $P_{eff}(t)$: effective covered population — the number of people who *can be reached* at time $t$
-- $\xi_c(t)$: coverage factor (0 to 1) — fraction of country $c$ under the satellite at time $t$ -->
+---
 
+# Effective Footprint Radius
 
-<!--
-This slide maps geometric overlap into covered population.
-We multiply the coverage fraction by total population to get reachable users.
-The sum over all countries gives the instantaneous effective coverage.
--->
+$$
+R_{\text{fp}}(t)=\min\left(R_{\text{geo}}(t),\;R_{\text{cfg}}\frac{h(t)}{h_{\text{cfg}}}\right)
+$$
+
+- Symbols: $R_{\text{fp}}(t)$ effective footprint radius, $R_{\text{cfg}}$ configured radius.
+- Symbols: $h(t)$ current altitude, $h_{\text{cfg}}$ reference altitude.
+- Ref: Implementation rule in `modules/satellite_stepper.py`
+
+---
+
+# Covered Population
+
+$$
+P_{\text{cov}}(t)=\sum_i p_i \,\mathbf{1}[d_i(t)\le R_{\text{fp}}(t)]
+$$
+
+- Symbols: $P_{\text{cov}}(t)$ covered population, $p_i$ population at catalog point $i$.
+- Symbols: $d_i(t)$ distance from footprint center to point $i$, $\mathbf{1}[\cdot]$ indicator.
+- Ref: Natural Earth populated places https://naciscdn.org/naturalearth/10m/cultural/ne_10m_populated_places.zip
 
 ---
 
 
-# A Note on a Simple Transmission Formula (1946)
-### H. T. Friis
+# Node Mapping
 
 $$
-L_{tot}=20\log_{10}\left(\frac{4\pi d f_c}{c}\right)+A_{atm}
+N_{\text{node}}(t)=\text{round}\left(P_{\text{cov}}(t)\rho_{\text{node}}\right)
 $$
 
-- $L_{tot}$: total large-scale path loss in dB  
-- $d$: propagation distance or slant range  
-- $f_c$: carrier frequency  
-- $c$: speed of light  
-- $A_{atm}$: additional atmospheric attenuation in dB  
-- $4\pi d f_c / c$: free-space propagation term from the Friis model  
-
-<!--
-Channel loss depends on distance and environment.
--->
+- Symbols: $N_{\text{node}}(t)$ estimated active nodes, $\rho_{\text{node}}$ node/population ratio.
+- Ref: Implementation rule in `modules/satellite_stepper.py`
 
 ---
 
-# A Mathematical Theory of Communication (1948)
-### C. E. Shannon
+# Demod Mapping
 
 $$
-N=k_BTB F, \quad \mathrm{SNR}=\frac{P_{sig}}{N}
+N_{\text{demod}}(t)=\text{round}\left(P_{\text{cov}}(t)\rho_{\text{demod}}\right)
 $$
 
-- $N$: receiver noise power  
-- $k_B$: Boltzmann constant  
-- $T$: system noise temperature  
-- $B$: receiver bandwidth  
-- $F$: receiver noise figure or implementation loss factor  
-- $P_{sig}$: received signal power  
-- $\mathrm{SNR}$: signal-to-noise ratio  
-
-<!--
-SNR defines signal quality baseline.
--->
+- Config values: $\rho_{\text{node}}=10^{-5}$, $\rho_{\text{demod}}=10^{-2}$.
+- Symbols: $N_{\text{demod}}(t)$ estimated demodulator pool, $\rho_{\text{demod}}$ demod/population ratio.
+- Ref: Implementation rule in `modules/satellite_stepper.py`
 
 ---
 
-# Decoding Evidence
-### Offered load versus decoded payload
-
-![h:320px](../results/lrfhss_communication/sent_packets_vs_decoded_payload_stepwise_aggregate.png)
-
-- Decoded payload rises with load at first, then saturates
-- Baseline and combined early-decode-plus-early-drop curves separate where congestion begins
-- Deviation from the $x=y$ line highlights decoding loss under congestion
-
-<!--
-This figure shows how successful payload delivery diverges from offered traffic.
--->
-
----
-
-# Channel Quality Evidence
-### SNR / SINR across elevation angles
-
-![h:320px](../results/lrfhss_communication/elevation_angle/elevation_angle_ecdf_snr_sinr.png)
-
-- Higher elevation shifts SNR/SINR toward better operating points
-- SINR remains below SNR because of inter-beam interference
-
-<!--
-This plot supports the channel-quality discussion with measured ECDFs.
--->
-
----
-
-
-
-# The ALOHA System (1970)
-### N. Abramson
+# Mean Slant Range per Elevation
 
 $$
-\gamma_t=1-\frac{\sum_c Y_{c,t}}{\sum_c n_{c,t}}
+\bar d_e(t)=\frac{1}{N_e(t)}\sum_{u=1}^{N_e(t)} d_{u,e}(t)
 $$
 
-- $\gamma_t$: system-level collision or loss ratio at time $t$  
-- $\sum_c Y_{c,t}$: total decoded packets summed over all cells  
-- $\sum_c n_{c,t}$: total transmitted packets summed over all cells  
-- $1-\frac{\sum_c Y_{c,t}}{\sum_c n_{c,t}}$: fraction of packets not successfully decoded  
-
-<!--
-Collision aggregated across all users.
--->
+- Symbols: $e$ elevation bin, $N_e(t)$ users in that bin.
+- Symbols: $d_{u,e}(t)$ user-$u$ slant range, $\bar d_e(t)$ mean slant range.
+- Ref: Slant-range impact concept (Friis distance dependence) https://doi.org/10.1109/JRPROC.1946.234568
 
 ---
 
-# Collision Evidence
-### Distribution of packet loss from contention
+# Relative Path-Loss Pressure
 
-![h:320px](../results/lrfhss_communication/plots/collision_rate_ecdf.png)
+$$
+\phi_e(t)=\left(\frac{\bar d_e(t)}{d_{\text{ref}}}\right)^2
+$$
 
-- Most active steps have low collision, but a smaller tail reaches much higher loss
-- This tail explains why average performance alone can hide congestion events
+- Symbols: $\phi_e(t)$ path-loss pressure factor, $\bar d_e(t)$ mean slant range.
+- Symbols: $d_{\text{ref}}$ reference range (in code, tied to satellite altitude).
+- Ref: Free-space distance-loss relation (Friis) https://doi.org/10.1109/JRPROC.1946.234568
 
-<!--
-This plot supports the system-level collision discussion.
--->
+---
+
+# Elevation Load Factor
+
+$$
+f_e(t)=N_e(t)\cdot \alpha_{\text{act}}\cdot \phi_e(t)\cdot 0.01N_{\text{demod}}(t)
+$$
+
+- Symbols: $f_e(t)$ load factor, $\alpha_{\text{act}}$ activity ratio.
+- Symbols: $N_{\text{demod}}(t)$ demod pool size, $N_e(t)$ users at elevation bin $e$.
+- Ref: Implementation rule in `modules/satellite_stepper.py`
+
+---
+
+# Busy Demodulators
+
+$$
+N_{\text{busy},e}(t)=\min\left(N_{\text{demod}}(t),\lceil f_e(t)\rceil\right)
+$$
+
+- Symbols: $N_{\text{demod}}(t)$ total demodulators at step $t$.
+- Symbols: $N_{\text{busy},e}$ busy demods at elevation $e$, $f_e(t)$ load factor.
+- Ref: Implementation model in your code `modules/satellite_stepper.py`
+
+---
+
+# Remaining Demodulators
+
+$$
+N_{\text{rem},e}(t)=N_{\text{demod}}(t)-N_{\text{busy},e}(t)
+$$
+
+- Symbols: $N_{\text{rem},e}$ demods not busy, $N_{\text{demod}}$ total demods.
+- Ref: Implementation model in your code `modules/satellite_stepper.py`
+
+---
+
+# Sleep Demodulators
+
+$$
+N_{\text{sleep},e}(t)=\text{round}\left(\beta_{\text{sleep}}N_{\text{rem},e}(t)\right)
+$$
+
+- Symbols: $N_{\text{sleep},e}$ sleep demods, $\beta_{\text{sleep}}$ sleep ratio.
+- Ref: Implementation model in your code `modules/satellite_stepper.py`
+
+---
+
+# Idle Demodulators
+
+$$
+N_{\text{idle},e}(t)=N_{\text{rem},e}(t)-N_{\text{sleep},e}(t)
+$$
+
+- Symbols: $N_{\text{idle},e}$ idle demods, $N_{\text{rem},e}$ remaining demods.
+- Ref: Implementation model in your code `modules/satellite_stepper.py`
 
 ---
 
 # Power Model
-### 3GPP
 
 $$
-P_{tot}=P_0+N_{idle}P_{idle}+N_{busy}P_{busy}
+P_e(t)=P_0+N_{\text{idle},e}(t)P_{\text{idle}}+N_{\text{busy},e}(t)P_{\text{busy}}
 $$
 
-- $P_{tot}$: total satellite payload power consumption  
-- $P_0$: fixed baseline power independent of traffic  
-- $N_{idle}$: number of idle demodulators  
-- $P_{idle}$: power consumed by each idle demodulator  
-- $N_{busy}$: number of actively processing demodulators  
-- $P_{busy}$: power consumed by each busy demodulator  
+- Symbols: $P_e(t)$ total modeled power for elevation scenario $e$.
+- Symbols: $P_0$ baseline power, $P_{\text{idle}}$ idle demod power, $P_{\text{busy}}$ busy demod power.
+- Symbols: $N_{\text{idle},e}(t)$ and $N_{\text{busy},e}(t)$ are stepwise demod state counts.
+- Current constants: $P_0=2$ mW, $P_{\text{idle}}=9$ mW, $P_{\text{busy}}=100$ mW.
+- Ref: power-state modeling basis https://tnm.engin.umich.edu/wp-content/uploads/sites/353/2017/12/2006.10.Reducing-idle-mode-power-in-software-defined-radio-terminals_ISLPED-2006.pdf
 
-<!--
-Power depends on system load.
--->
 
 ---
 
-# Idle Demodulator Relation
-### Resource State by Time Step
+# Future Prediction 
+### Predicting Next Time Steps
 
-$$
-N_{\text{demod,idle}}(t)=N_{\text{demod,tot}}-N_{\text{demod,busy}}(t)
-$$
+Goal: predict busy demodulators and energy at future horizon $t+\Delta$.
 
-- $N_{\text{demod,tot}}$: total onboard demodulators  
-- $N_{\text{demod,busy}}(t)$: demodulators actively processing at time $t$  
-- $N_{\text{demod,idle}}(t)$: demodulators not processing at time $t$  
-- In this project, when coverage and offered load increase, busy demods increase and idle demods decrease.
+1. Generate future satellite states by stepping orbit index forward.
+2. For each future step, recompute footprint and covered population.
+3. Map covered population to future `calculated_nodes` and `calculated_demodulators`.
+4. For each elevation (90/55/25), estimate future busy/idle/sleep states.
+5. Convert those states to future energy using the same power constants.
 
-<!--
-This slide isolates the idle/busy demod state relation used by the power model.
--->
+---
+# One-Position Decode Results
+### Elevation Curves (90 deg)
+
+![h:300px](../results/one_pos_lrfhss/lrfhss_demod_42_elev90.png)
+
+---
+# One-Position Decode Results
+### Elevation Curves (55 deg)
+
+![h:300px](../results/one_pos_lrfhss/lrfhss_demod_42_elev55.png)
 
 ---
 
-# Demodulator Evidence
-### Resource activation under increasing load
+# One-Position Decode Results
+### Elevation Curve (25 deg)
 
-![h:300px](../results/lrfhss_communication/plots/nodes_vs_decoded_payload_demod_states.png)
+![h:360px](../results/one_pos_lrfhss/lrfhss_demod_42_elev25.png)
 
-- Busy demodulators grow with traffic, while decoded payload eventually flattens
-
-<!--
-This plot links decoding saturation to demodulator allocation.
--->
+- Same demod budget, stronger geometry penalty at lower elevation.
 
 ---
 
-# Power Evidence
-### Collision spikes align with temporary power surges
+# Satellite Stepper Outputs
+### Population and Resource Dynamics
 
-![h:300px](../results/lrfhss_communication/plots/collision_rate_vs_power_timeseries.png)
+![h:330px](../results/one_pos_satellite/plots/satellite_stepper_population.png)
 
-- Power rises when more demodulator resources are activated
-- The highest collision event coincides with the strongest short-lived power peak
-
-<!--
-This plot links congestion events to power draw.
--->
+- Per step: covered population, nodes, and demod count.
 
 ---
 
-# Conclusion — This Work
+# Demodulator State Evidence
+### Busy/Idle vs Orbit Timestamp (90 deg)
 
-| **Contributions** | **Key Findings** |
-|------------------|-----------------|
-| Unified cross-layer framework | Geometry drives SNR/SINR |
-| Integrated orbit, channel, decoding, power | Load drives collision |
-| Stepwise, reproducible model | Power depends on demod usage |
-| Defendable methodology | Reliability–energy tradeoff |
+![h:330px](../results/one_pos_satellite/plots/satellite_stepper_demodulators_90deg.png)
 
 ---
 
-## Final Insight
+# Demodulator State Results
+### Busy/Idle vs Orbit Timestamp (55 deg)
 
-- geometry → load → interference → decoding → energy  
+![h:330px](../results/one_pos_satellite/plots/satellite_stepper_demodulators_55deg.png)
 
-<!--
-Left shows contributions, right shows observations.
--->
+---
+
+# Demodulator State Results
+### Busy/Idle vs Orbit Timestamp (25 deg)
+
+![h:290px](../results/one_pos_satellite/plots/satellite_stepper_demodulators_25deg.png)
+
+---
+
+# Energy Model Results (90, 55 and 25 deg)
+
+![h:350px](../results/one_pos_satellite/plots/satellite_stepper_energy_all_elevations.png)
+
+- Energy follows geometry-driven demod state transitions.
+
+---
+
+# Main Takeaways
+
+1. Geometry controls coverage and distance.
+2. Coverage controls node/demod provisioning.
+3. Elevation changes distance and busy occupancy.
+4. Busy occupancy is the main power driver.
+5. One-position decode plots are consistent with this chain.
+
+---
+
+# Citable Paper Sources (URLs)
+
+- LR-FHSS overview paper: https://doi.org/10.1109/MCOM.001.2000627
+- 3GPP NTN reference (TR 38.811): https://www.3gpp.org/DynaReport/38.811.htm
+- Friis transmission formula: https://doi.org/10.1109/JRPROC.1946.234568
+- Shannon communication theory: https://doi.org/10.1002/j.1538-7305.1948.tb01338.x
+- ALOHA system paper: https://doi.org/10.1145/1478462.1478502
+
+---
+
+# Citable Data Sources (URLs)
+
+- Natural Earth populated places: https://naciscdn.org/naturalearth/10m/cultural/ne_10m_populated_places.zip
+- Natural Earth countries: https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_0_countries.zip
+- Natural Earth lakes: https://naciscdn.org/naturalearth/10m/physical/ne_10m_lakes.zip
+- Natural Earth rivers: https://naciscdn.org/naturalearth/10m/physical/ne_10m_rivers_lake_centerlines.zip
+- Demod power baseline reference: https://tnm.engin.umich.edu/wp-content/uploads/sites/353/2017/12/2006.10.Reducing-idle-mode-power-in-software-defined-radio-terminals_ISLPED-2006.pdf
+
