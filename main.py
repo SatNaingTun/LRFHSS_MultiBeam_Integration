@@ -149,7 +149,7 @@ def run_lrfhss_simulator_one_step(
                 # print(f"Demodulator info for elevation {elev}: {demod_info}")
                 # num_decoders=demod_info["busy"]
                 node_info=stepper.get_current_nodes_for_elevation(elev)
-                print(f"Node info for elevation {elev}: {node_info}")
+                # print(f"Node info for elevation {elev}: {node_info}")
                 requested_nodes= node_info["num_nodes"]
                 elev_out_csv = one_pos_output_dir / f"lrfhss_sim_cr{int(args.coding_rate)}_elev{int(elev)}.csv"
                 elev_out_png = one_pos_output_dir / f"lrfhss_demod_{int(num_decoders)}_elev{int(elev)}.png"
@@ -264,15 +264,14 @@ def plot_orbit_time_vs_decoded_packets(output_dir: Path) -> list[Path]:
         if "link_budget_agg" in step_csv.stem:
             continue
 
-        series_by_key: dict[str, list[tuple[float, float]]] = {}
+        series_by_label: dict[str, list[tuple[float, float]]] = {}
+        ref_series: list[tuple[float, float]] = []
         with step_csv.open("r", encoding="utf-8", newline="") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 row_key = str(row.get("value_0", "")).strip()
                 if not row_key:
                     row_key = str(row.get("row_key", "")).strip()
-                if "dec_payld" not in row_key:
-                    continue
                 try:
                     orbit_t = float(row.get("timestamp_s", 0.0) or 0.0)
                 except (TypeError, ValueError):
@@ -292,22 +291,70 @@ def plot_orbit_time_vs_decoded_packets(output_dir: Path) -> list[Path]:
                     values = _parse_pipe_floats(str(row.get("row_values_pipe", "")))
                 if not values:
                     continue
-                decoded_mean = float(sum(values) / len(values))
-                series_by_key.setdefault(row_key, []).append((orbit_t, decoded_mean))
 
-        if not series_by_key:
+                row_key_l = row_key.lower()
+                y_value = float(sum(values) / len(values))
+
+                # Keep a black reference line derived from the sent-packets rows.
+                if row_key_l in {"nodes", "x_equals_y"}:
+                    ref_series.append((orbit_t, y_value))
+                    continue
+
+                if "dec_payld" not in row_key_l:
+                    continue
+
+                if row_key_l.startswith("driver-") and row_key_l.endswith("-base"):
+                    label = "driver base"
+                elif row_key_l.startswith("driver-"):
+                    label = "driver earlydd"
+                elif row_key_l.startswith("lifan-") and row_key_l.endswith("-base"):
+                    label = "li-fan base"
+                elif row_key_l.startswith("lifan-"):
+                    label = "li-fan earlydd"
+                else:
+                    label = row_key
+
+                series_by_label.setdefault(label, []).append((orbit_t, y_value))
+
+        if not series_by_label and not ref_series:
             continue
 
         fig, ax = plt.subplots(figsize=(10, 5.5))
-        for row_key, pts in sorted(series_by_key.items()):
+        style_map: dict[str, dict[str, Any]] = {
+            "driver base": {"color": "#ff7f0e", "linestyle": "--"},
+            "driver earlydd": {"color": "#1f77b4", "linestyle": "--"},
+            "li-fan base": {"color": "#ff7f0e", "linestyle": "-"},
+            "li-fan earlydd": {"color": "#1f77b4", "linestyle": "-"},
+        }
+        for label, pts in sorted(series_by_label.items()):
             pts_sorted = sorted(pts, key=lambda x: x[0])
             xs = [p[0] for p in pts_sorted]
             ys = [p[1] for p in pts_sorted]
-            ax.plot(xs, ys, marker="o", linewidth=1.8, markersize=3.5, label=row_key)
+            style = style_map.get(label, {"color": None, "linestyle": "-"})
+            ax.plot(
+                xs,
+                ys,
+                marker="o",
+                linewidth=1.8,
+                markersize=3.5,
+                color=style["color"],
+                linestyle=style["linestyle"],
+                label=label,
+            )
 
-        ax.set_title(f"Orbit Time vs Decoded Packets ({step_csv.stem})")
+        if ref_series:
+            ref_sorted = sorted(ref_series, key=lambda x: x[0])
+            ax.plot(
+                [p[0] for p in ref_sorted],
+                [p[1] for p in ref_sorted],
+                color="black",
+                linewidth=2.0,
+                label="x=y (mean sent packets)",
+            )
+
+        ax.set_title(f"CR decoded payloads vs time ({step_csv.stem})")
         ax.set_xlabel("orbit_timestamp_s")
-        ax.set_ylabel("decoded_packets_mean")
+        ax.set_ylabel("Number of Decoded Payloads")
         ax.grid(True, linestyle="-", linewidth=0.5, alpha=0.35)
         ax.legend(fontsize=8)
         fig.tight_layout()
@@ -358,9 +405,9 @@ def main() -> int:
                 output_dir=output_dir,
                 step_meta=step_meta,
             )
-            plot_paths = plot_orbit_time_vs_decoded_packets(output_dir=output_dir)
-            for p in plot_paths:
-                print(f"decoded_packets_plot= {p}")
+        plot_paths = plot_orbit_time_vs_decoded_packets(output_dir=output_dir)
+        for p in plot_paths:
+            print(f"decoded_packets_plot= {p}")
             
         
 
