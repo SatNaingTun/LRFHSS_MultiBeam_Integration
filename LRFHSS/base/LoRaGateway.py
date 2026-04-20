@@ -1,6 +1,6 @@
 import numpy as np
-from base.Processor import Processor
-from base.LRFHSSTransmission import LRFHSSTransmission
+from LRFHSS.base.Processor import Processor
+from LRFHSS.base.LRFHSSTransmission import LRFHSSTransmission
 
 class LoRaGateway():
 

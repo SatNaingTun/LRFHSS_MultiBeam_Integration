@@ -6,7 +6,7 @@ import sys
 
 from modules.leo_kepler_rotation import EARTH_RADIUS_M
 from modules.channel import path_loss
-import orbit_utils as utils
+import modules.orbit_utils as utils
 from ProjectConfig import node_population_ratio, demd_population_ratio, elev_list
 
 try:

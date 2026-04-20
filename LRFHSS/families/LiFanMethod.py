@@ -1,7 +1,7 @@
 import random
 import numpy as np
-from families.FHSfamily import FHSfamily
-from base.base import gcd, get_min_gap, filter_freq, split_seq
+from LRFHSS.families.FHSfamily import FHSfamily
+from LRFHSS.base.base import gcd, get_min_gap, filter_freq, split_seq
 
 """
 Generates a wide gap sequence with minimum gap e and optimal maximal hamming autocorrelation

@@ -1,6 +1,6 @@
 import math
 
-from base.base import GAIN_RX, GAIN_TX, dBm2mW, mW2dBm
+from LRFHSS.base.base import GAIN_RX, GAIN_TX, dBm2mW, mW2dBm
 from modules.channel import get_FS_pathloss, get_distance
 
 class RadioLinkBudget:

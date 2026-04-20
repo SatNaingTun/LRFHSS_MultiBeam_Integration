@@ -2,15 +2,15 @@ import time
 
 import random
 import numpy as np
-from base.base import *
-from base.LoRaNode import LoRaNode
-from base.LoRaGateway import LoRaGateway
-from base.LRFHSSTransmission import LRFHSSTransmission
-from families.LiFanMethod import LiFanFamily
-from families.LR_FHSS_DriverMethod import LR_FHSS_DriverFamily
-from families.LempelGreenbergMethod import LempelGreenbergFamily
-from base.FHSLocator import FHSLocator
-from base.RadioLinkBudget import RadioLinkBudget
+from LRFHSS.base.base import *
+from LRFHSS.base.LoRaNode import LoRaNode
+from LRFHSS.base.LoRaGateway import LoRaGateway
+from LRFHSS.base.LRFHSSTransmission import LRFHSSTransmission
+from LRFHSS.families.LiFanMethod import LiFanFamily
+from LRFHSS.families.LR_FHSS_DriverMethod import LR_FHSS_DriverFamily
+from LRFHSS.families.LempelGreenbergMethod import LempelGreenbergFamily
+from LRFHSS.base.FHSLocator import FHSLocator
+from LRFHSS.base.RadioLinkBudget import RadioLinkBudget
 
 try:
     import galois

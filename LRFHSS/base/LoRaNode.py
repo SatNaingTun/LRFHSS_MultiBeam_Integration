@@ -1,8 +1,8 @@
 import random
 import numpy as np
-from base.base import *
-from base.LRFHSSTransmission import LRFHSSTransmission
-from families.LR_FHSS_DriverMethod import FHSfamily
+from LRFHSS.base.base import *
+from LRFHSS.base.LRFHSSTransmission import LRFHSSTransmission
+from LRFHSS.families.LR_FHSS_DriverMethod import FHSfamily
 from modules.channel import dopplerShift, get_visibility_time, distance_from_center_elevation
 
 class LoRaNode():

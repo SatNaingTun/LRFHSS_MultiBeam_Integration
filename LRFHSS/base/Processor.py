@@ -1,7 +1,7 @@
 import numpy as np
-from base.base import *
-from base.LRFHSSTransmission import LRFHSSTransmission
-from base.RadioSignalQuality import RadioSignalQuality
+from LRFHSS.base.base import *
+from LRFHSS.base.LRFHSSTransmission import LRFHSSTransmission
+from LRFHSS.base.RadioSignalQuality import RadioSignalQuality
 
 class Processor():
     """

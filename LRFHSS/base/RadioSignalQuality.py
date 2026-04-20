@@ -1,6 +1,6 @@
 import numpy as np
 
-from base.base import AWGN_VAR_DB, dBm2mW, mW2dBm
+from LRFHSS.base.base import AWGN_VAR_DB, dBm2mW, mW2dBm
 
 
 class RadioSignalQuality:

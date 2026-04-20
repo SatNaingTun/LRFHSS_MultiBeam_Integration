@@ -1,7 +1,7 @@
 import numpy as np
 from galois import GLFSR, Poly
-from families.FHSfamily import FHSfamily
-from base.base import numberToBase
+from LRFHSS.families.FHSfamily import FHSfamily
+from LRFHSS.base.base import numberToBase
 
 """
 maps a sequence X in P^k to a value in P_k

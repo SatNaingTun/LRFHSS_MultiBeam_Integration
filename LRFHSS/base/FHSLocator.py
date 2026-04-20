@@ -1,6 +1,6 @@
 import numpy as np
 from multiprocessing import Pool
-from base.base import *
+from LRFHSS.base.base import *
 from modules.channel import dopplerShift, get_visibility_time
 
 

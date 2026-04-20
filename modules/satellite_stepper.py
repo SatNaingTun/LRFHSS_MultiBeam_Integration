@@ -85,6 +85,7 @@ class SatelliteStepper:
         baseline_power_w: float = baseline_power,
         idle_demodulator_power_w: float = idle_demodulator_power,
         busy_demodulator_power_w: float = busy_demodulator_power,
+        keep_only_latest_per_orbit: bool = True,
     ) -> None:
         self.output_csv_path = Path(output_csv_path)
         self.population_csv_path = Path(population_csv_path)
@@ -121,6 +122,7 @@ class SatelliteStepper:
         self._baseline_power_w = float(baseline_power_w)
         self._idle_demodulator_power_w = float(idle_demodulator_power_w)
         self._busy_demodulator_power_w = float(busy_demodulator_power_w)
+        self._keep_only_latest_per_orbit = bool(keep_only_latest_per_orbit)
         self._elev_list = self._resolve_elev_list(elev_list)
         self._elev_tokens: list[tuple[float, str]] = [
             (float(elev), self._elev_token(float(elev))) for elev in self._elev_list

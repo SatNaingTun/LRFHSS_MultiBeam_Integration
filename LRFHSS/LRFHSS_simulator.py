@@ -4,10 +4,10 @@ from pathlib import Path
 
 import numpy as np
 
-from LoRaNetwork import LoRaNetwork
-from base.RadioLinkBudget import RadioLinkBudget
-from base.RadioSignalQuality import RadioSignalQuality
-from base.base import (
+from LRFHSS.LoRaNetwork import LoRaNetwork
+from LRFHSS.base.RadioLinkBudget import RadioLinkBudget
+from LRFHSS.base.RadioSignalQuality import RadioSignalQuality
+from LRFHSS.base.base import (
     CR,
     OBW_BW,
     OCW_FC,

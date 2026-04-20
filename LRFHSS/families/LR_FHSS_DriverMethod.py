@@ -1,6 +1,6 @@
 import random
 import numpy as np
-from families.FHSfamily import FHSfamily
+from LRFHSS.families.FHSfamily import FHSfamily
 
 lr_fhss_lfsr_poly1 = [33, 45, 48, 51, 54, 57]
 lr_fhss_lfsr_poly2 = [65, 68, 71, 72]
