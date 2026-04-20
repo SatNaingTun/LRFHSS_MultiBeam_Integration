@@ -603,9 +603,16 @@ class SatelliteStepper:
             # Relative FSPL pressure ~ (d / d_ref)^2
             relative_path_loss_factor = (d_km / max(d_ref_km, 1e-9)) ** 2
 
-            # Higher path loss -> more demod occupancy pressure
-            # Scale by users and activity ratio
-            factor = float(n_user) * float(self._demod_activity_ratio) * relative_path_loss_factor
+            # Higher path loss -> more demod occupancy pressure.
+            # Scale with total demods so busy is not artificially stuck at 0/1
+            # when coverage is non-zero but node count is very small.
+            demod_pool_scale = 0.01 * float(n_demod_total)
+            factor = (
+                float(max(1, n_user))
+                * float(self._demod_activity_ratio)
+                * relative_path_loss_factor
+                * demod_pool_scale
+            )
             load_factors[token] = factor
 
         for elev_deg, token in self._elev_tokens:
@@ -614,8 +621,12 @@ class SatelliteStepper:
             # Elevations are modeled as independent scenarios, so each
             # busy estimate comes from its own factor (not normalized by
             # other elevation slices).
-            n_busy = int(round(factor))
-            n_busy = max(0, min(n_busy, n_demod_total))
+            if n_demod_total <= 10:
+                n_busy = int(n_demod_total)
+            else:
+                # Avoid collapsing low-but-positive load to zero.
+                n_busy = int(math.ceil(factor)) if factor > 0.0 else 0
+                n_busy = max(0, min(n_busy, n_demod_total))
 
             remaining = max(0, n_demod_total - n_busy)
             n_sleep = int(round(self._demod_sleep_ratio * remaining))
@@ -711,33 +722,71 @@ class SatelliteStepper:
         }
 
     def _compute_coverage(self, sat_lat_deg: float, sat_lon_deg: float, footprint_radius_m: float) -> dict[str, Any]:
-        covered_population_total = 0
-        covered_population_points = 0
-        covered_population_labels: list[str] = []
-        for p in self._population_points:
-            d = haversine_distance_m(
-                sat_lat_deg,
-                sat_lon_deg,
-                float(p["latitude"]),
-                float(p["longitude"]),
-            )
-            if d <= footprint_radius_m:
-                covered_population_points += 1
-                covered_population_total += int(p["population"])
-                covered_population_labels.append(self._format_place_label(p))
+        def _collect_for_center(center_lat_deg: float, center_lon_deg: float) -> dict[str, Any]:
+            covered_population_total_local = 0
+            covered_population_points_local = 0
+            covered_population_labels_local: list[str] = []
+            for p in self._population_points:
+                d = haversine_distance_m(
+                    center_lat_deg,
+                    center_lon_deg,
+                    float(p["latitude"]),
+                    float(p["longitude"]),
+                )
+                if d <= footprint_radius_m:
+                    covered_population_points_local += 1
+                    covered_population_total_local += int(p["population"])
+                    covered_population_labels_local.append(self._format_place_label(p))
 
-        covered_ocean_points = 0
-        covered_ocean_labels: list[str] = []
-        for p in self._ocean_points:
-            d = haversine_distance_m(
-                sat_lat_deg,
-                sat_lon_deg,
-                float(p["latitude"]),
-                float(p["longitude"]),
+            covered_ocean_points_local = 0
+            covered_ocean_labels_local: list[str] = []
+            for p in self._ocean_points:
+                d = haversine_distance_m(
+                    center_lat_deg,
+                    center_lon_deg,
+                    float(p["latitude"]),
+                    float(p["longitude"]),
+                )
+                if d <= footprint_radius_m:
+                    covered_ocean_points_local += 1
+                    covered_ocean_labels_local.append(self._format_place_label(p))
+
+            return {
+                "covered_population_total": int(covered_population_total_local),
+                "covered_population_points": int(covered_population_points_local),
+                "covered_ocean_points": int(covered_ocean_points_local),
+                "covered_population_places": ";".join(covered_population_labels_local),
+                "covered_ocean_places": ";".join(covered_ocean_labels_local),
+            }
+
+        coverage = _collect_for_center(float(sat_lat_deg), float(sat_lon_deg))
+
+        # If direct footprint coverage is empty, evaluate the nearest populated area.
+        if (
+            int(coverage["covered_population_points"]) == 0
+            and len(self._population_points) > 0
+        ):
+            nearest_point = min(
+                self._population_points,
+                key=lambda p: haversine_distance_m(
+                    float(sat_lat_deg),
+                    float(sat_lon_deg),
+                    float(p["latitude"]),
+                    float(p["longitude"]),
+                ),
             )
-            if d <= footprint_radius_m:
-                covered_ocean_points += 1
-                covered_ocean_labels.append(self._format_place_label(p))
+            nearest_coverage = _collect_for_center(
+                float(nearest_point["latitude"]),
+                float(nearest_point["longitude"]),
+            )
+            if int(nearest_coverage["covered_population_points"]) > 0:
+                coverage = nearest_coverage
+
+        covered_population_total = int(coverage["covered_population_total"])
+        covered_population_points = int(coverage["covered_population_points"])
+        covered_ocean_points = int(coverage["covered_ocean_points"])
+        covered_population_places = str(coverage["covered_population_places"])
+        covered_ocean_places = str(coverage["covered_ocean_places"])
 
         calculated_nodes = int(round(float(covered_population_total) * self.node_population_ratio))
         calculated_demodulators = int(round(float(covered_population_total) * self.demd_population_ratio))
@@ -755,8 +804,8 @@ class SatelliteStepper:
             "covered_population_ratio": float(max(0.0, min(1.0, covered_population_ratio))),
             "covered_ocean_points": int(covered_ocean_points),
             "covered_ocean_ratio": float(max(0.0, min(1.0, covered_ocean_ratio))),
-            "covered_population_places": ";".join(covered_population_labels),
-            "covered_ocean_places": ";".join(covered_ocean_labels),
+            "covered_population_places": covered_population_places,
+            "covered_ocean_places": covered_ocean_places,
             "calculated_nodes": int(calculated_nodes),
             "calculated_demodulators": int(calculated_demodulators),
         }

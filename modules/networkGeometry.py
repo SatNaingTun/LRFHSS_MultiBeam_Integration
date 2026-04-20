@@ -158,10 +158,15 @@ def evaluate_users_and_distances(
         #
         # load = arrival × service time
         # -----------------------------
-        n_busy_raw = int(n_active * service_time_factor)
+        raw_load = float(n_active) * float(service_time_factor)
+        n_busy_raw = int(math.ceil(raw_load)) if raw_load > 0.0 else 0
 
-        # now apply hardware limit
-        n_busy = min(n_busy_raw, n_demod)
+        # For very small demod pools, force full busy occupancy.
+        if n_demod <= 10:
+            n_busy = int(max(0, n_demod))
+        else:
+            # otherwise apply the normal hardware cap
+            n_busy = min(n_busy_raw, n_demod)
 
         # -----------------------------
         # (5) Remaining demods
