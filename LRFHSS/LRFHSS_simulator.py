@@ -401,6 +401,7 @@ def runsim2csv(
                     freq_granularity=freq_granularity,
                     link_budget_log=link_budget_log,
                     return_link_budget_summary=link_budget_log,
+                    fixed_elevation=float(fixed_elevation) if fixed_elevation is not None else None,
                 )
             base_summary: dict[str, float] | None = None
             base_metric_val: float

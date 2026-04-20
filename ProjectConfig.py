@@ -62,8 +62,8 @@ use_earlydrop = True
 use_headerdrop = False
 linkBudgetLog = True
 
-node_population_ratio = 0.00001
-demd_population_ratio = 0.00001
+node_population_ratio = 0.0000001
+demd_population_ratio = 0.0000001
 
 #Ref: https://tnm.engin.umich.edu/wp-content/uploads/sites/353/2017/12/2006.10.Reducing-idle-mode-power-in-software-defined-radio-terminals_ISLPED-2006.pdf
 baseline_power=2*10**-3 

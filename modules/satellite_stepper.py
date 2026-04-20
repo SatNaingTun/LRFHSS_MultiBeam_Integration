@@ -61,6 +61,7 @@ class SatelliteStepper:
         "sat_z_m",
         "sat_radius_m",
         "node_population_ratio",
+        "demd_population_ratio",
         "calculated_nodes",
         "calculated_demodulators",
     ]
@@ -173,6 +174,8 @@ class SatelliteStepper:
             "timestamp_s",
             "orbit_timestamp_s",
             "timestamp_utc",
+            "node_population_ratio",
+            "demd_population_ratio",
             "covered_population_total",
             "covered_population_points",
             "covered_population_ratio",
@@ -462,7 +465,7 @@ class SatelliteStepper:
             "sat_radius_m": float(merged["sat_radius_m"]),
             "calculated": {
                 "node_population_ratio": float(merged["node_population_ratio"]),
-                # "demd_population_ratio": float(merged["demd_population_ratio"]),
+                "demd_population_ratio": float(merged.get("demd_population_ratio", self.demd_population_ratio)),
                 "nodes": int(merged["calculated_nodes"]),
                 "demodulators": float(merged["calculated_demodulators"]),
             },
@@ -536,6 +539,8 @@ class SatelliteStepper:
             "timestamp_s": float(row["timestamp_s"]),
             "orbit_timestamp_s": float(row["orbit_timestamp_s"]),
             "timestamp_utc": str(row["timestamp_utc"]),
+            "node_population_ratio": float(row["node_population_ratio"]),
+            "demd_population_ratio": float(row.get("demd_population_ratio", self.demd_population_ratio)),
             "covered_population_total": int(groundtrack_coverage_row["covered_population_total"]),
             "covered_population_points": int(groundtrack_coverage_row["covered_population_points"]),
             "covered_population_ratio": float(groundtrack_coverage_row["covered_population_ratio"]),
@@ -788,8 +793,10 @@ class SatelliteStepper:
         covered_population_places = str(coverage["covered_population_places"])
         covered_ocean_places = str(coverage["covered_ocean_places"])
 
-        calculated_nodes = int(round(float(covered_population_total) * self.node_population_ratio))
-        calculated_demodulators = int(round(float(covered_population_total) * self.demd_population_ratio))
+        # Use total population basis (not instantaneous coverage) for provisioning counts.
+        base_population_total = int(self._total_population_catalog)
+        calculated_nodes = int(round(float(base_population_total) * self.node_population_ratio))
+        calculated_demodulators = int(round(float(base_population_total) * self.demd_population_ratio))
 
         covered_population_ratio = float(
             covered_population_total / self._total_population_catalog
@@ -963,6 +970,7 @@ class SatelliteStepper:
             "sat_z_m": float(pos["z_m"]),
             "sat_radius_m": float(pos["sat_radius_m"]),
             "node_population_ratio": float(self.node_population_ratio),
+            "demd_population_ratio": float(self.demd_population_ratio),
             "calculated_nodes": int(coverage["calculated_nodes"]),
             "calculated_demodulators": int(coverage["calculated_demodulators"]),
         }
@@ -1003,6 +1011,7 @@ class SatelliteStepper:
             "sat_y_m": float(pos["y_m"]),
             "sat_z_m": float(pos["z_m"]),
             "node_population_ratio": float(self.node_population_ratio),
+            "demd_population_ratio": float(self.demd_population_ratio),
             "sat_lat_deg": float(sat_lat_deg),
             "sat_lon_deg": float(sat_lon_deg),
             "sat_radius_m": float(pos["sat_radius_m"]),
@@ -1469,6 +1478,11 @@ def main() -> int:
     last_row = None
     for _ in range(steps):
         last_row = stepper.next()
+        print(
+            f"step={int(last_row['step'])} "
+            f"calculated_nodes={int(last_row['calculated_nodes'])} "
+            f"calculated_demodulators={int(last_row['calculated_demodulators'])}"
+        )
 
     plot_paths = stepper.plot_elevation_energy_timeseries()
     demod_plot_paths = stepper.plot_elevation_demodulator_timeseries()
@@ -1477,20 +1491,27 @@ def main() -> int:
 
     if last_row is None:
         pos = stepper.get_pos()
+        cur_row = stepper.current()
         footprint = stepper.get_footprint()
-    #     print(
-    #         f"initialized_only output={args.output} step={int(pos['step'])} "
-    #         f"lat={float(pos['latitude_deg']):.6f} lon={float(pos['longitude_deg']):.6f} "
-    #         f"footprint_m={float(footprint['footprint_radius_m']):.3f}"
-    #     )
-    # else:
-    #     print(
-    #         f"completed output={args.output} rows_added={steps + 1} "
-    #         f"last_step={int(last_row['step'])} "
-    #         f"nodes={int(last_row['calculated_nodes'])} "
-    #         f"demods={int(last_row['calculated_demodulators'])} "
-    #         f"current_json={stepper.current_pos_json_path}"
-    #     )
+        print(
+            f"initialized_only output={args.output} step={int(pos['step'])} "
+            f"lat={float(pos['latitude_deg']):.6f} lon={float(pos['longitude_deg']):.6f} "
+            f"footprint_m={float(footprint['footprint_radius_m']):.3f} "
+            f"nodes={int(cur_row['calculated_nodes'])} "
+            f"demods={int(cur_row['calculated_demodulators'])} "
+            f"node_ratio={float(stepper.node_population_ratio):.8f} "
+            f"demd_ratio={float(stepper.demd_population_ratio):.8f}"
+        )
+    else:
+        print(
+            f"completed output={args.output} rows_added={steps + 1} "
+            f"last_step={int(last_row['step'])} "
+            f"nodes={int(last_row['calculated_nodes'])} "
+            f"demods={int(last_row['calculated_demodulators'])} "
+            f"node_ratio={float(last_row.get('node_population_ratio', stepper.node_population_ratio)):.8f} "
+            f"demd_ratio={float(last_row.get('demd_population_ratio', stepper.demd_population_ratio)):.8f} "
+            f"current_json={stepper.current_pos_json_path}"
+        )
     if plot_paths:
         print("energy_plots= " + ",".join(str(path) for path in plot_paths))
     elif plt is None:

@@ -9,7 +9,7 @@ from typing import Any
 
 from modules.satellite_stepper import SatelliteStepper
 from ProjectConfig import node_population_ratio, demd_population_ratio, elev_list
-
+from LRFHSS import LRFHSS_simulator as sim
 
 def parse_args() -> argparse.Namespace:
     root = Path(__file__).resolve().parent
@@ -140,13 +140,13 @@ def main() -> int:
     if str(lrfhss_root) not in sys.path:
         sys.path.insert(0, str(lrfhss_root))
 
-    try:
-        import LRFHSS_simulator as sim
-    except ModuleNotFoundError as exc:
-        raise ModuleNotFoundError(
-            "Missing dependency while importing LRFHSS_simulator. "
-            "Install required LR-FHSS deps (e.g. pip install galois)."
-        ) from exc
+    # try:
+    #     import LRFHSS_simulator as sim
+    # except ModuleNotFoundError as exc:
+    #     raise ModuleNotFoundError(
+    #         "Missing dependency while importing LRFHSS_simulator. "
+    #         "Install required LR-FHSS deps (e.g. pip install galois)."
+    #     ) from exc
 
     out_csv = output_dir / f"lrfhss_sim_cr{int(args.coding_rate)}_one_pos.csv"
     out_png = output_dir / f"lrfhss_demod_{int(num_decoders)}.png"

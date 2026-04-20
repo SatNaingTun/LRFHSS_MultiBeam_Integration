@@ -3,7 +3,7 @@
   "orbit_index": 2896,
   "timestamp_s": 0.0,
   "orbit_timestamp_s": 0.0,
-  "timestamp_utc": "2026-04-20T03:06:38.341430+00:00",
+  "timestamp_utc": "2026-04-20T06:58:51.478746+00:00",
   "position_m": {
     "x": 0.0,
     "y": 0.0,
@@ -11,9 +11,10 @@
   },
   "sat_radius_m": 6964029.0,
   "calculated": {
-    "node_population_ratio": 1e-05,
-    "nodes": 423,
-    "demodulators": 42.0
+    "node_population_ratio": 1e-07,
+    "demd_population_ratio": 1e-07,
+    "nodes": 237,
+    "demodulators": 237.0
   },
   "ground_track_deg": {
     "latitude": 35.6761919,
@@ -35,38 +36,38 @@
   "elevation_user_impact": {
     "center_elevation_deg": 90.0,
     "center_slant_range_km": 593.029,
-    "user_positions_count": 423,
-    "user_distance_min_km": 593.0370600649381,
-    "user_distance_max_km": 601.9165270875126,
-    "user_distance_mean_km": 597.5368299345449,
-    "range_ratio_vs_sat_altitude": 0.995894716557575,
-    "fspl_delta_db_vs_zenith": -0.035731433030220486,
-    "sample_user_positions_local_m": "44537.3|14985.7|-173.3;-58235.0|-45716.3|-430.2;11813.5|-35238.6|-108.4;3907.3|54231.2|-232.0;55007.2|-76305.4|-694.5;14444.7|5430.4|-18.7"
+    "user_positions_count": 237,
+    "user_distance_min_km": 593.0976388941845,
+    "user_distance_max_km": 601.8993859920879,
+    "user_distance_mean_km": 597.548523469015,
+    "range_ratio_vs_sat_altitude": 0.9959142057816917,
+    "fspl_delta_db_vs_zenith": -0.03556145563136904,
+    "sample_user_positions_local_m": "10182.6|-45874.4|-173.3;73571.3|8280.0|-430.2;28763.9|23536.2|-108.4;26022.6|-47740.1|-232.0;27273.0|-90024.9|-694.5;1679.8|15340.1|-18.7"
   },
   "elevation_scenarios": {
     "90.0": {
-      "num_users": 141,
-      "distance_km": 604.5445366949475,
-      "busy_demodulators": 14,
-      "idle_demodulators": 20,
-      "sleep_demodulators": 8,
-      "energy_model_w": 1.582
+      "num_users": 79,
+      "distance_km": 604.405677592442,
+      "busy_demodulators": 19,
+      "idle_demodulators": 153,
+      "sleep_demodulators": 65,
+      "energy_model_w": 3.2790000000000004
     },
     "55.0": {
-      "num_users": 141,
-      "distance_km": 721.7839908254787,
-      "busy_demodulators": 20,
-      "idle_demodulators": 15,
-      "sleep_demodulators": 7,
-      "energy_model_w": 2.137
+      "num_users": 79,
+      "distance_km": 722.3585625295589,
+      "busy_demodulators": 28,
+      "idle_demodulators": 146,
+      "sleep_demodulators": 63,
+      "energy_model_w": 4.1160000000000005
     },
     "25.0": {
-      "num_users": 141,
-      "distance_km": 1213.0095384811293,
-      "busy_demodulators": 42,
-      "idle_demodulators": 0,
-      "sleep_demodulators": 0,
-      "energy_model_w": 4.202
+      "num_users": 79,
+      "distance_km": 1203.521903254301,
+      "busy_demodulators": 76,
+      "idle_demodulators": 113,
+      "sleep_demodulators": 48,
+      "energy_model_w": 8.619
     }
   }
 }

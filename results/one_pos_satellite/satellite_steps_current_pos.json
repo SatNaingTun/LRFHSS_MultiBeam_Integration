@@ -1,72 +1,73 @@
 {
-  "step": 40,
-  "orbit_index": 2936,
-  "timestamp_s": 40.0,
-  "orbit_timestamp_s": 40.0,
-  "timestamp_utc": "2026-04-20T04:35:29.169306+00:00",
+  "step": 60,
+  "orbit_index": 2956,
+  "timestamp_s": 60.0,
+  "orbit_timestamp_s": 60.0,
+  "timestamp_utc": "2026-04-20T06:09:52.504863+00:00",
   "position_m": {
-    "x": 302676.66677751625,
-    "y": 1.3223357042439302e-12,
-    "z": 586454.8732342897
+    "x": 453836.3895654792,
+    "y": 2.3145618641314385e-12,
+    "z": 578240.1329040676
   },
-  "sat_radius_m": 6964035.574126765,
+  "sat_radius_m": 6964043.7888670955,
   "calculated": {
-    "node_population_ratio": 1e-05,
-    "nodes": 30,
-    "demodulators": 30183.0
+    "node_population_ratio": 1e-07,
+    "demd_population_ratio": 1e-07,
+    "nodes": 237,
+    "demodulators": 237.0
   },
   "ground_track_deg": {
-    "latitude": 44.377552853545666,
-    "longitude": 139.61313096651583
+    "latitude": 51.83584327146281,
+    "longitude": 139.5816628978203
   },
   "footprint": {
-    "radius_m": 98839.26235446085,
-    "area_km2": 30690.84626901362,
-    "earth_surface_ratio": 6.017052345187003e-05,
-    "horizon_utilization_ratio": 0.037322076834892616
+    "radius_m": 98840.63147784925,
+    "area_km2": 30691.696535303825,
+    "earth_surface_ratio": 6.017219042994248e-05,
+    "horizon_utilization_ratio": 0.0373223538746975
   },
   "coverage": {
-    "population_total": 3018274,
-    "population_points": 4,
-    "population_ratio": 0.0012724947333334212,
+    "population_total": 3615,
+    "population_points": 1,
+    "population_ratio": 1.5240725199237437e-06,
     "ocean_points": 0,
     "ocean_ratio": 0.0
   },
   "elevation_user_impact": {
-    "center_elevation_deg": 62.70117762000272,
-    "center_slant_range_km": 659.9564250401646,
-    "user_positions_count": 30,
-    "user_distance_min_km": 623.6964628485993,
-    "user_distance_max_km": 700.8845842100393,
-    "user_distance_mean_km": 664.1036907162851,
-    "range_ratio_vs_sat_altitude": 1.1068394845271419,
-    "fspl_delta_db_vs_zenith": 0.8816928685469543,
-    "sample_user_positions_local_m": "2892.6|3834.1|-1.8;11400.3|-35897.0|-111.3;84755.4|21414.6|-599.8;-1275.0|13868.4|-15.2;-68719.2|-32480.2|-453.4;13829.3|20098.6|-46.7"
+    "center_elevation_deg": 51.87312091065912,
+    "center_slant_range_km": 735.0708263798415,
+    "user_positions_count": 237,
+    "user_distance_min_km": 680.8795423132696,
+    "user_distance_max_km": 798.1415676632986,
+    "user_distance_mean_km": 738.3742436455194,
+    "range_ratio_vs_sat_altitude": 1.230623739409199,
+    "fspl_delta_db_vs_zenith": 1.8025057722476803,
+    "sample_user_positions_local_m": "73270.1|53266.8|-644.0;60308.1|20195.6|-317.5;2136.5|-41429.5|-135.1;-79842.0|-22141.0|-538.8;-37236.8|-41129.8|-241.6;-46337.4|-55589.0|-411.0"
   },
   "elevation_scenarios": {
     "90.0": {
-      "num_users": 10,
-      "distance_km": 603.5231023317098,
-      "busy_demodulators": 306,
-      "idle_demodulators": 20914,
-      "sleep_demodulators": 8963,
-      "energy_model_w": 218.82800000000003
+      "num_users": 79,
+      "distance_km": 604.3182713396676,
+      "busy_demodulators": 19,
+      "idle_demodulators": 153,
+      "sleep_demodulators": 65,
+      "energy_model_w": 3.2790000000000004
     },
     "55.0": {
-      "num_users": 10,
-      "distance_km": 720.4975190566043,
-      "busy_demodulators": 436,
-      "idle_demodulators": 20823,
-      "sleep_demodulators": 8924,
-      "energy_model_w": 231.00900000000001
+      "num_users": 79,
+      "distance_km": 725.246405227568,
+      "busy_demodulators": 28,
+      "idle_demodulators": 146,
+      "sleep_demodulators": 63,
+      "energy_model_w": 4.1160000000000005
     },
     "25.0": {
-      "num_users": 10,
-      "distance_km": 1232.7383835676858,
-      "busy_demodulators": 1275,
-      "idle_demodulators": 20236,
-      "sleep_demodulators": 8672,
-      "energy_model_w": 309.62600000000003
+      "num_users": 79,
+      "distance_km": 1212.9973252386276,
+      "busy_demodulators": 77,
+      "idle_demodulators": 112,
+      "sleep_demodulators": 48,
+      "energy_model_w": 8.71
     }
   }
 }

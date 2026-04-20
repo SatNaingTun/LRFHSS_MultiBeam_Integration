@@ -1,2 +1,2 @@
-step,orbit_index,timestamp_s,orbit_timestamp_s,timestamp_utc,sat_x_m,sat_y_m,sat_z_m,sat_radius_m,node_population_ratio,calculated_nodes,calculated_demodulators
-0,2896,0.0,0.0,2026-04-20T03:06:38.341430+00:00,0.0,0.0,593029.0,6964029.0,1e-05,423,42
+step,orbit_index,timestamp_s,orbit_timestamp_s,timestamp_utc,sat_x_m,sat_y_m,sat_z_m,sat_radius_m,node_population_ratio,demd_population_ratio,calculated_nodes,calculated_demodulators
+0,2896,0.0,0.0,2026-04-20T06:58:51.478746+00:00,0.0,0.0,593029.0,6964029.0,1e-07,1e-07,237,237
