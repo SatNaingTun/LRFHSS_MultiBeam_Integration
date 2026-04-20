@@ -1386,9 +1386,9 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--demod-activity-ratio", type=float, default=0.1)
     parser.add_argument("--demod-sleep-ratio", type=float, default=0.3)
-    parser.add_argument("--baseline-power-w", type=float, default=35.0)
-    parser.add_argument("--idle-demodulator-power-w", type=float, default=0.12)
-    parser.add_argument("--busy-demodulator-power-w", type=float, default=0.80)
+    parser.add_argument("--baseline-power-w", type=float, default=baseline_power)
+    parser.add_argument("--idle-demodulator-power-w", type=float, default=idle_demodulator_power)
+    parser.add_argument("--busy-demodulator-power-w", type=float, default=busy_demodulator_power)
     return parser
 
 
