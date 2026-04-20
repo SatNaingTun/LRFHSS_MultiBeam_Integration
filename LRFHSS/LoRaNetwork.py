@@ -204,7 +204,10 @@ class LoRaNetwork():
     def get_OCWchannel_occupancy(self) -> float:
 
         transmissions = self.TXset
-        count_dynamic_rcvM = self.get_rcvM(transmissions, power=False, dynamic=True)[0]
+        count_dynamic_rcvM_all = self.get_rcvM(transmissions, power=False, dynamic=True)
+        if count_dynamic_rcvM_all.ndim != 3 or count_dynamic_rcvM_all.shape[0] == 0:
+            return 0.0
+        count_dynamic_rcvM = count_dynamic_rcvM_all[0]
         count_dynamic_rcvM[count_dynamic_rcvM > 1] = 1
 
         fslots, tslots = count_dynamic_rcvM.shape
@@ -215,8 +218,11 @@ class LoRaNetwork():
 
         # ignore unused channels
         unused_ch = len(np.where(perFreqSlot_occ == 0)[0])
+        used_ch = fslots - unused_ch
+        if used_ch <= 0:
+            return 0.0
 
-        return np.sum(perFreqSlot_occ) / (fslots - unused_ch)
+        return np.sum(perFreqSlot_occ) / used_ch
 
 
     ##################################
@@ -228,6 +234,9 @@ class LoRaNetwork():
         # get TXset and rcvd matrix
         transmissions = self.TXset
         count_dynamic_rcvM = self.get_rcvM(transmissions, power=False, dynamic=True)
+        if count_dynamic_rcvM.ndim != 3 or count_dynamic_rcvM.shape[0] == 0:
+            diff_empty = np.zeros((self.frequencySlots, self.simTime), dtype=float)
+            return [], diff_empty
 
         # predecode headers
         self.gateway.predecode(transmissions, count_dynamic_rcvM, dynamic=True)
@@ -244,7 +253,11 @@ class LoRaNetwork():
         interference[interference < 2] = 0
 
         # detected/received difference matrix
-        diff = np.subtract(value3_matrix, decoded_m[0])
+        if decoded_m.ndim != 3 or decoded_m.shape[0] == 0:
+            decoded_first = np.zeros_like(value3_matrix)
+        else:
+            decoded_first = decoded_m[0]
+        diff = np.subtract(value3_matrix, decoded_first)
         diff = np.add(diff, interference)
         diff[diff > 1] = 1
 

@@ -259,7 +259,8 @@ def run_sim(
     use_earlydecode, use_earlydrop, use_headerdrop = _drop_mode_flags(drop_mode)
     power = False
     dynamic = False
-    collision_method = "strict"
+    # collision_method = "strict"
+    collision_method = "SINR"
 
     network = LoRaNetwork(
         int(nodes),

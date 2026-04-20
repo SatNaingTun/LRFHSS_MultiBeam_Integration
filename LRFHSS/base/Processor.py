@@ -2,6 +2,7 @@ import numpy as np
 from LRFHSS.base.base import *
 from LRFHSS.base.LRFHSSTransmission import LRFHSSTransmission
 from LRFHSS.base.RadioSignalQuality import RadioSignalQuality
+from LRFHSS.base.RadioLinkBudget import RadioLinkBudget
 
 class Processor():
     """
@@ -129,6 +130,17 @@ class Processor():
                 collidedslots += 1
 
         return (collidedslots / timeslots) > self.symbolThreshold
+
+    def received_signal_power_mw(self, tx: LRFHSSTransmission) -> float:
+        distance_m = float(getattr(tx, "distance_m", getattr(tx, "distance", SAT_H)))
+        tx_power_dbm = float(getattr(tx, "power", TX_PWR_DB))
+        return float(
+            RadioLinkBudget.received_power_mw(
+                tx_power_dbm=tx_power_dbm,
+                distance_m=distance_m,
+                carrier_hz=OCW_FC,
+            )
+        )
     
 
     def predecode_headers(self, tx: LRFHSSTransmission, rcvM: np.ndarray, dynamic: bool) -> int:
@@ -293,11 +305,7 @@ class Processor():
                 fragments[fh-tx.numHeaders] = rcvM[tx.ocw, startFreq : endFreq, time : endTime]
             
             time = endTime
-
-            _, headersPi, fragmentsPi = RadioSignalQuality.estimate_signal_and_interference(headers, fragments)
-
-            
-            estSignalPower = self.received_signal_power_mw(tx)
-
-            return estSignalPower, headersPi, fragmentsPi
+        _, headersPi, fragmentsPi = RadioSignalQuality.estimate_signal_and_interference(headers, fragments)
+        estSignalPower = self.received_signal_power_mw(tx)
+        return estSignalPower, headersPi, fragmentsPi
     

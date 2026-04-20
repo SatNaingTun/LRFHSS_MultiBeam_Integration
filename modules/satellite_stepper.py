@@ -1298,6 +1298,59 @@ class SatelliteStepper:
         plt.close(fig)
         return out_path
 
+    def plot_combined_elevation_demodulator_timeseries(
+        self,
+        output_dir: str | Path | None = None,
+    ) -> Path | None:
+        if plt is None:
+            return None
+
+        if output_dir is None:
+            plots_dir = self.elevation_states_csv_path.parent / "plots"
+        else:
+            plots_dir = Path(output_dir)
+        plots_dir.mkdir(parents=True, exist_ok=True)
+
+        rows = self._load_sorted_elevation_state_rows()
+        if not rows:
+            return None
+
+        orbit_timestamp_s = [float(row.get("orbit_timestamp_s", 0.0) or 0.0) for row in rows]
+        color_map = plt.get_cmap("tab10")
+
+        fig, ax = plt.subplots(figsize=(11, 6))
+        plotted = False
+        for idx, (elev_deg, token) in enumerate(self._elev_tokens):
+            busy_field = f"elev_{token}_busy"
+            if busy_field not in rows[0]:
+                continue
+
+            busy_demodulators = [int(float(row.get(busy_field, 0) or 0)) for row in rows]
+            ax.plot(
+                orbit_timestamp_s,
+                busy_demodulators,
+                linewidth=2.0,
+                color=color_map(idx % 10),
+                label=f"{elev_deg:g} deg",
+            )
+            plotted = True
+
+        if not plotted:
+            plt.close(fig)
+            return None
+
+        ax.set_title("Orbit Timestamp vs Busy Demodulators for All Elevations")
+        ax.set_xlabel("orbit_timestamp_s")
+        ax.set_ylabel("busy_demodulators")
+        ax.grid(True, linestyle="-", linewidth=0.5, alpha=0.35)
+        ax.legend(title="Elevation")
+        fig.tight_layout()
+
+        out_path = plots_dir / "satellite_stepper_demodulators_all_elevations.png"
+        fig.savefig(out_path, dpi=220)
+        plt.close(fig)
+        return out_path
+
     def _append_current_row(self) -> dict[str, Any]:
         row, groundtrack_coverage_row = self._build_current_row()
         with self.output_csv_path.open("a", encoding="utf-8", newline="") as f:
@@ -1488,6 +1541,7 @@ def main() -> int:
     demod_plot_paths = stepper.plot_elevation_demodulator_timeseries()
     population_plot_path = stepper.plot_population_timeseries()
     combined_plot_path = stepper.plot_combined_elevation_energy_timeseries()
+    combined_demod_plot_path = stepper.plot_combined_elevation_demodulator_timeseries()
 
     if last_row is None:
         pos = stepper.get_pos()
@@ -1529,6 +1583,10 @@ def main() -> int:
         print(f"energy_plot_combined= {combined_plot_path}")
     elif plt is None:
         print("energy_plot_combined=skipped_matplotlib_not_installed")
+    if combined_demod_plot_path is not None:
+        print(f"demodulator_plot_combined= {combined_demod_plot_path}")
+    elif plt is None:
+        print("demodulator_plot_combined=skipped_matplotlib_not_installed")
     return 0
 
 

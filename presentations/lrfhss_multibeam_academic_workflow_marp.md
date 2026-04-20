@@ -19,8 +19,8 @@ math: katex
 Given satellite state at step $t$, estimate:
 
 1. covered population $P_{\text{cov}}(t)$
-2. active nodes $N_{\text{node}}(t)$
-3. demodulator pool $N_{\text{demod}}(t)$
+2. calculated nodes $N_{\text{node}}(t)$
+3. calculated demodulators $N_{\text{demod}}(t)$
 4. elevation-conditioned load and decoding behavior
 5. busy/idle/sleep demod split and power
 
@@ -31,7 +31,7 @@ Given satellite state at step $t$, estimate:
 - Orbit propagation gives future satellite position.
 - Satellite position gives footprint size on Earth.
 - Footprint over population map gives covered population.
-- Covered population is converted to estimated nodes and demodulators.
+- Population base is multiplied by ratios to get calculated nodes and demodulators.
 - Elevation scenarios convert load to busy/idle/sleep demod states.
 - Demod states are converted to predicted energy and decode behavior.
 
@@ -109,10 +109,10 @@ $$
 # Node Mapping
 
 $$
-N_{\text{node}}(t)=\text{round}\left(P_{\text{cov}}(t)\rho_{\text{node}}\right)
+N_{\text{node}}(t)=P_{\text{pop}}\rho_{\text{node}}
 $$
 
-- Symbols: $N_{\text{node}}(t)$ estimated active nodes, $\rho_{\text{node}}$ node/population ratio.
+- Symbols: $N_{\text{node}}(t)$ calculated nodes, $P_{\text{pop}}$ population base, $\rho_{\text{node}}$ node/population ratio.
 - Ref: Implementation rule in `modules/satellite_stepper.py`
 
 ---
@@ -120,11 +120,11 @@ $$
 # Demod Mapping
 
 $$
-N_{\text{demod}}(t)=\text{round}\left(P_{\text{cov}}(t)\rho_{\text{demod}}\right)
+N_{\text{demod}}(t)=P_{\text{pop}}\rho_{\text{demod}}
 $$
 
 - Config values: $\rho_{\text{node}}=10^{-5}$, $\rho_{\text{demod}}=10^{-2}$.
-- Symbols: $N_{\text{demod}}(t)$ estimated demodulator pool, $\rho_{\text{demod}}$ demod/population ratio.
+- Symbols: $N_{\text{demod}}(t)$ calculated demodulators, $P_{\text{pop}}$ population base, $\rho_{\text{demod}}$ demod/population ratio.
 - Ref: Implementation rule in `modules/satellite_stepper.py`
 
 ---
@@ -141,22 +141,10 @@ $$
 
 ---
 
-# Relative Path-Loss Pressure
-
-$$
-\phi_e(t)=\left(\frac{\bar d_e(t)}{d_{\text{ref}}}\right)^2
-$$
-
-- Symbols: $\phi_e(t)$ path-loss pressure factor, $\bar d_e(t)$ mean slant range.
-- Symbols: $d_{\text{ref}}$ reference range (in code, tied to satellite altitude).
-- Ref: Free-space distance-loss relation (Friis) https://doi.org/10.1109/JRPROC.1946.234568
-
----
-
 # Elevation Load Factor
 
 $$
-f_e(t)=N_e(t)\cdot \alpha_{\text{act}}\cdot \phi_e(t)\cdot 0.01N_{\text{demod}}(t)
+f_e(t)=\max(1,N_e(t))\cdot \alpha_{\text{act}}\cdot L_{\text{tot},e}(t)\cdot 0.01N_{\text{demod}}(t)
 $$
 
 - Symbols: $f_e(t)$ load factor, $\alpha_{\text{act}}$ activity ratio.
@@ -232,9 +220,31 @@ Goal: predict busy demodulators and energy at future horizon $t+\Delta$.
 
 1. Generate future satellite states by stepping orbit index forward.
 2. For each future step, recompute footprint and covered population.
-3. Map covered population to future `calculated_nodes` and `calculated_demodulators`.
+3. Map population base to future `calculated_nodes` and `calculated_demodulators` using ratios.
 4. For each elevation (90/55/25), estimate future busy/idle/sleep states.
 5. Convert those states to future energy using the same power constants.
+
+---
+
+# one_pos* Flow
+### Single-Position Decode Pipeline
+
+1. Fix one satellite/user geometry snapshot as input scenario.
+2. Set demod budget and PHY parameters for LR-FHSS decode simulation.
+3. Run per-elevation decode (`90/55/25 deg`) for the same position.
+4. Save per-elevation decode/link-budget aggregates to `results/one_pos*`.
+5. Render per-elevation decode plots for comparison across geometry.
+
+---
+
+# satellite_stepper Flow
+### Time-Series Resource Pipeline
+
+1. Initialize `SatelliteStepper` with orbit track, population map, and ratios.
+2. For each step, compute footprint and covered population on Earth.
+3. Compute `calculated_nodes` and `calculated_demodulators` from population base and ratios.
+4. For each elevation, compute distance-based loss, load, and busy/idle/sleep demod states.
+5. Write step outputs to CSV/JSON and generate plots (population, demod, energy, combined).
 
 ---
 # One-Position Decode Results
@@ -324,4 +334,5 @@ Goal: predict busy demodulators and energy at future horizon $t+\Delta$.
 - Natural Earth lakes: https://naciscdn.org/naturalearth/10m/physical/ne_10m_lakes.zip
 - Natural Earth rivers: https://naciscdn.org/naturalearth/10m/physical/ne_10m_rivers_lake_centerlines.zip
 - Demod power baseline reference: https://tnm.engin.umich.edu/wp-content/uploads/sites/353/2017/12/2006.10.Reducing-idle-mode-power-in-software-defined-radio-terminals_ISLPED-2006.pdf
+
 

@@ -181,9 +181,9 @@ def main() -> int:
     if elev_list is not None:
         # print(f"elevations: {elev_list}")
         for elev in elev_list:
-            # demod_info = stepper.get_current_demodulators_for_elevation(elev)
-            # print(f"Demodulator info for elevation {elev}: {demod_info}")
-            # num_decoders=demod_info["busy"]
+            demod_info = stepper.get_current_demodulators_for_elevation(elev)
+            print(f"Demodulator info for elevation {elev}: {demod_info}")
+            num_decoders=demod_info["busy"]
             node_info=stepper.get_current_nodes_for_elevation(elev)
             print(f"Node info for elevation {elev}: {node_info}")
             requested_nodes= node_info["num_nodes"]
