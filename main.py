@@ -25,13 +25,14 @@ def parse_args() -> argparse.Namespace:
             "then run LRFHSS_simulator.runsim2plot directly."
         )
     )
-    parser.add_argument("--output-dir", type=Path, default=root / "results" / "one_pos_lrfhss")
+    parser.add_argument("--output-dir", type=Path, default=root / "results" / "multi_step_lrfhss", help="Directory to write output CSVs and PNGs.")
+    parser.add_argument("--one_pos_output_dir", type=Path, default=root / "results" / "one_pos_2_multi_step_lrfhss", help="Directory to write one-position output CSVs and PNGs.")
     parser.add_argument("--sat-lat", type=float, default=None, help="Optional override latitude for node/demod estimate.")
     parser.add_argument("--sat-lon", type=float, default=None, help="Optional override longitude for node/demod estimate.")
     parser.add_argument(
         "--stepper-output-csv",
         type=Path,
-        default=root / "results" / "one_pos_lrfhss" / "satellite_steps.csv",
+        default=root / "results" / "multi_step_lrfhss" / "satellite_steps.csv",
         help="Satellite stepper CSV to use as source of calculated_nodes/calculated_demodulators.",
     )
     parser.add_argument(
@@ -77,44 +78,18 @@ def parse_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
+def run_lrfhss_simulator_one_step(
+    stepper: SatelliteStepper,args: argparse.Namespace, one_pos_output_dir: Path):
+        stepper.next()  # Advance to next position (or initial if first run).
+        current_pos = stepper.get_pos()
+        sat_lat = float(current_pos["latitude_deg"] if args.sat_lat is None else args.sat_lat)
+        sat_lon = float(current_pos["longitude_deg"] if args.sat_lon is None else args.sat_lon)
 
-def main() -> int:
-    args = parse_args()
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    stepper_csv = Path(args.stepper_output_csv)
-    stepper_json = args.stepper_current_json or (output_dir / "satellite_steps_current_pos.json")
-    stepper_row = _read_stepper_row(stepper_csv=stepper_csv, step=args.step)
-
-    if stepper_row is not None and args.step is not None and args.sat_lat is None and args.sat_lon is None:
-        requested_nodes = int(round(float(stepper_row.get("calculated_nodes", 0) or 0)))
-        requested_demods = int(round(float(stepper_row.get("calculated_demodulators", 0) or 0)))
-        sat_lat = float(stepper_row.get("sat_lat_deg", 0.0) or 0.0)
-        sat_lon = float(stepper_row.get("sat_lon_deg", 0.0) or 0.0)
-    else:
-        stepper = SatelliteStepper(
-            output_csv_path=stepper_csv,
-            population_csv_path=args.population_csv,
-            ocean_csv_path=args.ocean_csv,
-            current_pos_json_path=stepper_json,
-            node_population_ratio=float(args.node_population_ratio),
-            demd_population_ratio=float(args.demd_population_ratio),
-            minimum_frames=int(args.minimum_frames),
-        )
-        steps=args.steps if args.steps is not None else 1
-        for _ in tqdm(range(steps),desc="Steps"):
-            last_row = stepper.next()
-            # Use current position by default; override lat/lon if provided.
-            current_pos = stepper.get_pos()
-            sat_lat = float(current_pos["latitude_deg"] if args.sat_lat is None else args.sat_lat)
-            sat_lon = float(current_pos["longitude_deg"] if args.sat_lon is None else args.sat_lon)
-
-            if args.sat_lat is not None or args.sat_lon is not None:
+        if args.sat_lat is not None or args.sat_lon is not None:
                 est_row = stepper.estimate_row_for_lat_lon(sat_lat_deg=sat_lat, sat_lon_deg=sat_lon)
                 requested_nodes = int(est_row.get("calculated_nodes", 0) or 0)
                 requested_demods = int(est_row.get("calculated_demodulators", 0) or 0)
-            else:
+        else:
                 cur_row = stepper.current()
                 requested_nodes = int(cur_row.get("calculated_nodes", 0) or 0)
                 requested_demods = int(cur_row.get("calculated_demodulators", 0) or 0)
@@ -132,8 +107,8 @@ def main() -> int:
             sys.path.insert(0, str(lrfhss_root))
 
         
-        out_csv = output_dir / f"lrfhss_sim_cr{int(args.coding_rate)}_one_pos.csv"
-        out_png = output_dir / f"lrfhss_demod_{int(num_decoders)}.png"
+        out_csv = one_pos_output_dir / f"lrfhss_sim_cr{int(args.coding_rate)}_one_pos.csv"
+        out_png = one_pos_output_dir / f"lrfhss_demod_{int(num_decoders)}.png"
         
         csv_path, png_path = sim.runsim2csv(
             num_decoders=int(num_decoders),
@@ -162,15 +137,20 @@ def main() -> int:
         print(f"lrfhss_png: {out_png.resolve()}")
         if elev_list is not None:
             # print(f"elevations: {elev_list}")
-            for elev in elev_list:
+            pbar = tqdm(elev_list)
+
+            for elev in pbar:
+                # Update the description with the current elevation
+                pbar.set_description(f"Processing Elevation: {elev}°")
+                        
                 # demod_info = stepper.get_current_demodulators_for_elevation(elev)
                 # print(f"Demodulator info for elevation {elev}: {demod_info}")
                 # num_decoders=demod_info["busy"]
                 node_info=stepper.get_current_nodes_for_elevation(elev)
                 print(f"Node info for elevation {elev}: {node_info}")
                 requested_nodes= node_info["num_nodes"]
-                elev_out_csv = output_dir / f"lrfhss_sim_cr{int(args.coding_rate)}_elev{int(elev)}.csv"
-                elev_out_png = output_dir / f"lrfhss_demod_{int(num_decoders)}_elev{int(elev)}.png"
+                elev_out_csv = one_pos_output_dir / f"lrfhss_sim_cr{int(args.coding_rate)}_elev{int(elev)}.csv"
+                # elev_out_png = one_pos_output_dir / f"lrfhss_demod_{int(num_decoders)}_elev{int(elev)}.png"
                 csv_path, png_path = sim.runsim2csv(
                     num_decoders=int(num_decoders),
                     drop_mode=str(drop_mode),
@@ -195,7 +175,41 @@ def main() -> int:
                     # title=f"CR{int(args.coding_rate)}, {int(num_decoders)} demodulators, and {int(elev)}° elevation \n {int(requested_nodes)} nodes",
                     fixed_elevation=int(elev),
                 )
-                print(f"lrfhss_png: {elev_out_png.resolve()}")
+                # print(f"lrfhss_png: {elev_out_png.resolve()}")
+
+
+
+
+def main() -> int:
+    args = parse_args()
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    stepper_csv = Path(args.stepper_output_csv)
+    stepper_json = args.stepper_current_json or (output_dir / "satellite_steps_current_pos.json")
+    stepper_row = _read_stepper_row(stepper_csv=stepper_csv, step=args.step)
+
+    if stepper_row is not None and args.step is not None and args.sat_lat is None and args.sat_lon is None:
+        requested_nodes = int(round(float(stepper_row.get("calculated_nodes", 0) or 0)))
+        requested_demods = int(round(float(stepper_row.get("calculated_demodulators", 0) or 0)))
+        sat_lat = float(stepper_row.get("sat_lat_deg", 0.0) or 0.0)
+        sat_lon = float(stepper_row.get("sat_lon_deg", 0.0) or 0.0)
+    else:
+        stepper = SatelliteStepper(
+            output_csv_path=stepper_csv,
+            population_csv_path=args.population_csv,
+            ocean_csv_path=args.ocean_csv,
+            current_pos_json_path=stepper_json,
+            node_population_ratio=float(args.node_population_ratio),
+            demd_population_ratio=float(args.demd_population_ratio),
+            minimum_frames=int(args.minimum_frames),
+        )
+        steps=args.steps if args.steps is not None else 1
+        for _ in tqdm(range(steps),desc="Steps"):
+            # last_row = stepper.next()
+            # Use current position by default; override lat/lon if provided.
+            run_lrfhss_simulator_one_step(stepper=stepper,args=args)
+            
         
 
 

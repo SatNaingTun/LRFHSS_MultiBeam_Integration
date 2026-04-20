@@ -214,42 +214,7 @@ def main() -> int:
                 fixed_elevation=int(elev),
             )
             print(f"lrfhss_png: {elev_out_png.resolve()}")
-    # summary = {
-    #     "sat_lat_deg": float(sat_lat),
-    #     "sat_lon_deg": float(sat_lon),
-    #     "requested_nodes": int(requested_nodes),
-    #     "requested_demodulators": int(requested_demods),
-    #     "node_points": int(node_points),
-    #     "num_decoders": int(num_decoders),
-    #     "drop_mode": str(drop_mode),
-    #     "coding_rate": int(args.coding_rate),
-    #     "metric": str(args.metric),
-    #     "stepper_csv": str(Path(stepper_csv).resolve()),
-    #     "stepper_current_json": str(Path(stepper_json).resolve()),
-    #     "lrfhss_csv": str(Path(csv_path).resolve()),
-    #     "lrfhss_plot_png": str(Path(png_path).resolve()) if png_path is not None else None,
-    # }
-
-    # summary_json = output_dir / "one_pos_summary.json"
-    # with summary_json.open("w", encoding="utf-8") as f:
-    #     json.dump(summary, f, indent=2)
-
-    # summary_csv = output_dir / "one_pos_summary.csv"
-    # with summary_csv.open("w", encoding="utf-8", newline="") as f:
-    #     writer = csv.DictWriter(f, fieldnames=list(summary.keys()))
-    #     writer.writeheader()
-    #     writer.writerow(summary)
-
-    # print(
-    #     f"one_pos_done lat={summary['sat_lat_deg']:.6f} lon={summary['sat_lon_deg']:.6f} "
-    #     f"node_points={summary['node_points']} num_decoders={summary['num_decoders']}"
-    # )
-    # print(f"lrfhss_csv={summary['lrfhss_csv']}")
-    # if summary["lrfhss_plot_png"] is not None:
-    #     print(f"lrfhss_plot_png={summary['lrfhss_plot_png']}")
-    # print(f"summary_json={summary_json.resolve()}")
-    # print(f"summary_csv={summary_csv.resolve()}")
-    # return 0
+    
 
 
 if __name__ == "__main__":
