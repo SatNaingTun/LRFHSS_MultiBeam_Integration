@@ -123,7 +123,7 @@ $$
 N_{\text{demod}}(t)=P_{\text{pop}}\rho_{\text{demod}}
 $$
 
-- Config values: $\rho_{\text{node}}=10^{-5}$, $\rho_{\text{demod}}=10^{-2}$.
+- Config values (current defaults): $\rho_{\text{node}}=10^{-7}$, $\rho_{\text{demod}}=10^{-7}$.
 - Symbols: $N_{\text{demod}}(t)$ calculated demodulators, $P_{\text{pop}}$ population base, $\rho_{\text{demod}}$ demod/population ratio.
 - Ref: Implementation rule in `modules/satellite_stepper.py`
 
@@ -141,60 +141,44 @@ $$
 
 ---
 
-# Elevation Load Factor
+# Demod States (Simple View)
+### Input -> Load -> Busy
 
+1. For each elevation $e$, compute offered load:
 $$
-f_e(t)=\max(1,N_e(t))\cdot \alpha_{\text{act}}\cdot L_{\text{tot},e}(t)\cdot 0.01N_{\text{demod}}(t)
+A_e=\max(1,N_e)\alpha_{\text{act}}\left(\frac{\bar d_e}{d_{\text{ref}}}\right)^2
+$$
+2. Use Erlang-B with:
+   - servers $c=N_{\text{demod}}$
+   - offered load $A_e$
+   - blocking probability $B(c,A_e)$
+3. Busy demodulators:
+$$
+N_{\text{busy},e}=\operatorname{round}\left(\min\left(N_{\text{demod}},A_e(1-B(c,A_e))\right)\right)
 $$
 
-- Symbols: $f_e(t)$ load factor, $\alpha_{\text{act}}$ activity ratio.
-- Symbols: $N_{\text{demod}}(t)$ demod pool size, $N_e(t)$ users at elevation bin $e$.
-- Ref: Implementation rule in `modules/satellite_stepper.py`
+- Intuition: more users and longer distance increase offered load, which increases busy usage.
+- Ref: implemented in `modules/satellite_stepper.py`
 
 ---
 
-# Busy Demodulators
+# Demod States (Simple Split)
+### Busy -> Sleep -> Idle
 
 $$
-N_{\text{busy},e}(t)=\min\left(N_{\text{demod}}(t),\lceil f_e(t)\rceil\right)
+N_{\text{rem},e}=N_{\text{demod}}-N_{\text{busy},e}
+$$
+$$
+N_{\text{sleep},e}=\operatorname{round}\left(\beta_{\text{sleep}}N_{\text{rem},e}\right),\quad
+N_{\text{idle},e}=N_{\text{rem},e}-N_{\text{sleep},e}
 $$
 
-- Symbols: $N_{\text{demod}}(t)$ total demodulators at step $t$.
-- Symbols: $N_{\text{busy},e}$ busy demods at elevation $e$, $f_e(t)$ load factor.
-- Ref: Implementation model in your code `modules/satellite_stepper.py`
-
----
-
-# Remaining Demodulators
-
+- Current setting: $\beta_{\text{sleep}}=0.3$.
+- Conservation check:
 $$
-N_{\text{rem},e}(t)=N_{\text{demod}}(t)-N_{\text{busy},e}(t)
+N_{\text{busy},e}+N_{\text{sleep},e}+N_{\text{idle},e}=N_{\text{demod}}
 $$
-
-- Symbols: $N_{\text{rem},e}$ demods not busy, $N_{\text{demod}}$ total demods.
-- Ref: Implementation model in your code `modules/satellite_stepper.py`
-
----
-
-# Sleep Demodulators
-
-$$
-N_{\text{sleep},e}(t)=\text{round}\left(\beta_{\text{sleep}}N_{\text{rem},e}(t)\right)
-$$
-
-- Symbols: $N_{\text{sleep},e}$ sleep demods, $\beta_{\text{sleep}}$ sleep ratio.
-- Ref: Implementation model in your code `modules/satellite_stepper.py`
-
----
-
-# Idle Demodulators
-
-$$
-N_{\text{idle},e}(t)=N_{\text{rem},e}(t)-N_{\text{sleep},e}(t)
-$$
-
-- Symbols: $N_{\text{idle},e}$ idle demods, $N_{\text{rem},e}$ remaining demods.
-- Ref: Implementation model in your code `modules/satellite_stepper.py`
+- Ref: implemented in `modules/satellite_stepper.py`
 
 ---
 

@@ -393,6 +393,22 @@ class SatelliteStepper:
         return np.asarray(elapsed, dtype=float)
 
     MU = 3.986004418e14  # m^3/s^2
+
+    @staticmethod
+    def _erlang_b_blocking_probability(servers: int, offered_load_erlang: float) -> float:
+        """Compute Erlang-B blocking probability B(c, A) with stable recursion."""
+        c = int(max(0, servers))
+        a = float(max(0.0, offered_load_erlang))
+        if c <= 0:
+            return 1.0
+        if a <= 0.0:
+            return 0.0
+
+        b = 1.0
+        for k in range(1, c + 1):
+            b = (a * b) / (float(k) + a * b)
+        return float(max(0.0, min(1.0, b)))
+
     def _compute_orbital_period_s(self) -> float:
         r = float(EARTRH_R + SAT_H)
         return 2.0 * math.pi * math.sqrt((r ** 3) / self.MU)
@@ -594,8 +610,8 @@ class SatelliteStepper:
         # Reference distance: zenith case
         d_ref_km = float(SAT_H) / 1000.0
 
-        # First compute elevation-dependent load factors
-        load_factors: dict[str, float] = {}
+        # First compute elevation-dependent offered traffic (Erlangs)
+        offered_loads: dict[str, float] = {}
 
         for elev_deg, token in self._elev_tokens:
             n_user = int(max(0, int(out.get(f"elev_{token}_num_users", 0) or 0)))
@@ -608,30 +624,27 @@ class SatelliteStepper:
             # Relative FSPL pressure ~ (d / d_ref)^2
             relative_path_loss_factor = (d_km / max(d_ref_km, 1e-9)) ** 2
 
-            # Higher path loss -> more demod occupancy pressure.
-            # Scale with total demods so busy is not artificially stuck at 0/1
-            # when coverage is non-zero but node count is very small.
-            demod_pool_scale = 0.01 * float(n_demod_total)
-            factor = (
+            # Heuristic offered-load mapping (Erlangs):
+            # active users scaled by path-loss pressure.
+            offered_load = (
                 float(max(1, n_user))
                 * float(self._demod_activity_ratio)
                 * relative_path_loss_factor
-                * demod_pool_scale
             )
-            load_factors[token] = factor
+            offered_loads[token] = offered_load
 
         for elev_deg, token in self._elev_tokens:
-            factor = load_factors[token]
+            offered_load = float(offered_loads[token])
+            blocking_prob = self._erlang_b_blocking_probability(
+                servers=n_demod_total,
+                offered_load_erlang=offered_load,
+            )
 
-            # Elevations are modeled as independent scenarios, so each
-            # busy estimate comes from its own factor (not normalized by
-            # other elevation slices).
-            if n_demod_total <= 10:
-                n_busy = int(n_demod_total)
-            else:
-                # Avoid collapsing low-but-positive load to zero.
-                n_busy = int(math.ceil(factor)) if factor > 0.0 else 0
-                n_busy = max(0, min(n_busy, n_demod_total))
+            # Expected number of busy demodulators (carried traffic):
+            # A_carried = A_offered * (1 - B(c, A))
+            carried_load = float(offered_load * (1.0 - blocking_prob))
+            n_busy = int(round(min(float(n_demod_total), carried_load)))
+            n_busy = max(0, min(n_busy, n_demod_total))
 
             remaining = max(0, n_demod_total - n_busy)
             n_sleep = int(round(self._demod_sleep_ratio * remaining))
