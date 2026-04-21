@@ -1,0 +1,73 @@
+{
+  "step": 5,
+  "orbit_index": 2901,
+  "timestamp_s": 5.0,
+  "orbit_timestamp_s": 5.0,
+  "timestamp_utc": "2026-04-21T06:10:39.529793+00:00",
+  "position_m": {
+    "x": 37846.30716325236,
+    "y": -1.9322974037152016e-13,
+    "z": 592926.2633084869
+  },
+  "sat_radius_m": 6964029.102736691,
+  "calculated": {
+    "node_population_ratio": 1e-07,
+    "demd_population_ratio": 1e-07,
+    "nodes": 237,
+    "demodulators": 237.0
+  },
+  "ground_track_deg": {
+    "latitude": 35.98695530162936,
+    "longitude": 139.6489719948737
+  },
+  "footprint": {
+    "radius_m": 98838.18378944849,
+    "area_km2": 30690.17645639894,
+    "earth_surface_ratio": 6.016921025980988e-05,
+    "horizon_utilization_ratio": 0.03732185858799748
+  },
+  "coverage": {
+    "population_total": 43095005,
+    "population_points": 8,
+    "population_ratio": 0.018168717252137298,
+    "ocean_points": 1,
+    "ocean_ratio": 0.0006357279084551812
+  },
+  "elevation_user_impact": {
+    "center_elevation_deg": 86.34778203835938,
+    "center_slant_range_km": 594.1328948028887,
+    "user_positions_count": 237,
+    "user_distance_min_km": 593.1301780140326,
+    "user_distance_max_km": 608.5821645069641,
+    "user_distance_mean_km": 598.4790210998547,
+    "range_ratio_vs_sat_altitude": 0.9974650351664244,
+    "fspl_delta_db_vs_zenith": -0.022046380000728703,
+    "sample_user_positions_local_m": "46199.7|19693.4|-198.0;233.3|49053.7|-188.9;66648.2|-27971.1|-410.0;-79657.2|-49089.5|-687.1;17652.3|3494.8|-25.4;-14756.8|-80108.8|-520.8"
+  },
+  "elevation_scenarios": {
+    "90.0": {
+      "num_users": 79,
+      "distance_km": 604.1451231594737,
+      "busy_demodulators": 19,
+      "idle_demodulators": 153,
+      "sleep_demodulators": 65,
+      "energy_model_w": 3.2790000000000004
+    },
+    "55.0": {
+      "num_users": 79,
+      "distance_km": 723.2079140050047,
+      "busy_demodulators": 28,
+      "idle_demodulators": 146,
+      "sleep_demodulators": 63,
+      "energy_model_w": 4.1160000000000005
+    },
+    "25.0": {
+      "num_users": 79,
+      "distance_km": 1212.3106266405737,
+      "busy_demodulators": 77,
+      "idle_demodulators": 112,
+      "sleep_demodulators": 48,
+      "energy_model_w": 8.71
+    }
+  }
+}
