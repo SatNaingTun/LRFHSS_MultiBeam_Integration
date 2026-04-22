@@ -3,7 +3,7 @@
   "orbit_index": 2901,
   "timestamp_s": 5.0,
   "orbit_timestamp_s": 5.0,
-  "timestamp_utc": "2026-04-21T06:10:39.529793+00:00",
+  "timestamp_utc": "2026-04-21T14:22:08.624659+00:00",
   "position_m": {
     "x": 37846.30716325236,
     "y": -1.9322974037152016e-13,
@@ -17,8 +17,8 @@
     "demodulators": 237.0
   },
   "ground_track_deg": {
-    "latitude": 35.98695530162936,
-    "longitude": 139.6489719948737
+    "latitude": 36.29771870325872,
+    "longitude": 139.6476333897474
   },
   "footprint": {
     "radius_m": 98838.18378944849,
@@ -48,26 +48,26 @@
     "90.0": {
       "num_users": 79,
       "distance_km": 604.1451231594737,
-      "busy_demodulators": 19,
-      "idle_demodulators": 153,
-      "sleep_demodulators": 65,
-      "energy_model_w": 3.2790000000000004
+      "busy_demodulators": 8,
+      "idle_demodulators": 160,
+      "sleep_demodulators": 69,
+      "energy_model_w": 2.242
     },
     "55.0": {
       "num_users": 79,
-      "distance_km": 723.2079140050047,
-      "busy_demodulators": 28,
-      "idle_demodulators": 146,
-      "sleep_demodulators": 63,
-      "energy_model_w": 4.1160000000000005
+      "distance_km": 723.2079140050037,
+      "busy_demodulators": 11,
+      "idle_demodulators": 158,
+      "sleep_demodulators": 68,
+      "energy_model_w": 2.524
     },
     "25.0": {
       "num_users": 79,
       "distance_km": 1212.3106266405737,
-      "busy_demodulators": 77,
-      "idle_demodulators": 112,
-      "sleep_demodulators": 48,
-      "energy_model_w": 8.71
+      "busy_demodulators": 32,
+      "idle_demodulators": 143,
+      "sleep_demodulators": 62,
+      "energy_model_w": 4.489000000000001
     }
   }
 }
