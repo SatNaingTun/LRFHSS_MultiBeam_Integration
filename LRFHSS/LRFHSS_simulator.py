@@ -257,7 +257,9 @@ def run_sim(
     control: bool | None = None,
 ) -> float | tuple[float, dict[str, float]]:
     use_earlydecode, use_earlydrop, use_headerdrop = _drop_mode_flags(drop_mode)
-    power = False
+    # Use power-domain reception for SINR collision logic so link distance/elevation
+    # affects decoding outcomes through the link budget.
+    power = True
     dynamic = False
     # collision_method = "strict"
     collision_method = "SINR"

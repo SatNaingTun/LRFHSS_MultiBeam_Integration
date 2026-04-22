@@ -31,6 +31,7 @@ class LoRaNetwork():
         self.freqGranularity = freqGranularity # freq slots per OBW
         self.use_earlydecode = use_earlydecode
         self.FHSfam = self.set_FHSfamily(familyname, numGrids)
+        self.fixed_elevation = float(fixed_elevation) if fixed_elevation is not None else None
 
         ###########################
         # GLOBAL LR-FHSS PARAMETERS
@@ -61,10 +62,10 @@ class LoRaNetwork():
         startLimit = simTime - max_packet_duration
         self.nodes = [LoRaNode(i, CR, numOCW, startLimit) for i in range(numNodes)]
 
-        if fixed_elevation is None:
+        if self.fixed_elevation is None:
             self.TXset = self.set_transmissions()
         else:
-            self.TXset = self.set_transmissions_fixed_elevation(fixed_elevation)
+            self.TXset = self.set_transmissions_fixed_elevation(self.fixed_elevation)
 
         # add support for multiple gateways in the future
         self.gateway = LoRaGateway(CR, timeGranularity, freqGranularity, use_earlydrop, use_earlydecode,
@@ -129,7 +130,10 @@ class LoRaNetwork():
     def restart(self) -> None:
 
         self.gateway.restart()
-        self.TXset = self.set_transmissions()
+        if self.fixed_elevation is None:
+            self.TXset = self.set_transmissions()
+        else:
+            self.TXset = self.set_transmissions_fixed_elevation(self.fixed_elevation)
 
         node : LoRaNode
         for node in self.nodes:
