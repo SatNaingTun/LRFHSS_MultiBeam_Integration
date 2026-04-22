@@ -207,47 +207,30 @@ Goal: predict busy demodulators and energy at future horizon $t+\Delta$.
 3. Map population base to future `calculated_nodes` and `calculated_demodulators` using ratios.
 4. For each elevation (90/55/25), estimate future busy/idle/sleep states.
 5. Convert those states to future energy using the same power constants.
-
 ---
+# One-Position Decode Results
+### Not Fixed Elevation
 
-# one_pos* Flow
-### Single-Position Decode Pipeline
-
-1. Fix one satellite/user geometry snapshot as input scenario.
-2. Set demod budget and PHY parameters for LR-FHSS decode simulation.
-3. Run per-elevation decode (`90/55/25 deg`) for the same position.
-4. Save per-elevation decode/link-budget aggregates to `results/one_pos*`.
-5. Render per-elevation decode plots for comparison across geometry.
-
----
-
-# satellite_stepper Flow
-### Time-Series Resource Pipeline
-
-1. Initialize `SatelliteStepper` with orbit track, population map, and ratios.
-2. For each step, compute footprint and covered population on Earth.
-3. Compute `calculated_nodes` and `calculated_demodulators` from population base and ratios.
-4. For each elevation, compute distance-based loss, load, and busy/idle/sleep demod states.
-5. Write step outputs to CSV/JSON and generate plots (population, demod, energy, combined).
+![h:300px](../results/one_pos_lrfhss/lrfhss_demod_237.png)
 
 ---
 # One-Position Decode Results
 ### Elevation Curves (90 deg)
 
-![h:300px](../results/one_pos_lrfhss/lrfhss_demod_42_elev90.png)
+![h:300px](../results/one_pos_lrfhss/lrfhss_demod_237_elev90.png)
 
 ---
 # One-Position Decode Results
 ### Elevation Curves (55 deg)
 
-![h:300px](../results/one_pos_lrfhss/lrfhss_demod_42_elev55.png)
+![h:300px](../results/one_pos_lrfhss/lrfhss_demod_237_elev55.png)
 
 ---
 
 # One-Position Decode Results
 ### Elevation Curve (25 deg)
 
-![h:360px](../results/one_pos_lrfhss/lrfhss_demod_42_elev25.png)
+![h:360px](../results/one_pos_lrfhss/lrfhss_demod_237_elev25.png)
 
 - Same demod budget, stronger geometry penalty at lower elevation.
 
@@ -289,15 +272,6 @@ Goal: predict busy demodulators and energy at future horizon $t+\Delta$.
 
 - Energy follows geometry-driven demod state transitions.
 
----
-
-# Main Takeaways
-
-1. Geometry controls coverage and distance.
-2. Coverage controls node/demod provisioning.
-3. Elevation changes distance and busy occupancy.
-4. Busy occupancy is the main power driver.
-5. One-position decode plots are consistent with this chain.
 
 ---
 

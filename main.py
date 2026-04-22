@@ -409,8 +409,9 @@ def main() -> int:
                 output_dir=output_dir,
                 step_meta=step_meta,
             )
-        plot_paths = plot_orbit_time_vs_decoded_packets(output_dir=output_dir)
-        for p in plot_paths:
+            
+        orbit_decode_plot_paths = plot_orbit_time_vs_decoded_packets(output_dir=output_dir)
+        for p in orbit_decode_plot_paths:
             print(f"decoded_packets_plot= {p}")
             
         
