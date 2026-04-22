@@ -174,16 +174,16 @@ def main() -> int:
         x_max=args.x_max,
         y_min=args.y_min,
         y_max=args.y_max,
-        title=f"CR{int(args.coding_rate)} and {int(num_decoders)} demodulators",
+        title=f"CR{int(args.coding_rate)} and {int(num_decoders)} demodulators \n {int(requested_nodes)} nodes",
     )
 
     print(f"lrfhss_png: {out_png.resolve()}")
     if elev_list is not None:
         # print(f"elevations: {elev_list}")
         for elev in elev_list:
-            demod_info = stepper.get_current_demodulators_for_elevation(elev)
-            print(f"Demodulator info for elevation {elev}: {demod_info}")
-            num_decoders=demod_info["idle"]
+            # demod_info = stepper.get_current_demodulators_for_elevation(elev)
+            # print(f"Demodulator info for elevation {elev}: {demod_info}")
+            # num_decoders=demod_info["idle"]
             node_info=stepper.get_current_nodes_for_elevation(elev)
             print(f"Node info for elevation {elev}: {node_info}")
             requested_nodes= node_info["num_nodes"]
@@ -210,12 +210,13 @@ def main() -> int:
                 x_max=args.x_max,
                 y_min=args.y_min,
                 y_max=args.y_max,
-                title=(
-                        f"CR{int(args.coding_rate)}, {int(num_decoders)} idle demodulators, "
-                        f"and {int(elev)}° elevation\n"
-                        f"{int(requested_nodes)} nodes "
-                        f"(busy={int(demod_info['busy'])}, sleep={int(demod_info['sleep'])})"
-                    ),
+                title=f"CR{int(args.coding_rate)}, {int(num_decoders)} demodulators, and {int(elev)}° elevation \n {int(requested_nodes)} nodes",
+                # title=(
+                #         f"CR{int(args.coding_rate)}, {int(num_decoders)} idle demodulators, "
+                #         f"and {int(elev)}° elevation\n"
+                #         f"{int(requested_nodes)} nodes "
+                #         f"(busy={int(demod_info['busy'])}, sleep={int(demod_info['sleep'])})"
+                #     ),
                 fixed_elevation=int(elev),
             )
             print(f"lrfhss_png: {elev_out_png.resolve()}")

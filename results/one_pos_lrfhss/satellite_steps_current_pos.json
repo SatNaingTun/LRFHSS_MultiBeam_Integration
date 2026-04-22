@@ -3,7 +3,7 @@
   "orbit_index": 2896,
   "timestamp_s": 0.0,
   "orbit_timestamp_s": 0.0,
-  "timestamp_utc": "2026-04-20T07:22:00.156220+00:00",
+  "timestamp_utc": "2026-04-22T12:28:59.982849+00:00",
   "position_m": {
     "x": 0.0,
     "y": 0.0,
@@ -48,26 +48,26 @@
     "90.0": {
       "num_users": 79,
       "distance_km": 604.405677592442,
-      "busy_demodulators": 19,
-      "idle_demodulators": 153,
-      "sleep_demodulators": 65,
-      "energy_model_w": 3.2790000000000004
+      "busy_demodulators": 8,
+      "idle_demodulators": 160,
+      "sleep_demodulators": 69,
+      "energy_model_w": 2.242
     },
     "55.0": {
       "num_users": 79,
-      "distance_km": 722.3585625295589,
-      "busy_demodulators": 28,
-      "idle_demodulators": 146,
-      "sleep_demodulators": 63,
-      "energy_model_w": 4.1160000000000005
+      "distance_km": 722.358562529558,
+      "busy_demodulators": 11,
+      "idle_demodulators": 158,
+      "sleep_demodulators": 68,
+      "energy_model_w": 2.524
     },
     "25.0": {
       "num_users": 79,
       "distance_km": 1203.521903254301,
-      "busy_demodulators": 76,
-      "idle_demodulators": 113,
-      "sleep_demodulators": 48,
-      "energy_model_w": 8.619
+      "busy_demodulators": 32,
+      "idle_demodulators": 143,
+      "sleep_demodulators": 62,
+      "energy_model_w": 4.489000000000001
     }
   }
 }

@@ -1,2 +1,2 @@
 step,orbit_index,timestamp_s,orbit_timestamp_s,timestamp_utc,node_population_ratio,demd_population_ratio,covered_population_total,covered_population_points,covered_population_ratio,calculated_nodes,calculated_demodulators
-0,2896,0.0,0.0,2026-04-20T07:22:00.156220+00:00,1e-07,1e-07,42270901,7,0.017821277622826304,237,237
+0,2896,0.0,0.0,2026-04-22T12:28:59.982849+00:00,1e-07,1e-07,42270901,7,0.017821277622826304,237,237
