@@ -95,3 +95,53 @@ python replicate_paper.py --method lrfhss --demods 1000 --y-max 2600
 python replicate_paper.py --method elevation --n-user 100000
 python replicate_paper.py --method both --demods 100 --y-max 600 --n-user 100000
 ```
+
+## Satellite Simulator How-To
+`modules/satellite_simulator.py` uses stepper values:
+- `calculated_nodes`
+- `calculated_demodulators`
+
+Then it runs:
+- one pre-loop "all" LR-FHSS simulation
+- optional per-elevation simulations
+
+### Basic run
+```powershell
+python .\modules\satellite_simulator.py --steps 5
+```
+
+### Disable elevation loop (run only "all")
+```powershell
+python .\modules\satellite_simulator.py --steps 5 --no-include-elev
+```
+
+### Enable INFP curve in results/plots
+```powershell
+python .\modules\satellite_simulator.py --steps 5 --include-infp
+```
+
+### Disable INFP
+```powershell
+python .\modules\satellite_simulator.py --steps 5 --no-include-infp
+```
+
+### Override elevation set
+```powershell
+python .\modules\satellite_simulator.py --steps 5 --elev-list 90 79 55 25
+```
+
+Notes:
+- `--include-elev/--no-include-elev` controls per-elevation simulation and elevation plots.
+- `--include-infp/--no-include-infp` controls whether INFP is generated and plotted by `LRFHSS/LRFHSS_simulator.py`.
+- Per-step one-position outputs are written under:
+  - `results/one_pos_2_multi_step_lrfhss/step_<k>/<orbit_index>/all/`
+  - `results/one_pos_2_multi_step_lrfhss/step_<k>/<orbit_index>/<elevation>/`
+
+## One-Position How-To
+`one_pos_lrfhss_sim.py` also supports INFP control end-to-end.
+
+```powershell
+python .\one_pos_lrfhss_sim.py --include-infp
+python .\one_pos_lrfhss_sim.py --no-include-infp
+python .\one_pos_lrfhss_sim.py --step 0 --include-infp --elev-list 90 79 55 25
+```

@@ -47,7 +47,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--drop-mode", type=str, default="rlydd", choices=["rlydd", "hdrdd", "headerdrop"])
     parser.add_argument("--runs-per-node", type=int, default=1)
     parser.add_argument("--include-lifan", action="store_true")
-    parser.add_argument("--include-infp", action="store_true")
+    parser.add_argument("--include-infp", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--inf-demods", type=int, default=None)
     parser.add_argument("--node-min", type=float, default=None)
     parser.add_argument("--node-max", type=float, default=10000.0)
@@ -93,10 +93,12 @@ def main() -> int:
     args = parse_args()
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    include_infp = bool(args.include_infp)
 
     stepper_csv = Path(args.stepper_output_csv)
     stepper_json = args.stepper_current_json or (output_dir / "satellite_steps_current_pos.json")
     stepper_row = _read_stepper_row(stepper_csv=stepper_csv, step=args.step)
+    stepper: SatelliteStepper | None = None
 
     if stepper_row is not None and args.step is not None and args.sat_lat is None and args.sat_lon is None:
         requested_nodes = int(round(float(stepper_row.get("calculated_nodes", 0) or 0)))
@@ -148,39 +150,54 @@ def main() -> int:
     #         "Install required LR-FHSS deps (e.g. pip install galois)."
     #     ) from exc
 
-    out_csv = output_dir / f"lrfhss_sim_cr{int(args.coding_rate)}_one_pos.csv"
-    out_png = output_dir / f"lrfhss_demod_{int(num_decoders)}.png"
+    # out_csv = output_dir / f"lrfhss_sim_cr{int(args.coding_rate)}_one_pos.csv"
+    # out_png = output_dir / f"lrfhss_demod_{int(num_decoders)}.png"
     
-    print(f"Number of decoders to simulate: {num_decoders}")
-    print(f"Number of nodes to simulate: {requested_nodes}")
-    csv_path, png_path = sim.runsim2plot(
-        num_decoders=int(num_decoders),
-        drop_mode=str(drop_mode),
-        filename=out_csv,
-        coding_rate=int(args.coding_rate),
-        metric=str(args.metric),
-        include_lifan=bool(args.include_lifan),
-        include_infp=bool(args.include_infp),
-        inf_demods=args.inf_demods,
-        node_min=args.node_min,
-        node_max=args.node_max,
-        # selected_nodes=selected_nodes,
-        node_points=int(requested_nodes),
-        runs_per_node=max(1, int(args.runs_per_node)),
-        link_budget_log=bool(args.link_budget_log),
-        plot_enabled=bool(args.plot_enabled),
-        plot_filename=out_png,
-        x_min=args.x_min,
-        x_max=args.x_max,
-        y_min=args.y_min,
-        y_max=args.y_max,
-        title=f"CR{int(args.coding_rate)} and {int(num_decoders)} demodulators \n {int(requested_nodes)} nodes",
-    )
+    # print(f"Number of decoders to simulate: {num_decoders}")
+    # print(f"Number of nodes to simulate: {requested_nodes}")
+    # csv_path, png_path = sim.runsim2plot(
+    #     num_decoders=int(num_decoders),
+    #     drop_mode=str(drop_mode),
+    #     filename=out_csv,
+    #     coding_rate=int(args.coding_rate),
+    #     metric=str(args.metric),
+    #     include_lifan=bool(args.include_lifan),
+    #     include_infp=include_infp,
+    #     inf_demods=args.inf_demods,
+    #     node_min=args.node_min,
+    #     node_max=args.node_max,
+    #     # selected_nodes=selected_nodes,
+    #     node_points=int(requested_nodes),
+    #     runs_per_node=max(1, int(args.runs_per_node)),
+    #     link_budget_log=bool(args.link_budget_log),
+    #     plot_enabled=bool(args.plot_enabled),
+    #     plot_filename=out_png,
+    #     x_min=args.x_min,
+    #     x_max=args.x_max,
+    #     y_min=args.y_min,
+    #     y_max=args.y_max,
+    #     title=(
+    #         f"CR{int(args.coding_rate)} and {int(num_decoders)} demodulators "
+    #         f"(INFP={'on' if include_infp else 'off'})\n"
+    #         f"{int(requested_nodes)} nodes"
+    #     ),
+    # )
 
-    print(f"lrfhss_png: {out_png.resolve()}")
-    if elev_list is not None:
+    # print(f"lrfhss_png: {out_png.resolve()}")
+    elevations = args.elev_list if args.elev_list is not None else elev_list
+    if elevations is not None:
         # print(f"elevations: {elev_list}")
-        for elev in elev_list:
+        if stepper is None:
+            stepper = SatelliteStepper(
+                output_csv_path=stepper_csv,
+                population_csv_path=args.population_csv,
+                ocean_csv_path=args.ocean_csv,
+                current_pos_json_path=stepper_json,
+                node_population_ratio=float(args.node_population_ratio),
+                demd_population_ratio=float(args.demd_population_ratio),
+                minimum_frames=int(args.minimum_frames),
+            )
+        for elev in elevations:
             # demod_info = stepper.get_current_demodulators_for_elevation(elev)
             # print(f"Demodulator info for elevation {elev}: {demod_info}")
             # num_decoders=demod_info["idle"]
@@ -196,7 +213,7 @@ def main() -> int:
                 coding_rate=int(args.coding_rate),
                 metric=str(args.metric),
                 include_lifan=bool(args.include_lifan),
-                include_infp=bool(args.include_infp),
+                include_infp=include_infp,
                 inf_demods=args.inf_demods,
                 node_min=args.node_min,
                 node_max=args.node_max,
@@ -210,7 +227,11 @@ def main() -> int:
                 x_max=args.x_max,
                 y_min=args.y_min,
                 y_max=args.y_max,
-                title=f"CR{int(args.coding_rate)}, {int(num_decoders)} demodulators, and {int(elev)}° elevation \n {int(requested_nodes)} nodes",
+                title=(
+                    f"CR{int(args.coding_rate)}, {int(num_decoders)} demodulators, and {int(elev)} deg elevation "
+                    f"(INFP={'on' if include_infp else 'off'})\n"
+                    f"{int(requested_nodes)} nodes"
+                ),
                 # title=(
                 #         f"CR{int(args.coding_rate)}, {int(num_decoders)} idle demodulators, "
                 #         f"and {int(elev)}° elevation\n"
