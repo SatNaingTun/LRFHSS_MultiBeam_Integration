@@ -209,13 +209,11 @@ class SatelliteSimulator:
 
         out_csv = (
             one_pos_output_dir
-            / str(int(step_row.get("orbit_index", current_pos.get("orbit_index", 0)) or 0))
             / "all"
             / f"lrfhss_sim_cr{int(args.coding_rate)}_one_pos.csv"
         )
         out_png = (
             one_pos_output_dir
-            / str(int(step_row.get("orbit_index", current_pos.get("orbit_index", 0)) or 0))
             / "all"
             / f"lrfhss_demod_{int(num_decoders)}.png"
         )
@@ -283,13 +281,11 @@ class SatelliteSimulator:
 
                 elev_out_csv = (
                     one_pos_output_dir
-                    / str(int(step_row.get("orbit_index", current_pos.get("orbit_index", 0)) or 0))
                     / str(int(elev))
                     / f"lrfhss_sim_cr{int(getattr(args, 'coding_rate', 1))}_elev{int(elev)}.csv"
                 )
                 elev_out_png = (
                     one_pos_output_dir
-                    / str(int(step_row.get("orbit_index", current_pos.get("orbit_index", 0)) or 0))
                     / str(int(elev))
                     / f"lrfhss_demod_{int(num_decoders)}_elev{int(elev)}.png"
                 )
@@ -347,13 +343,7 @@ class SatelliteSimulator:
         timestamp_utc = str(step_meta.get("timestamp_utc", ""))
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # If current-step subfolder exists (e.g. one_pos/<orbit_index>/...),
-        # aggregate only that subtree to avoid re-appending prior steps.
-        current_step_dir = one_pos_output_dir / str(orbit_index)
-        if current_step_dir.exists():
-            csv_files = sorted(current_step_dir.rglob("*.csv"))
-        else:
-            csv_files = sorted(one_pos_output_dir.rglob("*.csv"))
+        csv_files = sorted(one_pos_output_dir.rglob("*.csv"))
         if not csv_files:
             return
 
