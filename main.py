@@ -413,6 +413,22 @@ def main() -> int:
         orbit_decode_plot_paths = plot_orbit_time_vs_decoded_packets(output_dir=output_dir)
         for p in orbit_decode_plot_paths:
             print(f"decoded_packets_plot= {p}")
+
+        energy_plot_paths = stepper.plot_elevation_energy_timeseries(output_dir=output_dir / "plots")
+        for p in energy_plot_paths:
+            print(f"time_vs_energy_plot= {p}")
+
+        demodulator_plot_paths = stepper.plot_elevation_demodulator_timeseries(output_dir=output_dir / "plots")
+        for p in demodulator_plot_paths:
+            print(f"time_vs_demodulator_plot= {p}")
+
+        combined_energy_plot_path = stepper.plot_combined_elevation_energy_timeseries(output_dir=output_dir / "plots")
+        if combined_energy_plot_path is not None:
+            print(f"time_vs_energy_plot_combined= {combined_energy_plot_path}")
+
+        combined_demodulator_plot_path = stepper.plot_combined_elevation_demodulator_timeseries(output_dir=output_dir / "plots")
+        if combined_demodulator_plot_path is not None:
+            print(f"time_vs_demodulator_plot_combined= {combined_demodulator_plot_path}")
             
         
 
