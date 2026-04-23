@@ -4,12 +4,23 @@ paginate: true
 math: katex
 ---
 
-# LR-FHSS in LEO
-### Cross Layered Simulation
+# End-to-End Workflow
+### Based on LR-FHSS Framework and 3GPP TR 38.811
 
-- Focus: equations, assumptions, and measurable outputs
-- Inputs: updated population data + satellite geometry
-- Outputs: nodes, demod states, decoded packets, elevation effects, energy
+Cross-Layer Pipeline
+
+- Orbit -> satellite position
+- Coverage -> user distribution
+- Load -> active devices
+- Channel -> SNR / SINR
+- Decoding -> successful packets
+- Power -> energy consumption
+
+---
+
+# Project Repository
+
+https://github.com/SatNaingTun/LRFHSS_MultiBeam_Integration.git
 
 ---
 
@@ -28,12 +39,17 @@ Given satellite state at step $t$, estimate:
 
 # Workflow
 
-- Orbit propagation gives future satellite position.
-- Satellite position gives footprint size on Earth.
-- Footprint over population map gives covered population.
-- Population base is multiplied by ratios to get calculated nodes and demodulators.
-- Elevation scenarios convert load to busy/idle/sleep demod states.
-- Demod states are converted to predicted energy and decode behavior.
+- Set input data, simulation steps, and elevation scenarios.
+- Move the satellite step by step along the orbit.
+- For each step, estimate covered population.
+- Convert covered population into active nodes and available demodulators.
+- For each elevation case, split demodulators into busy, idle, and sleep states.
+- Run LR-FHSS decoding simulation for each elevation case.
+- Save output files for each step.
+- Merge all steps into time-series results.
+- Plot time vs decoded payloads.
+- Plot time vs energy.
+- Plot time vs demodulator states.
 
 ---
 
@@ -80,32 +96,6 @@ $$
 - Ref: NTN geometry context https://www.3gpp.org/DynaReport/38.811.htm
 
 ---
-
-# Effective Footprint Radius
-
-$$
-R_{\text{fp}}(t)=\min\left(R_{\text{geo}}(t),\;R_{\text{cfg}}\frac{h(t)}{h_{\text{cfg}}}\right)
-$$
-
-- Symbols: $R_{\text{fp}}(t)$ effective footprint radius, $R_{\text{cfg}}$ configured radius.
-- Symbols: $h(t)$ current altitude, $h_{\text{cfg}}$ reference altitude.
-- Ref: Implementation rule in `modules/satellite_stepper.py`
-
----
-
-# Covered Population
-
-$$
-P_{\text{cov}}(t)=\sum_i p_i \,\mathbf{1}[d_i(t)\le R_{\text{fp}}(t)]
-$$
-
-- Symbols: $P_{\text{cov}}(t)$ covered population, $p_i$ population at catalog point $i$.
-- Symbols: $d_i(t)$ distance from footprint center to point $i$, $\mathbf{1}[\cdot]$ indicator.
-- Ref: Natural Earth populated places https://naciscdn.org/naturalearth/10m/cultural/ne_10m_populated_places.zip
-
----
-
-
 # Node Mapping
 
 $$
@@ -129,58 +119,53 @@ $$
 
 ---
 
-# Mean Slant Range per Elevation
+
+# Elevation-Dependent Path Loss Model
+### Core Equation
+
+In LEO links, path loss varies with elevation angle $\epsilon$:
 
 $$
-\bar d_e(t)=\frac{1}{N_e(t)}\sum_{u=1}^{N_e(t)} d_{u,e}(t)
+L(\epsilon)=L_{\mathrm{FSPL}}(d(\epsilon)) + L_{\mathrm{atm}}(\epsilon)
 $$
 
-- Symbols: $e$ elevation bin, $N_e(t)$ users in that bin.
-- Symbols: $d_{u,e}(t)$ user-$u$ slant range, $\bar d_e(t)$ mean slant range.
-- Ref: Slant-range impact concept (Friis distance dependence) https://doi.org/10.1109/JRPROC.1946.234568
-
----
-
-# Demod States (Simple View)
-### Input -> Load -> Busy
-
-1. For each elevation $e$, compute offered load:
-$$
-A_e=\max(1,N_e)\alpha_{\text{act}}\left(\frac{\bar d_e}{d_{\text{ref}}}\right)^2
-$$
-2. Use Erlang-B with:
-   - servers $c=N_{\text{demod}}$
-   - offered load $A_e$
-   - blocking probability $B(c,A_e)$
-3. Busy demodulators:
-$$
-N_{\text{busy},e}=\operatorname{round}\left(\min\left(N_{\text{demod}},A_e(1-B(c,A_e))\right)\right)
-$$
-
-- Intuition: more users and longer distance increase offered load, which increases busy usage.
-- Ref: implemented in `modules/satellite_stepper.py`
+- $\epsilon$: elevation angle.
+- $d(\epsilon)$: elevation-dependent slant distance.
+- $L_{\mathrm{FSPL}}$: free-space path loss.
+- $L_{\mathrm{atm}}$: atmospheric attenuation.
+- Ref: paper section "Elevation-Dependent Path Loss Model".
 
 ---
 
-# Demod States (Simple Split)
-### Busy -> Sleep -> Idle
+# Elevation-Dependent Path Loss Model
+### FSPL and Atmospheric Terms
 
 $$
-N_{\text{rem},e}=N_{\text{demod}}-N_{\text{busy},e}
-$$
-$$
-N_{\text{sleep},e}=\operatorname{round}\left(\beta_{\text{sleep}}N_{\text{rem},e}\right),\quad
-N_{\text{idle},e}=N_{\text{rem},e}-N_{\text{sleep},e}
+L_{\mathrm{FSPL}}(d)=20\log_{10}\!\left(\frac{4\pi d f_c}{c}\right)
 $$
 
-- Current setting: $\beta_{\text{sleep}}=0.3$.
-- Conservation check:
+Atmospheric loss increases at lower elevation due to longer air path:
+
 $$
-N_{\text{busy},e}+N_{\text{sleep},e}+N_{\text{idle},e}=N_{\text{demod}}
+L_{\mathrm{atm}}(\epsilon)\propto \frac{1}{\sin(\epsilon)}
 $$
-- Ref: implemented in `modules/satellite_stepper.py`
+
+- High elevation ($\epsilon \approx 90^\circ$): shortest path, lower total loss.
+- Low elevation ($\epsilon < 30^\circ$): longer path, stronger attenuation.
+- Ref: Friis transmission basis https://doi.org/10.1109/JRPROC.1946.234568
 
 ---
+
+# Elevation Loss to System Impact
+
+
+- Higher $L(\epsilon)$ reduces received signal power.
+- Lower signal power decreases SNR/SINR.
+- Lower SNR/SINR increases decoding difficulty and demodulator busy time.
+- Longer busy time raises receiver-side energy consumption.
+
+---
+
 
 # Power Model
 
@@ -197,17 +182,6 @@ $$
 
 ---
 
-# Future Prediction 
-### Predicting Next Time Steps
-
-Goal: predict busy demodulators and energy at future horizon $t+\Delta$.
-
-1. Generate future satellite states by stepping orbit index forward.
-2. For each future step, recompute footprint and covered population.
-3. Map population base to future `calculated_nodes` and `calculated_demodulators` using ratios.
-4. For each elevation (90/55/25), estimate future busy/idle/sleep states.
-5. Convert those states to future energy using the same power constants.
----
 # One-Position Decode Results
 ### Not Fixed Elevation
 
@@ -234,14 +208,6 @@ Goal: predict busy demodulators and energy at future horizon $t+\Delta$.
 
 - Same demod budget, stronger geometry penalty at lower elevation.
 
----
-
-# Satellite Stepper Outputs
-### Population and Resource Dynamics
-
-![h:330px](../results/one_pos_satellite/plots/satellite_stepper_population.png)
-
-- Per step: covered population, nodes, and demod count.
 
 ---
 
@@ -271,6 +237,22 @@ Goal: predict busy demodulators and energy at future horizon $t+\Delta$.
 ![h:350px](../results/one_pos_satellite/plots/satellite_stepper_energy_all_elevations.png)
 
 - Energy follows geometry-driven demod state transitions.
+
+---
+
+# Future Work
+
+
+Goal: move from scenario simulation to validated, adaptive NTN system design.
+
+1. Validate with real data: calibrate traffic, channel loss, and demod behavior using measurements.
+2. Add uncertainty modeling: include weather, bursty traffic, and mobility distributions with confidence intervals.
+3. Compare access schemes: benchmark LR-FHSS against alternative PHY/MAC options under equal constraints.
+---
+# Future Work
+4. Optimize control: design dynamic demod/power allocation policies using optimization or reinforcement learning.
+5. Scale to network level: extend from single-satellite view to multi-satellite and inter-satellite coordination.
+6. Build reproducible benchmarks: publish datasets, metrics, and open evaluation protocols for fair comparison.
 
 
 ---
