@@ -175,6 +175,7 @@ class SatelliteSimulator:
 
         drop_mode_raw = str(getattr(args, "drop_mode", "rlydd"))
         drop_mode = "hdrdd" if drop_mode_raw == "headerdrop" else drop_mode_raw
+        infp_mode = str(getattr(args, "infp", "off")).strip().lower()
 
         requested_nodes = int(step_row.get("calculated_nodes", 0) or 0)
         requested_demods = max(1, int(step_row.get("calculated_demodulators", 0) or 0))
@@ -227,7 +228,7 @@ class SatelliteSimulator:
             coding_rate=int(args.coding_rate),
             metric=str(args.metric),
             include_lifan=bool(args.include_lifan),
-            include_infp=bool(args.include_infp),
+            include_infp=bool(infp_mode == "on"),
             inf_demods=args.inf_demods,
             node_min=args.node_min,
             node_max=args.node_max,
@@ -251,7 +252,7 @@ class SatelliteSimulator:
                 f"idle={int(preloop_demod_info['idle'])}, sleep={int(preloop_demod_info['sleep'])}"
             ),
         )
-        include_elev = bool(getattr(args, "include_elev", True))
+        include_elev = str(getattr(args, "include_elev", "on")).strip().lower() == "on"
         if include_elev:
             elevations = getattr(args, "elev_list", elev_list)
             if elevations is None:
@@ -301,7 +302,7 @@ class SatelliteSimulator:
                     coding_rate=int(getattr(args, "coding_rate", 1)),
                     metric=str(getattr(args, "metric", "dec_payld")),
                     include_lifan=bool(getattr(args, "include_lifan", False)),
-                    include_infp=bool(getattr(args, "include_infp", False)),
+                    include_infp=bool(infp_mode == "on"),
                     inf_demods=getattr(args, "inf_demods", None),
                     node_min=getattr(args, "node_min", None),
                     node_max=getattr(args, "node_max", 10000.0),
@@ -316,11 +317,13 @@ class SatelliteSimulator:
                     y_max=getattr(args, "y_max", 2600),
                     title=(
                         f"Step {int(step_row.get('step', current_pos.get('step', 0)) or 0)} | "
-                        f"Elev {int(elev)}deg | CR{int(getattr(args, 'coding_rate', 1))} | mode={str(drop_mode)} | "
-                        f"metric={str(getattr(args, 'metric', 'dec_payld'))} | decoders={int(num_decoders)} | "
-                        f"nodes={int(requested_nodes)} | dist={float(distance_km):.1f} km\n"
+                        f"Elev {int(elev)}deg | CR{int(getattr(args, 'coding_rate', 1))} | mode={str(drop_mode)} \n| "
+                        # f"metric={str(getattr(args, 'metric', 'dec_payld'))} | "
+                        f"decoders={int(num_decoders)} | "
+                        f"nodes={int(requested_nodes)} | dist={float(distance_km):.1f} km \n"
                         f"demods busy={int(demod_info['busy'])}, booked={int(demod_info['booked'])}, "
                         f"idle={int(demod_info['idle'])}, sleep={int(demod_info['sleep'])}"
+                        # f"| INFP={str(infp_mode)}"
                     ),
                     fixed_elevation=int(elev),
                 )
@@ -546,7 +549,7 @@ class SatelliteSimulator:
         for p in orbit_decode_plot_paths:
             print(f"decoded_packets_plot= {p}")
 
-        if bool(getattr(args, "include_elev", True)):
+        if str(getattr(args, "include_elev", "on")).strip().lower() == "on":
             energy_plot_paths = self.satellite_stepper.plot_elevation_energy_timeseries(output_dir=output_dir / "plots")
             for p in energy_plot_paths:
                 print(f"time_vs_energy_plot= {p}")
@@ -603,7 +606,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--drop-mode", type=str, default="rlydd", choices=["rlydd", "hdrdd", "headerdrop"])
     parser.add_argument("--runs-per-node", type=int, default=1)
     parser.add_argument("--include-lifan", action="store_true")
-    parser.add_argument("--include-infp", action="store_true")
+    parser.add_argument("--infp", type=str, choices=["on", "off"], default="off")
     parser.add_argument("--inf-demods", type=int, default=None)
     parser.add_argument("--node-min", type=float, default=None)
     parser.add_argument("--node-max", type=float, default=10000.0)
@@ -613,7 +616,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--y-max", type=float, default=2600)
     parser.add_argument("--link-budget-log", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--plot-enabled", action=argparse.BooleanOptionalAction, default=True)
-    parser.add_argument("--include-elev", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--include-elev", type=str, choices=["on", "off"], default="off")
     return parser.parse_args()
 
 

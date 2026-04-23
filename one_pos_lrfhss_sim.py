@@ -47,7 +47,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--drop-mode", type=str, default="rlydd", choices=["rlydd", "hdrdd", "headerdrop"])
     parser.add_argument("--runs-per-node", type=int, default=1)
     parser.add_argument("--include-lifan", action="store_true")
-    parser.add_argument("--include-infp", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--infp", type=str, choices=["on", "off"], default="off")
     parser.add_argument("--inf-demods", type=int, default=None)
     parser.add_argument("--node-min", type=float, default=None)
     parser.add_argument("--node-max", type=float, default=10000.0)
@@ -93,7 +93,7 @@ def main() -> int:
     args = parse_args()
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    include_infp = bool(args.include_infp)
+    include_infp = str(args.infp).strip().lower() == "on"
 
     stepper_csv = Path(args.stepper_output_csv)
     stepper_json = args.stepper_current_json or (output_dir / "satellite_steps_current_pos.json")
@@ -204,6 +204,7 @@ def main() -> int:
             node_info=stepper.get_current_nodes_for_elevation(elev)
             print(f"Node info for elevation {elev}: {node_info}")
             requested_nodes= node_info["num_nodes"]
+            distance_km = float(node_info.get("distance_km", float("nan")))
             elev_out_csv = output_dir / f"lrfhss_sim_cr{int(args.coding_rate)}_elev{int(elev)}.csv"
             elev_out_png = output_dir / f"lrfhss_demod_{int(num_decoders)}_elev{int(elev)}.png"
             csv_path, png_path = sim.runsim2plot(
@@ -228,9 +229,13 @@ def main() -> int:
                 y_min=args.y_min,
                 y_max=args.y_max,
                 title=(
-                    f"CR{int(args.coding_rate)}, {int(num_decoders)} demodulators, and {int(elev)} deg elevation "
-                    f"(INFP={'on' if include_infp else 'off'})\n"
-                    f"{int(requested_nodes)} nodes"
+                    f"Elev {int(elev)}deg | CR{int(args.coding_rate)} | mode={str(drop_mode)} | "
+                    # f"metric={str(args.metric)} | decoders={int(num_decoders)}\n"
+                    f"nodes={int(requested_nodes)} | dist={float(distance_km):.1f} km | "
+                    # f"runs_per_node={int(max(1, int(args.runs_per_node)))} | node_points={int(requested_nodes)}\n"
+                    f"INFP={'on' if include_infp else 'off'} | inf_demods="
+                    f"{'auto' if args.inf_demods is None else int(args.inf_demods)} | "
+                    f"lifan={'on' if bool(args.include_lifan) else 'off'}"
                 ),
                 # title=(
                 #         f"CR{int(args.coding_rate)}, {int(num_decoders)} idle demodulators, "
