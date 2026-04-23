@@ -119,6 +119,19 @@ $$
 
 ---
 
+# Elevation Node Function
+
+
+Purpose:
+- For each elevation in `elev_list` (e.g., 90, 79, 55, 25), estimate elevation-conditioned user geometry.
+
+How it is used:
+- `get_current_nodes_for_elevation(elev)` returns `num_nodes = elev_<token>_num_users`.
+- Demod allocator flow then uses `num_users` and `distance_km` to derive busy/idle/sleep behavior.
+
+
+---
+
 
 # Elevation-Dependent Path Loss Model
 ### Core Equation

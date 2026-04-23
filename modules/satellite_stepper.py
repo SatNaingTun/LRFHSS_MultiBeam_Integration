@@ -26,6 +26,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 from modules.networkGeometry import haversine_distance_m
 from modules.leo_kepler_rotation import run_leo_orbit_rotation_task
 from modules.orbit_formula import compute_horizon_central_angle_rad
+from modules.demodulator_allocator import RecursiveReuseDemodAllocator
 from ProjectConfig import (
     EARTRH_R,
     LATITUDE_CENTER_DEG,
@@ -607,58 +608,60 @@ class SatelliteStepper:
                 out[f"elev_{token}_energy_model_w"] = float(self._baseline_power_w)
             return out
 
-        # Reference distance: zenith case
-        d_ref_km = float(SAT_H) / 1000.0
+        # Build demod states with the same allocator flow used by satellite_simulator.
+        # Sleep aggressiveness is mapped from the configured ratio.
+        sleep_ratio = float(max(0.0, min(1.0, self._demod_sleep_ratio)))
+        idle_to_sleep_ticks = int(max(1, round(3.0 - 2.0 * sleep_ratio)))
+        allocator = RecursiveReuseDemodAllocator(
+            num_demods=int(n_demod_total),
+            idle_to_sleep_ticks=idle_to_sleep_ticks,
+            default_payload_ticks=1,
+        )
+        allocator.advance_tick(1)
 
-        # First compute elevation-dependent offered traffic (Erlangs)
-        offered_loads: dict[str, float] = {}
-
-        for elev_deg, token in self._elev_tokens:
+        for _, token in self._elev_tokens:
             n_user = int(max(0, int(out.get(f"elev_{token}_num_users", 0) or 0)))
             d_km = float(out.get(f"elev_{token}_distance_km", float("nan")))
 
-            if n_user <= 0 or not np.isfinite(d_km):
-                load_factors[token] = 0.0
-                continue
-
-            # Relative FSPL pressure ~ (d / d_ref)^2
-            relative_path_loss_factor = (d_km / max(d_ref_km, 1e-9)) ** 2
-
-            # Heuristic offered-load mapping (Erlangs):
-            # active users scaled by path-loss pressure.
-            offered_load = (
-                float(max(1, n_user))
-                * float(self._demod_activity_ratio)
-                * relative_path_loss_factor
-            )
-            offered_loads[token] = offered_load
-
-        for elev_deg, token in self._elev_tokens:
-            offered_load = float(offered_loads[token])
-            blocking_prob = self._erlang_b_blocking_probability(
-                servers=n_demod_total,
-                offered_load_erlang=offered_load,
+            # Map users + elevation distance to requested demod reservations.
+            distance_factor = 1.0
+            if np.isfinite(d_km):
+                distance_factor = max(1.0, float(d_km) / 600.0)
+            requested_frames = int(
+                max(
+                    1,
+                    round(
+                        float(max(1, n_user))
+                        * float(max(0.0, self._demod_activity_ratio))
+                        * float(distance_factor)
+                    ),
+                )
             )
 
-            # Expected number of busy demodulators (carried traffic):
-            # A_carried = A_offered * (1 - B(c, A))
-            carried_load = float(offered_load * (1.0 - blocking_prob))
-            n_busy = int(round(min(float(n_demod_total), carried_load)))
-            n_busy = max(0, min(n_busy, n_demod_total))
+            payload_ticks = max(1, int(round(distance_factor)))
+            preamble_ticks = max(1, int(round(payload_ticks / 3.0)))
+            max_frame_ticks = int(preamble_ticks + payload_ticks)
 
-            remaining = max(0, n_demod_total - n_busy)
-            n_sleep = int(round(self._demod_sleep_ratio * remaining))
-            n_idle = max(0, remaining - n_sleep)
+            snap = allocator.allocate(
+                requested_frames=requested_frames,
+                preamble_ticks=preamble_ticks,
+                payload_ticks=payload_ticks,
+                max_frame_ticks=max_frame_ticks,
+            )
 
+            # Keep busy column as currently allocated demods (busy + booked).
+            n_busy = int(snap.busy + snap.booked)
+            n_idle = int(snap.idle)
+            n_sleep = int(snap.sleep)
             energy_model_w = float(
                 self._baseline_power_w
                 + n_idle * self._idle_demodulator_power_w
                 + n_busy * self._busy_demodulator_power_w
             )
 
-            out[f"elev_{token}_busy"] = int(n_busy)
-            out[f"elev_{token}_idle"] = int(n_idle)
-            out[f"elev_{token}_sleep"] = int(n_sleep)
+            out[f"elev_{token}_busy"] = n_busy
+            out[f"elev_{token}_idle"] = n_idle
+            out[f"elev_{token}_sleep"] = n_sleep
             out[f"elev_{token}_energy_model_w"] = energy_model_w
 
         return out
@@ -1074,6 +1077,58 @@ class SatelliteStepper:
             return int(float(row.get("calculated_demodulators", 0) or 0))
         except (TypeError, ValueError):
             return 0
+
+    def get_mean_nodes(self, step: int) -> float:
+        target_step = int(step)
+        if target_step < 0:
+            return 0.0
+
+        rows = self._load_sorted_population_timeseries_rows()
+        if not rows:
+            return 0.0
+
+        values: list[int] = []
+        for row in rows:
+            try:
+                row_step = int(float(row.get("step", -1) or -1))
+            except (TypeError, ValueError):
+                continue
+            if row_step > target_step:
+                continue
+            try:
+                values.append(int(float(row.get("calculated_nodes", 0) or 0)))
+            except (TypeError, ValueError):
+                continue
+
+        if not values:
+            return 0.0
+        return float(sum(values) / len(values))
+
+    def get_mean_demodulators(self, step: int) -> float:
+        target_step = int(step)
+        if target_step < 0:
+            return 0.0
+
+        rows = self._load_sorted_population_timeseries_rows()
+        if not rows:
+            return 0.0
+
+        values: list[int] = []
+        for row in rows:
+            try:
+                row_step = int(float(row.get("step", -1) or -1))
+            except (TypeError, ValueError):
+                continue
+            if row_step > target_step:
+                continue
+            try:
+                values.append(int(float(row.get("calculated_demodulators", 0) or 0)))
+            except (TypeError, ValueError):
+                continue
+
+        if not values:
+            return 0.0
+        return float(sum(values) / len(values))
 
     def _load_sorted_elevation_state_rows(self) -> list[dict[str, str]]:
         if not self.elevation_states_csv_path.exists():

@@ -1,4 +1,7 @@
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.pyplot as plt
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    plt = None
 import numpy as np
 from pathlib import Path
 import sys
@@ -279,6 +282,8 @@ def plot_ecdf(values, col, l_style='solid'):
     :param values: (n_values, )
     :return:
     """
+    if plt is None:
+        return
     counts, bin_edges = np.histogram(values, bins=len(np.unique(values)))
     cdf = np.cumsum(counts)/len(values)
     plt.figure()
@@ -296,6 +301,8 @@ def plot_ecdf_same_figure(values, col, l_style='solid'):
     :param values: (n_values, )
     :return:
     """
+    if plt is None:
+        return
     counts, bin_edges = np.histogram(values, bins=len(np.unique(values)))
     cdf = np.cumsum(counts)/len(values)
     plt.plot(bin_edges[1:], cdf, linestyle=l_style, linewidth=2.5, color=col)
