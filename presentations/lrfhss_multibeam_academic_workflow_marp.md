@@ -261,10 +261,10 @@ $$
 
 <div style="margin-left:62%; font-size:0.72em;">
 
-- Step: 0
+- Steps: 0-60
 - Elevation: 90 deg
-- Busy demods: 8
-- Idle demods: 229
+- Busy demods: 19-20
+- Idle demods: 152-153
 
 </div>
 
@@ -277,10 +277,10 @@ $$
 
 <div style="margin-left:62%; font-size:0.72em;">
 
-- Step: 0
+- Steps: 0-60
 - Elevation: 55 deg
-- Busy demods: 18
-- Idle demods: 219
+- Busy demods: 27-28
+- Idle demods: 146-147
 
 </div>
 
@@ -293,12 +293,23 @@ $$
 
 <div style="margin-left:62%; font-size:0.72em;">
 
-- Step: 0
+- Steps: 0-60
 - Elevation: 25 deg
-- Busy demods: 34
-- Idle demods: 203
+- Busy demods: 76-79
+- Idle demods: 111-113
 
 </div>
+
+---
+
+# Elevation Summary Table
+### Busy, Idle and Energy Consumption Across Steps 0-60
+
+| Elev. | Busy demods | Idle demods | Baseline (W) | Idle/demod (W) | Busy/demod (W) | Energy (W) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 90 | 19-20 | 152-153 | 0.002 | 0.009 | 0.100 | 3.279-3.370 |
+| 55 | 27-28 | 146-147 | 0.002 | 0.009 | 0.100 | 4.025-4.116 |
+| 25 | 76-79 | 111-113 | 0.002 | 0.009 | 0.100 | 8.619-8.901 |
 
 ---
 
@@ -308,12 +319,23 @@ $$
 
 <div style="margin-left:62%; font-size:0.72em;">
 
-- Step: 0
-- 90 deg demods: 8 busy, 229 idle
-- 55 deg demods: 18 busy, 219 idle
-- 25 deg demods: 34 busy, 203 idle
+- Steps: 0-60
+- 90 deg energy: 3.279-3.370 W
+- 55 deg energy: 4.025-4.116 W
+- 25 deg energy: 8.619-8.901 W
 
 </div>
+
+---
+
+# Discussion of Energy Results
+### Interpretation of Slide 24
+
+- Slide 24 shows that energy consumption increases as elevation angle decreases.
+- The 90 deg case remains the lowest because it keeps fewer demodulators in the busy state.
+- The 25 deg case is the highest because longer link distance increases receiver occupancy and busy demod count.
+- This confirms the same trend seen in slides 20 to 22: lower elevation shifts the receiver from idle capacity toward sustained busy operation.
+- In this dataset over steps 0-60, geometry is the main driver of the power gap across elevation scenarios.
 
 ---
 
