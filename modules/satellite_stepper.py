@@ -1356,7 +1356,7 @@ class SatelliteStepper:
 
         ax.set_title("Orbit Timestamp vs Energy Model for All Elevations")
         ax.set_xlabel("orbit_timestamp_s")
-        ax.set_ylabel("energy_model_w")
+        ax.set_ylabel("power comnsumption (W)")
         ax.grid(True, linestyle="-", linewidth=0.5, alpha=0.35)
         ax.legend(title="Elevation")
         fig.tight_layout()

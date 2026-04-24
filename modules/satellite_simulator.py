@@ -242,12 +242,10 @@ class SatelliteSimulator:
             y_max=args.y_max,
             title=(
                 f"Step {int(step_row.get('step', current_pos.get('step', 0)) or 0)} | "
-                # f"Orbit {int(step_row.get('orbit_index', current_pos.get('orbit_index', 0)) or 0)} | "
-                # f"t={float(step_row.get('timestamp_s', current_pos.get('timestamp_s', 0.0)) or 0.0):.1f}s\n"
-                f"ALL | CR{int(args.coding_rate)} | mode={str(drop_mode)} | metric={str(args.metric)} | "
-                f"decoders={int(num_decoders)} | nodes={int(requested_nodes)}\n"
-                f"demods busy={int(preloop_demod_info['busy'])}, booked={int(preloop_demod_info['booked'])}, "
-                f"idle={int(preloop_demod_info['idle'])}, sleep={int(preloop_demod_info['sleep'])}"
+                f"ALL | CR{int(args.coding_rate)} | decoders={int(num_decoders)} | \n"
+                f"nodes={int(requested_nodes)}\n"
+                f"demods: busy={int(preloop_demod_info['busy'])}, \n"
+                f"idle={int(preloop_demod_info['idle'])}"
             ),
         )
         include_elev = str(getattr(args, "include_elev", "on")).strip().lower() == "on"
@@ -312,14 +310,11 @@ class SatelliteSimulator:
                     y_min=getattr(args, "y_min", None),
                     y_max=getattr(args, "y_max", 2600),
                     title=(
-                        f"Step {int(step_row.get('step', current_pos.get('step', 0)) or 0)} | "
-                        f"Elev {int(elev)}deg | CR{int(getattr(args, 'coding_rate', 1))} | mode={str(drop_mode)} \n| "
-                        # f"metric={str(getattr(args, 'metric', 'dec_payld'))} | "
-                        f"decoders={int(num_decoders)} | "
-                        f"nodes={int(requested_nodes)} | dist={float(distance_km):.1f} km \n"
-                        f"demods busy={int(demod_info['busy'])}, booked={int(demod_info['booked'])}, "
-                        f"idle={int(demod_info['idle'])}, sleep={int(demod_info['sleep'])}"
-                        # f"| INFP={str(infp_mode)}"
+                        f"Step {int(step_row.get('step', current_pos.get('step', 0)) or 0)} | \n "
+                        f"Elev {int(elev)}deg | CR{int(getattr(args, 'coding_rate', 1))} | \n "
+                        f"decoders={int(num_decoders)} | nodes={int(requested_nodes)}\n"
+                        f"demods: busy={int(demod_info['busy'])}, idle={int(demod_info['idle'])} | \n "
+                        f"dist={float(distance_km):.1f} km"
                     ),
                     fixed_elevation=int(elev),
                 )
@@ -535,28 +530,31 @@ class SatelliteSimulator:
                 step_meta=step_meta,
             )
 
-        orbit_decode_plot_paths = self.plot_orbit_time_vs_decoded_packets(output_dir=output_dir)
-        for p in orbit_decode_plot_paths:
-            print(f"decoded_packets_plot= {p}")
+        if steps > 1:
+            orbit_decode_plot_paths = self.plot_orbit_time_vs_decoded_packets(output_dir=output_dir)
+            for p in orbit_decode_plot_paths:
+                print(f"decoded_packets_plot= {p}")
 
-        if str(getattr(args, "include_elev", "on")).strip().lower() == "on":
-            energy_plot_paths = self.satellite_stepper.plot_elevation_energy_timeseries(output_dir=output_dir / "plots")
-            for p in energy_plot_paths:
-                print(f"time_vs_energy_plot= {p}")
+            if str(getattr(args, "include_elev", "on")).strip().lower() == "on":
+                energy_plot_paths = self.satellite_stepper.plot_elevation_energy_timeseries(output_dir=output_dir / "plots")
+                for p in energy_plot_paths:
+                    print(f"time_vs_energy_plot= {p}")
 
-            demodulator_plot_paths = self.satellite_stepper.plot_elevation_demodulator_timeseries(output_dir=output_dir / "plots")
-            for p in demodulator_plot_paths:
-                print(f"time_vs_demodulator_plot= {p}")
+                demodulator_plot_paths = self.satellite_stepper.plot_elevation_demodulator_timeseries(output_dir=output_dir / "plots")
+                for p in demodulator_plot_paths:
+                    print(f"time_vs_demodulator_plot= {p}")
 
-            combined_energy_plot_path = self.satellite_stepper.plot_combined_elevation_energy_timeseries(output_dir=output_dir / "plots")
-            if combined_energy_plot_path is not None:
-                print(f"time_vs_energy_plot_combined= {combined_energy_plot_path}")
+                combined_energy_plot_path = self.satellite_stepper.plot_combined_elevation_energy_timeseries(output_dir=output_dir / "plots")
+                if combined_energy_plot_path is not None:
+                    print(f"time_vs_energy_plot_combined= {combined_energy_plot_path}")
 
-            combined_demodulator_plot_path = self.satellite_stepper.plot_combined_elevation_demodulator_timeseries(
-                output_dir=output_dir / "plots"
-            )
-            if combined_demodulator_plot_path is not None:
-                print(f"time_vs_demodulator_plot_combined= {combined_demodulator_plot_path}")
+                combined_demodulator_plot_path = self.satellite_stepper.plot_combined_elevation_demodulator_timeseries(
+                    output_dir=output_dir / "plots"
+                )
+                if combined_demodulator_plot_path is not None:
+                    print(f"time_vs_demodulator_plot_combined= {combined_demodulator_plot_path}")
+        else:
+            print("timeseries_plots_skipped= steps<=1")
 
         print(
             "demod_state_final="

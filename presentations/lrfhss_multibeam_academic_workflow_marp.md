@@ -328,14 +328,32 @@ $$
 
 ---
 
-# Discussion of Energy Results
-### Interpretation of Slide 24
 
-- Slide 24 shows that energy consumption increases as elevation angle decreases.
-- The 90 deg case remains the lowest because it keeps fewer demodulators in the busy state.
-- The 25 deg case is the highest because longer link distance increases receiver occupancy and busy demod count.
-- This confirms the same trend seen in slides 20 to 22: lower elevation shifts the receiver from idle capacity toward sustained busy operation.
-- In this dataset over steps 0-60, geometry is the main driver of the power gap across elevation scenarios.
+# Why Busy Demodulators Change with Elevation
+
+### Core Mechanism
+
+- Total number of demodulators is fixed.
+- What changes is **how long each demodulator is occupied**.
+
+
+### Key Insight
+
+$$
+\text{Busy Demods} \propto \lambda \times T_{\text{decode}}
+$$
+
+- Arrival rate ≈ similar across elevations (same nodes)
+- Decoding time varies with channel quality
+
+---
+
+### Interpretation
+
+- High elevation → fast decoding → short occupation time  
+- Low elevation → slow decoding → long occupation time  
+
+👉 This directly controls the number of busy demodulators
 
 ---
 
