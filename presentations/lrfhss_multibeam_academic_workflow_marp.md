@@ -198,28 +198,58 @@ $$
 # One-Position Decode Results
 ### Not Fixed Elevation
 
-![h:300px](../results/one_pos_lrfhss/lrfhss_demod_237.png)
+![bg left:60% contain](../results/one_pos_lrfhss/lrfhss_demod_237.png)
+
+<div style="margin-left:62%; font-size:0.72em;">
+
+- Footprint radius: 98.8 km
+- Footprint area: 30,690.2 km^2
+- Mean user distance: 597.5 km
+
+</div>
 
 ---
 # One-Position Decode Results
 ### Elevation Curves (90 deg)
 
-![h:300px](../results/one_pos_lrfhss/lrfhss_demod_237_elev90.png)
+![bg left:60% contain](../results/one_pos_lrfhss/lrfhss_demod_237_elev90.png)
+
+<div style="margin-left:62%; font-size:0.72em;">
+
+- Footprint area: 30,690.2 km^2
+- Elevation: 90 deg
+- Distance: 604.4 km
+
+</div>
 
 ---
 # One-Position Decode Results
 ### Elevation Curves (55 deg)
 
-![h:300px](../results/one_pos_lrfhss/lrfhss_demod_237_elev55.png)
+![bg left:60% contain](../results/one_pos_lrfhss/lrfhss_demod_237_elev55.png)
+
+<div style="margin-left:62%; font-size:0.72em;">
+
+- Footprint area: 30,690.2 km^2
+- Elevation: 55 deg
+- Distance: 722.4 km
+
+</div>
 
 ---
 
 # One-Position Decode Results
 ### Elevation Curve (25 deg)
 
-![h:360px](../results/one_pos_lrfhss/lrfhss_demod_237_elev25.png)
+![bg left:60% contain](../results/one_pos_lrfhss/lrfhss_demod_237_elev25.png)
 
-- Same demod budget, stronger geometry penalty at lower elevation.
+<div style="margin-left:62%; font-size:0.72em;">
+
+- Footprint area: 30,690.2 km^2
+- Elevation: 25 deg
+- Distance: 1203.5 km
+
+</div>
 
 
 ---
@@ -227,29 +257,63 @@ $$
 # Demodulator State Evidence
 ### Busy/Idle vs Orbit Timestamp (90 deg)
 
-![h:330px](../results/one_pos_satellite/plots/satellite_stepper_demodulators_90deg.png)
+![bg left:60% contain](../results/one_pos_satellite/plots/satellite_stepper_demodulators_90deg.png)
+
+<div style="margin-left:62%; font-size:0.72em;">
+
+- Step: 0
+- Elevation: 90 deg
+- Busy demods: 8
+- Idle demods: 229
+
+</div>
 
 ---
 
 # Demodulator State Results
 ### Busy/Idle vs Orbit Timestamp (55 deg)
 
-![h:330px](../results/one_pos_satellite/plots/satellite_stepper_demodulators_55deg.png)
+![bg left:60% contain](../results/one_pos_satellite/plots/satellite_stepper_demodulators_55deg.png)
+
+<div style="margin-left:62%; font-size:0.72em;">
+
+- Step: 0
+- Elevation: 55 deg
+- Busy demods: 18
+- Idle demods: 219
+
+</div>
 
 ---
 
 # Demodulator State Results
 ### Busy/Idle vs Orbit Timestamp (25 deg)
 
-![h:290px](../results/one_pos_satellite/plots/satellite_stepper_demodulators_25deg.png)
+![bg left:60% contain](../results/one_pos_satellite/plots/satellite_stepper_demodulators_25deg.png)
+
+<div style="margin-left:62%; font-size:0.72em;">
+
+- Step: 0
+- Elevation: 25 deg
+- Busy demods: 34
+- Idle demods: 203
+
+</div>
 
 ---
 
 # Energy Model Results (90, 55 and 25 deg)
 
-![h:350px](../results/one_pos_satellite/plots/satellite_stepper_energy_all_elevations.png)
+![bg left:60% contain](../results/one_pos_satellite/plots/satellite_stepper_energy_all_elevations.png)
 
-- Energy follows geometry-driven demod state transitions.
+<div style="margin-left:62%; font-size:0.72em;">
+
+- Step: 0
+- 90 deg demods: 8 busy, 229 idle
+- 55 deg demods: 18 busy, 219 idle
+- 25 deg demods: 34 busy, 203 idle
+
+</div>
 
 ---
 
@@ -287,5 +351,3 @@ Goal: move from scenario simulation to validated, adaptive NTN system design.
 - Natural Earth lakes: https://naciscdn.org/naturalearth/10m/physical/ne_10m_lakes.zip
 - Natural Earth rivers: https://naciscdn.org/naturalearth/10m/physical/ne_10m_rivers_lake_centerlines.zip
 - Demod power baseline reference: https://tnm.engin.umich.edu/wp-content/uploads/sites/353/2017/12/2006.10.Reducing-idle-mode-power-in-software-defined-radio-terminals_ISLPED-2006.pdf
-
-
