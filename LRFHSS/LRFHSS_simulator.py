@@ -555,7 +555,7 @@ def _plot_runsim_rows(
     if include_infp:
         driver_infp = rows.get(f"driver-CR{int(coding_rate)}-infp-{metric}")
         if driver_infp is not None:
-            ax.plot(nodes, driver_infp, color="#d62728", linewidth=2, linestyle="--", label="driver infp")
+            ax.plot(nodes, driver_infp, color="#d62728", linewidth=2, linestyle="--", label="driver base infp")
         if include_lifan:
             lifan_infp = rows.get(f"lifan-CR{int(coding_rate)}-infp-{metric}")
             if lifan_infp is not None:

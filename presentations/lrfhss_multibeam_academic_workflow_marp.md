@@ -153,6 +153,7 @@ How it is used:
 - Demod allocator flow then uses `num_users` and `distance_km` to derive busy/idle/sleep behavior.
 
 
+
 ---
 
 
@@ -243,7 +244,9 @@ $$
 - Footprint area: 30,690.2 km^2
 - Elevation: 90 deg
 - Distance: 604.4 km
+- Nodes 79
 - Do not consider demod allocation
+
 </div>
 
 ---
@@ -257,6 +260,7 @@ $$
 - Footprint area: 30,690.2 km^2
 - Elevation: 55 deg
 - Distance: 722.4 km
+- Nodes 79
 - Do not consider demod allocation
 
 </div>
@@ -273,73 +277,32 @@ $$
 - Footprint area: 30,690.2 km^2
 - Elevation: 25 deg
 - Distance: 1203.5 km
+- Nodes 79
 - Do not consider demod allocation
 
 </div>
-
-
 ---
 
-# One-Location Demod Allocator Results
-### All Elevations
 
-![bg left:60% contain](../results/one_location/one_pos/step_0/all/lrfhss_demod_24.png)
 
-<div style="margin-left:62%; font-size:0.72em;">
+# Why Each Elevation Shows 79 Users
 
-- Scenario: one location, one position, step 1
-- Decoders: 24
-- Demod states: busy 24, idle 213, sleep 0
+Current implementation in `SatelliteStepper` splits users equally across elevation bins.
 
-</div>
+Given:
 
----
+- total users at current step: $N_{\text{user}}=237$
+- number of elevation bins: $N_{\text{bins}}=3$ (90, 55, 25)
 
-# One-Location Demod Allocator Results
-### Elevation Curve (90 deg)
+Then:
 
-![bg left:60% contain](../results/one_location/one_pos/step_0/90/lrfhss_demod_8_elev90.png)
+$$
+\text{base}=\left\lfloor\frac{237}{3}\right\rfloor=79,\quad \text{remainder}=0
+$$
 
-<div style="margin-left:62%; font-size:0.72em;">
+So:
 
-- step 1
-- Nodes: 79
-- Distance: 604.6 km
-- Demod states: busy 8, idle 229, sleep 0
-
-</div>
-
----
-
-# One-Location Demod Allocator Results
-### Elevation Curve (55 deg)
-
-![bg left:60% contain](../results/one_location/one_pos/step_0/55/lrfhss_demod_25_elev55.png)
-
-<div style="margin-left:62%; font-size:0.72em;">
-
-- step 1
-- Nodes: 79
-- Distance: 721.3 km
-- Demod states: busy 25, idle 212, sleep 0
-
-</div>
-
----
-
-# One-Location Demod Allocator Results
-### Elevation Curve (25 deg)
-
-![bg left:60% contain](../results/one_location/one_pos/step_0/25/lrfhss_demod_58_elev25.png)
-
-<div style="margin-left:62%; font-size:0.72em;">
-
-- step 1
-- Nodes: 79
-- Distance: 1215.3 km
-- Demod states: busy 58, idle 179, sleep 0
-
-</div>
+- `elev90_num_users = 79`,`elev55_num_users = 79`,`elev25_num_users = 79`
 
 
 ---
@@ -395,7 +358,7 @@ $$
 # Elevation Summary Table
 ### Busy, Idle and Energy Consumption Across Steps 0-60
 
-| Elev. | Busy demods | Idle demods | Baseline (W) | Idle/demod (W) | Busy/demod (W) | Energy (W) |
+| Elev. | Busy demods | Idle demods | Circuit Power (W) | Idle/demod (W) | Busy/demod (W) | Energy (W) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | 90 | 19-20 | 152-153 | 0.002 | 0.009 | 0.100 | 3.279-3.370 |
 | 55 | 27-28 | 146-147 | 0.002 | 0.009 | 0.100 | 4.025-4.116 |

@@ -156,6 +156,35 @@ class SatelliteSimulator:
         self._sim_module = lrfhss_sim_module
         return self._sim_module
 
+    @staticmethod
+    def _create_step_map_image(
+        args: Any,
+        one_pos_output_dir: Path,
+        step_value: int,
+        sat_lat: float,
+        sat_lon: float,
+    ) -> Path | None:
+        try:
+            from map_image_by_position import create_map_image
+        except ModuleNotFoundError:
+            return None
+
+        out_map = one_pos_output_dir / "map" / f"sat_position_step_{int(step_value)}.png"
+        try:
+            created = create_map_image(
+                latitude=float(sat_lat),
+                longitude=float(sat_lon),
+                output_path=out_map,
+                population_csv=getattr(args, "population_csv", None),
+                ocean_csv=getattr(args, "ocean_csv", None),
+                include_population=True,
+                include_ocean=True,
+                title=f"Step {int(step_value)} | lat={float(sat_lat):.6f}, lon={float(sat_lon):.6f}",
+            )
+            return Path(created)
+        except Exception:
+            return None
+
     def run_lrfhss_simulator_one_step(self, args: Any, one_pos_output_dir: Path) -> dict[str, Any]:
         stepper = self._satellite_stepper
         stepper.next()
@@ -172,6 +201,7 @@ class SatelliteSimulator:
         else:
             cur_row = stepper.current()
             step_row = cur_row
+        step_value = int(step_row.get("step", current_pos.get("step", 0)) or 0)
 
         drop_mode_raw = str(getattr(args, "drop_mode", "rlydd"))
         drop_mode = "hdrdd" if drop_mode_raw == "headerdrop" else drop_mode_raw
@@ -186,6 +216,13 @@ class SatelliteSimulator:
             sys.path.insert(0, str(lrfhss_root))
 
         one_pos_output_dir.mkdir(parents=True, exist_ok=True)
+        step_map_path = self._create_step_map_image(
+            args=args,
+            one_pos_output_dir=one_pos_output_dir,
+            step_value=step_value,
+            sat_lat=sat_lat,
+            sat_lon=sat_lon,
+        )
         
         preloop_requested_use = max(
             1,
@@ -241,7 +278,7 @@ class SatelliteSimulator:
             y_min=args.y_min,
             y_max=args.y_max,
             title=(
-                f"Step {int(step_row.get('step', current_pos.get('step', 0)) or 0)} | "
+                f"Step {int(step_value)} | "
                 f"ALL | CR{int(args.coding_rate)} | decoders={int(num_decoders)} | \n"
                 f"nodes={int(requested_nodes)}\n"
                 f"demods: busy={int(preloop_demod_info['busy'])}, \n"
@@ -310,7 +347,7 @@ class SatelliteSimulator:
                     y_min=getattr(args, "y_min", None),
                     y_max=getattr(args, "y_max", 2600),
                     title=(
-                        f"Step {int(step_row.get('step', current_pos.get('step', 0)) or 0)} | \n "
+                        f"Step {int(step_value)} | \n "
                         f"Elev {int(elev)}deg | CR{int(getattr(args, 'coding_rate', 1))} | \n "
                         f"decoders={int(num_decoders)} | nodes={int(requested_nodes)}\n"
                         f"demods: busy={int(demod_info['busy'])}, idle={int(demod_info['idle'])} | \n "
@@ -320,10 +357,11 @@ class SatelliteSimulator:
                 )
 
         return {
-            "step": int(step_row.get("step", current_pos.get("step", 0)) or 0),
+            "step": int(step_value),
             "orbit_index": int(step_row.get("orbit_index", current_pos.get("orbit_index", 0)) or 0),
             "timestamp_s": float(step_row.get("timestamp_s", current_pos.get("timestamp_s", 0.0)) or 0.0),
             "timestamp_utc": str(step_row.get("timestamp_utc", "")),
+            "map_image_path": "" if step_map_path is None else str(step_map_path),
         }
 
     @staticmethod
@@ -524,6 +562,9 @@ class SatelliteSimulator:
             one_pos_step_output_dir = Path(args.one_pos_output_dir) / f"step_{step}"
             one_pos_step_output_dir.mkdir(parents=True, exist_ok=True)
             step_meta = self.run_lrfhss_simulator_one_step(args=args, one_pos_output_dir=one_pos_step_output_dir)
+            map_image_path = str(step_meta.get("map_image_path", "")).strip()
+            if map_image_path:
+                print(f"step_map_image= {map_image_path}")
             self.append_one_pos_csvs_to_output_dir(
                 one_pos_output_dir=one_pos_step_output_dir,
                 output_dir=output_dir,
