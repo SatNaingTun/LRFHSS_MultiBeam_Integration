@@ -119,29 +119,6 @@ $$
 
 ---
 
-# Demodulator Allocator Logic
-### `RecursiveReuseDemodAllocator` (`modules/demodulator_allocator.py`)
-
-State model per demodulator:
-
-- `IDLE`: no reservation.
-- `BOOKED`: reserved for upcoming payload.
-- `BUSY`: currently decoding payload.
-- `SLEEP`: entered after idle streak exceeds threshold.
-
-Allocation flow per frame request:
-
-- FIFO-RR1: prefer `IDLE` demods, then `BOOKED` demods with safe gap before next start.
-- If RR1 fails, wake one sleeping demod and retry.
-- FIFO-RR2: append behind a currently `BUSY` demod when timing does not overlap.
-
-Output used by simulator:
-
-- Snapshot counts `busy`, `booked`, `idle`, `sleep`, `total`.
-- These counts feed plot labels and power-state reporting.
-
----
-
 # Elevation Node Function
 
 
@@ -228,6 +205,7 @@ $$
 - Footprint radius: 98.8 km
 - Footprint area: 30,690.2 km^2
 - Mean user distance: 597.5 km
+- Do not consider demod allocation
 
 </div>
 
@@ -242,7 +220,7 @@ $$
 - Footprint area: 30,690.2 km^2
 - Elevation: 90 deg
 - Distance: 604.4 km
-
+- Do not consider demod allocation
 </div>
 
 ---
@@ -256,6 +234,7 @@ $$
 - Footprint area: 30,690.2 km^2
 - Elevation: 55 deg
 - Distance: 722.4 km
+- Do not consider demod allocation
 
 </div>
 
@@ -271,6 +250,71 @@ $$
 - Footprint area: 30,690.2 km^2
 - Elevation: 25 deg
 - Distance: 1203.5 km
+- Do not consider demod allocation
+
+</div>
+
+
+---
+
+# One-Location Demod Allocator Results
+### All Elevations
+
+![bg left:60% contain](../results/one_location/one_pos/step_0/all/lrfhss_demod_24.png)
+
+<div style="margin-left:62%; font-size:0.72em;">
+
+- Scenario: one location, one position, step 1
+- Decoders: 24
+- Demod states: busy 24, idle 213, sleep 0
+
+</div>
+
+---
+
+# One-Location Demod Allocator Results
+### Elevation Curve (90 deg)
+
+![bg left:60% contain](../results/one_location/one_pos/step_0/90/lrfhss_demod_8_elev90.png)
+
+<div style="margin-left:62%; font-size:0.72em;">
+
+- step 1
+- Nodes: 79
+- Distance: 604.6 km
+- Demod states: busy 8, idle 229, sleep 0
+
+</div>
+
+---
+
+# One-Location Demod Allocator Results
+### Elevation Curve (55 deg)
+
+![bg left:60% contain](../results/one_location/one_pos/step_0/55/lrfhss_demod_25_elev55.png)
+
+<div style="margin-left:62%; font-size:0.72em;">
+
+- step 1
+- Nodes: 79
+- Distance: 721.3 km
+- Demod states: busy 25, idle 212, sleep 0
+
+</div>
+
+---
+
+# One-Location Demod Allocator Results
+### Elevation Curve (25 deg)
+
+![bg left:60% contain](../results/one_location/one_pos/step_0/25/lrfhss_demod_58_elev25.png)
+
+<div style="margin-left:62%; font-size:0.72em;">
+
+- step 1
+- Nodes: 79
+- Distance: 1215.3 km
+- Demod states: busy 58, idle 179, sleep 0
 
 </div>
 
