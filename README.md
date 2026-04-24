@@ -5,6 +5,7 @@ This README only covers:
 2. `one_pos_lrfhss_sim.py`
 3. `modules/satellite_stepper.py`
 4. `one_location.py`
+5. `fixed_nodes_one_pos_lrfhss_sim.py` (fixed-position flow)
 
 ## 1) `main.py`
 `main.py` is a launcher that runs `modules/satellite_simulator.py` main flow.
@@ -97,6 +98,33 @@ python .\one_location.py --include-elev off
 python .\one_location.py --infp off
 ```
 
+## 5) `fixed_nodes_one_pos_lrfhss_sim.py` (fixed-position flow)
+Runs one-position LR-FHSS simulation with fixed node counts (dense/sparse profiles).
+
+Run:
+```powershell
+python .\fixed_nodes_one_pos_lrfhss_sim.py
+```
+
+Profiles:
+- dense (default): fixed nodes = `10000`
+- sparse: fixed nodes = `100`
+
+Useful parameters:
+- `--profile dense|sparse`
+- `--given-nodes` (override profile default)
+- `--infp on|off`
+- `--inf-demods`
+- `--elev-list`
+- `--coding-rate`, `--drop-mode`, `--metric`
+
+Examples:
+```powershell
+python .\fixed_nodes_one_pos_lrfhss_sim.py
+python .\fixed_nodes_one_pos_lrfhss_sim.py --profile sparse
+python .\fixed_nodes_one_pos_lrfhss_sim.py --given-nodes 1000 --infp on
+```
+
 ## Parameter Usage Differences
 - `main.py`:
   - Best for multi-step full pipeline.
@@ -110,3 +138,6 @@ python .\one_location.py --infp off
 - `one_location.py`:
   - Best for quick one-location execution with opinionated defaults.
   - Defaults to `steps=1`, `infp=on`, `include-elev=on`.
+- `fixed_nodes_one_pos_lrfhss_sim.py`:
+  - Best for fixed-position/fixed-node sweeps using dense/sparse presets.
+  - Supports explicit fixed-node override via `--given-nodes`.

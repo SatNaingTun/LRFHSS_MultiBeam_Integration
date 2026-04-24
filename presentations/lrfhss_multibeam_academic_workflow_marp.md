@@ -153,6 +153,47 @@ How it is used:
 - Demod allocator flow then uses `num_users` and `distance_km` to derive busy/idle/sleep behavior.
 
 
+---
+
+# Why Each Elevation Shows 79 Users
+
+Current implementation in `SatelliteStepper` splits users equally across elevation bins.
+
+Given:
+
+- total users at current step: $N_{\text{user}}=237$
+- number of elevation bins: $N_{\text{bins}}=3$ (90, 55, 25)
+
+Then:
+
+$$
+\text{base}=\left\lfloor\frac{237}{3}\right\rfloor=79,\quad \text{remainder}=0
+$$
+
+So:
+
+- `elev90_num_users = 79`,`elev55_num_users = 79`,`elev25_num_users = 79`
+
+---
+
+# Why Processing Count Changes (1000 -> 748)
+
+In LR-FHSS simulator, `node_points` means number of sampled points before integer deduplication.
+
+Process:
+
+1. Build logspace from `node_min` to `node_max` (default effectively 10 to 10000).
+2. Convert each sampled value to `int(round(v))`.
+3. Keep unique positive integers only.
+
+Result examples from current runs:
+
+- `node_points=1000` -> `748` unique nodes
+- `node_points=10000` -> `4236` unique nodes
+
+Meaning:
+
+- runtime follows **unique node count**, not raw `node_points`.
 
 ---
 
@@ -211,7 +252,7 @@ P_e(t)=P_0+N_{\text{idle},e}(t)P_{\text{idle}}+N_{\text{busy},e}(t)P_{\text{busy
 $$
 
 - Symbols: $P_e(t)$ total modeled power for elevation scenario $e$.
-- Symbols: $P_0$ baseline power, $P_{\text{idle}}$ idle demod power, $P_{\text{busy}}$ busy demod power.
+- Symbols: $P_0$ e-circuit power, $P_{\text{idle}}$ idle demod power, $P_{\text{busy}}$ busy demod power.
 - Symbols: $N_{\text{idle},e}(t)$ and $N_{\text{busy},e}(t)$ are stepwise demod state counts.
 - Current constants: $P_0=2$ mW, $P_{\text{idle}}=9$ mW, $P_{\text{busy}}=100$ mW.
 - Ref: power-state modeling basis https://tnm.engin.umich.edu/wp-content/uploads/sites/353/2017/12/2006.10.Reducing-idle-mode-power-in-software-defined-radio-terminals_ISLPED-2006.pdf
@@ -246,7 +287,6 @@ $$
 - Distance: 604.4 km
 - Nodes 79
 - Do not consider demod allocation
-
 </div>
 
 ---
@@ -281,33 +321,11 @@ $$
 - Do not consider demod allocation
 
 </div>
----
-
-
-
-# Why Each Elevation Shows 79 Users
-
-Current implementation in `SatelliteStepper` splits users equally across elevation bins.
-
-Given:
-
-- total users at current step: $N_{\text{user}}=237$
-- number of elevation bins: $N_{\text{bins}}=3$ (90, 55, 25)
-
-Then:
-
-$$
-\text{base}=\left\lfloor\frac{237}{3}\right\rfloor=79,\quad \text{remainder}=0
-$$
-
-So:
-
-- `elev90_num_users = 79`,`elev55_num_users = 79`,`elev25_num_users = 79`
 
 
 ---
 
-# Demodulator State Evidence
+# Demodulator State Results
 ### Busy/Idle vs Orbit Timestamp (90 deg)
 
 ![bg left:60% contain](../results/one_pos_satellite/plots/satellite_stepper_demodulators_90deg.png)
@@ -358,7 +376,7 @@ So:
 # Elevation Summary Table
 ### Busy, Idle and Energy Consumption Across Steps 0-60
 
-| Elev. | Busy demods | Idle demods | Circuit Power (W) | Idle/demod (W) | Busy/demod (W) | Energy (W) |
+| Elev. | Busy demods | Idle demods | Baseline (W) | Idle/demod (W) | Busy/demod (W) | Energy (W) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | 90 | 19-20 | 152-153 | 0.002 | 0.009 | 0.100 | 3.279-3.370 |
 | 55 | 27-28 | 146-147 | 0.002 | 0.009 | 0.100 | 4.025-4.116 |

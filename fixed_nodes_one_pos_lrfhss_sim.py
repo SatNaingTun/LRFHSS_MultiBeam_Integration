@@ -61,7 +61,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--drop-mode", type=str, default="rlydd", choices=["rlydd", "hdrdd", "headerdrop"])
     parser.add_argument("--runs-per-node", type=int, default=1)
     parser.add_argument("--include-lifan", action="store_true")
-    parser.add_argument("--infp", type=str, choices=["on", "off"], default="off")
+    parser.add_argument("--infp", type=str, choices=["on", "off"], default="on")
     parser.add_argument("--inf-demods", type=int, default=None)
     parser.add_argument("--node-min", type=float, default=None)
     parser.add_argument("--node-max", type=float, default=10000.0)
