@@ -119,6 +119,29 @@ $$
 
 ---
 
+# Demodulator Allocator Logic
+### `RecursiveReuseDemodAllocator` (`modules/demodulator_allocator.py`)
+
+State model per demodulator:
+
+- `IDLE`: no reservation.
+- `BOOKED`: reserved for upcoming payload.
+- `BUSY`: currently decoding payload.
+- `SLEEP`: entered after idle streak exceeds threshold.
+
+Allocation flow per frame request:
+
+- FIFO-RR1: prefer `IDLE` demods, then `BOOKED` demods with safe gap before next start.
+- If RR1 fails, wake one sleeping demod and retry.
+- FIFO-RR2: append behind a currently `BUSY` demod when timing does not overlap.
+
+Output used by simulator:
+
+- Snapshot counts `busy`, `booked`, `idle`, `sleep`, `total`.
+- These counts feed plot labels and power-state reporting.
+
+---
+
 # Elevation Node Function
 
 
