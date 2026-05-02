@@ -3,7 +3,7 @@
   "orbit_index": 2896,
   "timestamp_s": 0.0,
   "orbit_timestamp_s": 0.0,
-  "timestamp_utc": "2026-04-23T09:23:27.223781+00:00",
+  "timestamp_utc": "2026-04-27T11:37:14.670387+00:00",
   "position_m": {
     "x": 0.0,
     "y": 0.0,
@@ -55,7 +55,7 @@
     },
     "55.0": {
       "num_users": 79,
-      "distance_km": 722.3585625295589,
+      "distance_km": 722.358562529558,
       "busy_demodulators": 18,
       "idle_demodulators": 219,
       "sleep_demodulators": 0,
