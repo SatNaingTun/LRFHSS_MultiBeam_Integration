@@ -148,7 +148,7 @@ def _run(args: argparse.Namespace, fixed_nodes: int | None = None) -> int:
 
     if final_fixed_nodes is not None:
         requested_nodes = int(final_fixed_nodes)
-    output_node_suffix = f"_given_nodes{int(final_fixed_nodes)}" if args.given_nodes is not None else ""
+    output_node_suffix = f"_given_nodes{int(final_fixed_nodes)}" if final_fixed_nodes is not None else ""
 
     num_decoders = max(1, int(requested_demods))
     drop_mode = "hdrdd" if args.drop_mode == "headerdrop" else args.drop_mode
