@@ -260,7 +260,80 @@ $$
 
 ---
 
-# One-Position Decode Results
+# Sparse Decode Summary Table
+### Busy, Idle and Energy Consumption for 100 Nodes
+
+| Elev. | Busy demods | Idle demods | Baseline (W) | Idle/demod (W) | Busy/demod (W) | Energy (W) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 90 | 3 | 234 | 0.002 | 0.009 | 0.100 | 2.408 |
+| 55 | 7 | 230 | 0.002 | 0.009 | 0.100 | 2.772 |
+| 25 | 14 | 223 | 0.002 | 0.009 | 0.100 | 3.409 |
+
+---
+
+# One-Position Sparse Decode Results
+### Elevation Curves (90 deg)
+
+![bg left:60% contain](../results/one_pos_lrfhss/lrfhss_demod_237_elev90_given_nodes100.png)
+
+<div style="margin-left:62%; font-size:0.72em;">
+
+- Footprint area: 30,690.2 km^2
+- Elevation: 90 deg
+- Distance: 604.4 km
+- Nodes 100
+- Do not consider demod allocation
+
+</div>
+
+---
+
+# One-Position Sparse Decode Results
+### Elevation Curves (55 deg)
+
+![bg left:60% contain](../results/one_pos_lrfhss/lrfhss_demod_237_elev55_given_nodes100.png)
+
+<div style="margin-left:62%; font-size:0.72em;">
+
+- Footprint area: 30,690.2 km^2
+- Elevation: 55 deg
+- Distance: 722.4 km
+- Nodes 100
+- Do not consider demod allocation
+
+</div>
+
+---
+
+# One-Position Sparse Decode Results
+### Elevation Curve (25 deg)
+
+![bg left:60% contain](../results/one_pos_lrfhss/lrfhss_demod_237_elev25_given_nodes100.png)
+
+<div style="margin-left:62%; font-size:0.72em;">
+
+- Footprint area: 30,690.2 km^2
+- Elevation: 25 deg
+- Distance: 1203.5 km
+- Nodes 100
+- Do not consider demod allocation
+
+</div>
+
+---
+
+# One-Position Dense Decode Summary Table
+### Busy, Idle and Energy Consumption from One-Position LR-FHSS
+
+| Elev. | Busy demods | Idle demods | Baseline (W) | Idle/demod (W) | Busy/demod (W) | Energy (W) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 90 | 8 | 229 | 0.002 | 0.009 | 0.100 | 2.863 |
+| 55 | 18 | 219 | 0.002 | 0.009 | 0.100 | 3.773 |
+| 25 | 34 | 203 | 0.002 | 0.009 | 0.100 | 5.229 |
+
+---
+
+# One-Position Dense Decode Results
 ### Not Fixed Elevation
 
 ![bg left:60% contain](../results/one_pos_lrfhss/lrfhss_demod_237.png)
@@ -275,7 +348,7 @@ $$
 </div>
 
 ---
-# One-Position Decode Results
+# One-Position Dense Decode Results
 ### Elevation Curves (90 deg)
 
 ![bg left:60% contain](../results/one_pos_lrfhss/lrfhss_demod_237_elev90.png)
@@ -290,7 +363,7 @@ $$
 </div>
 
 ---
-# One-Position Decode Results
+# One-Position Dense Decode Results
 ### Elevation Curves (55 deg)
 
 ![bg left:60% contain](../results/one_pos_lrfhss/lrfhss_demod_237_elev55.png)
@@ -307,7 +380,7 @@ $$
 
 ---
 
-# One-Position Decode Results
+# One-Position Dense Decode Results
 ### Elevation Curve (25 deg)
 
 ![bg left:60% contain](../results/one_pos_lrfhss/lrfhss_demod_237_elev25.png)
